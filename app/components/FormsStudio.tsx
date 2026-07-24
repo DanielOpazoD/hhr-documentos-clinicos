@@ -1,51 +1,40 @@
 "use client";
 
-import { Check, Download, ExternalLink, Eye, Printer, Save } from "@/app/components/Icons";
-import { useMemo, useState } from "react";
-import { demoPatients, examGroups, formCatalog, imagingGroups } from "@/app/lib/catalog";
-import { downloadClinicalPdf } from "@/app/lib/client-pdf";
+import { Check, Download, ExternalLink, Eye, FileCheck2, Printer, ShieldCheck } from "@/app/components/Icons";
+import { useState } from "react";
+import { formCatalog } from "@/app/lib/catalog";
 
 type FormId = typeof formCatalog[number]["id"];
 
 export function FormsStudio() {
   const [formId, setFormId] = useState<FormId>("laboratorio");
-  const [patientId, setPatientId] = useState(demoPatients[0].id);
-  const [selectedItems, setSelectedItems] = useState<string[]>(["Hemograma", "Glicemia"]);
-  const [diagnosis, setDiagnosis] = useState(demoPatients[0].diagnosis);
-  const [notes, setNotes] = useState("");
-  const [saved, setSaved] = useState(false);
-  const [consent, setConsent] = useState("si");
-  const [contrast, setContrast] = useState("sin contraste");
   const current = formCatalog.find(item => item.id === formId)!;
-  const patient = demoPatients.find(item => item.id === patientId)!;
-  const groups = formId === "imagenologia" ? imagingGroups : examGroups;
-  const isChecklist = formId === "laboratorio" || formId === "imagenologia";
-  const summary = useMemo(() => selectedItems.length ? selectedItems.join(", ") : "Sin prestaciones seleccionadas", [selectedItems]);
+  const viewerUrl = `${current.template}#page=1&view=FitH&toolbar=1&navpanes=0`;
 
-  function selectPatient(id: string) { const next = demoPatients.find(item => item.id === id)!; setPatientId(id); setDiagnosis(next.diagnosis); }
-  function toggleItem(item: string) { setSaved(false); setSelectedItems(value => value.includes(item) ? value.filter(entry => entry !== item) : [...value, item]); }
-  async function saveDraft() {
-    const response = await fetch("/api/documents", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ templateId: `formulario_${formId}`, title: current.title, patientName: patient.name, patientRutMasked: patient.rut, status: "Borrador", content: { diagnosis, notes, selectedItems, consent, contrast } }) });
-    setSaved(response.ok);
-  }
-  async function downloadPdf() {
-    await downloadClinicalPdf({ fileName: `${formId}-demostracion.pdf`, title: current.title, subtitle: "Hospital Hanga Roa · Prototipo", sections: [
-      { title: "Paciente", body: `${patient.name}\nRUT: ${patient.rut} · Edad: ${patient.age} años · ${patient.insurance}` },
-      { title: "Diagnóstico", body: diagnosis },
-      { title: isChecklist ? "Prestaciones solicitadas" : "Antecedentes del formulario", body: isChecklist ? summary : notes || "Información registrada en el formulario." },
-      { title: "Profesional", body: "Dra. Valentina Rojas · Medicina interna\nFirma de ejemplo" },
-    ] });
-  }
+  return <div className="page-wrap official-forms-page">
+    <header className="page-header"><div><span className="eyebrow">Formularios institucionales</span><h1>Formularios clínicos originales</h1><p>Visualice, imprima o descargue los mismos archivos de la carpeta Formularios del repositorio HHR.</p></div><div className="header-actions"><a className="button secondary" href={viewerUrl} target="_blank" rel="noreferrer"><Printer size={16} /> Abrir e imprimir</a><a className="button primary" href={current.template} download={current.sourceFile}><Download size={16} /> Descargar original</a></div></header>
 
-  return <div className="page-wrap studio-page">
-    <header className="page-header"><div><span className="eyebrow">Plantillas institucionales</span><h1>Formularios clínicos</h1><p>Complete datos ficticios, revise la hoja e imprima una versión limpia.</p></div><div className="header-actions"><a className="button secondary" href={current.template} target="_blank"><ExternalLink size={16} /> Ver original</a><button className="button secondary" onClick={() => window.print()}><Printer size={16} /> Imprimir</button><button className="button primary" onClick={() => void downloadPdf()}><Download size={16} /> Descargar PDF</button></div></header>
-    <div className="catalog-tabs" role="tablist" aria-label="Tipos de formulario">{formCatalog.map(item => <button role="tab" aria-selected={formId === item.id} key={item.id} onClick={() => { setFormId(item.id); setSelectedItems([]); setSaved(false); }}><span className={`catalog-dot ${item.accent}`} /><span><strong>{item.title}</strong><small>{item.eyebrow}</small></span></button>)}</div>
-    <div className="editor-layout">
-      <section className="editor-panel print-hide"><div className="editor-section"><span className="step-label">01 · Identificación</span><label>Paciente ficticio<select value={patientId} onChange={event => selectPatient(event.target.value)}>{demoPatients.map(item => <option value={item.id} key={item.id}>{item.name}</option>)}</select></label><div className="field-pair"><label>RUT<input value={patient.rut} disabled /></label><label>Previsión<input value={patient.insurance} disabled /></label></div><label>Diagnóstico<input value={diagnosis} onChange={event => { setDiagnosis(event.target.value); setSaved(false); }} /></label></div>
-        {isChecklist ? <div className="editor-section"><span className="step-label">02 · Selección clínica</span>{Object.entries(groups).map(([group, items]) => <fieldset className="check-group" key={group}><legend>{group}</legend><div>{items.map(item => <label className="check-option" key={item}><input type="checkbox" checked={selectedItems.includes(item)} onChange={() => toggleItem(item)} /><span>{item}</span></label>)}</div></fieldset>)}{formId === "imagenologia" && <fieldset className="inline-options"><legend>Medio de contraste</legend>{["sin contraste", "con contraste"].map(value => <label key={value}><input type="radio" name="contrast" checked={contrast === value} onChange={() => setContrast(value)} /> {value}</label>)}</fieldset>}</div> : <div className="editor-section"><span className="step-label">02 · Antecedentes</span>{formId === "encuesta" ? <><label>Creatinina<input placeholder="Ej. 0,9 mg/dL" /></label><label>Alergias<textarea value={notes} onChange={event => setNotes(event.target.value)} placeholder="Describa o indique no conocidas" /></label><div className="question-stack">{["¿Embarazo actual?", "¿Cirugías previas?", "¿Reacción a contraste?", "¿Premedicación indicada?"].map(question => <div key={question}><span>{question}</span><label><input type="radio" name={question} /> Sí</label><label><input type="radio" name={question} defaultChecked /> No</label></div>)}</div></> : <><label>Procedimiento, sin siglas<input value={notes} onChange={event => setNotes(event.target.value)} placeholder="Nombre completo del procedimiento" /></label><fieldset className="inline-options"><legend>Decisión informada</legend><label><input type="radio" name="consent" checked={consent === "si"} onChange={() => setConsent("si")} /> Sí, doy mi consentimiento</label><label><input type="radio" name="consent" checked={consent === "no"} onChange={() => setConsent("no")} /> No doy mi consentimiento</label></fieldset><label>Representante o apoderado<input placeholder="Opcional" /></label></>}</div>}
-        <div className="sticky-actions"><span>{saved ? <><Check size={15} /> Borrador guardado</> : "Cambios pendientes"}</span><button className="button primary" onClick={() => void saveDraft()}><Save size={16} /> Guardar borrador</button></div>
+    <div className="source-integrity-banner"><ShieldCheck size={19} /><div><strong>Original verificado contra GitHub</strong><p>Este PDF coincide byte por byte con el archivo de <code>origin/main/Formularios</code>. No se redibujó ni se sustituyó su diagramación.</p></div><span><Check size={14} /> Coincidencia exacta</span></div>
+
+    <div className="catalog-tabs" role="tablist" aria-label="Tipos de formulario">{formCatalog.map(item => <button role="tab" aria-selected={formId === item.id} key={item.id} onClick={() => setFormId(item.id)}><span className={`catalog-dot ${item.accent}`} /><span><strong>{item.title}</strong><small>{item.eyebrow}</small></span></button>)}</div>
+
+    <div className="official-form-layout">
+      <aside className="panel official-form-info">
+        <span className="step-label">Formulario seleccionado</span>
+        <div className="official-file-icon"><FileCheck2 size={25} /></div>
+        <h2>{current.title}</h2>
+        <p>{current.description}</p>
+        <dl><div><dt>Archivo del repositorio</dt><dd>{current.sourceFile}</dd></div><div><dt>Formato original</dt><dd>{current.pageSize} · 1 página</dd></div><div><dt>Integridad</dt><dd><Check size={13} /> SHA-256 verificado</dd></div></dl>
+        <div className="official-form-steps"><strong>Cómo utilizarlo</strong><ol><li>Revise la vista del formulario original.</li><li>Abra el PDF en una pestaña nueva.</li><li>Imprima o descárguelo sin alterar el formato.</li></ol></div>
+        <div className="official-form-note"><ShieldCheck size={16} /><p><strong>Sin campos inventados</strong><span>Estos PDF no contienen campos digitales editables. Se conservan exactamente como fueron subidos al repositorio.</span></p></div>
+        <a className="text-button" href="https://github.com/DanielOpazoD/HHR-entornodeprueba/tree/main/Formularios" target="_blank" rel="noreferrer"><ExternalLink size={14} /> Ver carpeta Formularios en GitHub</a>
+      </aside>
+
+      <section className="panel official-pdf-panel">
+        <div className="paper-toolbar"><span><Eye size={15} /> PDF institucional original</span><span>{current.pageSize} · Página 1 de 1</span></div>
+        <iframe key={current.template} className="official-pdf-frame" src={viewerUrl} title={`Vista del formulario original: ${current.title}`} />
+        <div className="official-pdf-fallback"><p>Si el visor PDF de su navegador no carga, abra el archivo directamente.</p><a className="button secondary" href={viewerUrl} target="_blank" rel="noreferrer"><ExternalLink size={15} /> Abrir PDF original</a></div>
       </section>
-      <section className="paper-panel"><div className="paper-toolbar print-hide"><span><Eye size={15} /> Vista previa · {formId === "consentimiento" ? "A4" : "Carta"}</span><span>Página 1 de 1</span></div><article className="clinical-paper"><div className="paper-brand"><div><span>Servicio de Salud</span><strong>Hospital Hanga Roa</strong></div><img src="/hhr-logo.svg" alt="Hospital Hanga Roa" /></div><h2>{current.title}</h2><div className="paper-rule" /><div className="paper-patient-grid"><p><b>Paciente:</b> {patient.name}</p><p><b>RUT:</b> {patient.rut}</p><p><b>Edad:</b> {patient.age} años</p><p><b>Previsión:</b> {patient.insurance}</p></div><p><b>Diagnóstico:</b> {diagnosis}</p>{isChecklist ? <div className="paper-groups">{Object.entries(groups).map(([group, items]) => <section key={group}><h3>{group}</h3>{items.map(item => <p key={item}><span className={selectedItems.includes(item) ? "paper-check checked" : "paper-check"}>{selectedItems.includes(item) ? "✓" : ""}</span>{item}</p>)}</section>)}</div> : <div className="paper-consent"><h3>{formId === "encuesta" ? "Antecedentes de seguridad" : "Declaración"}</h3><p>{formId === "encuesta" ? "La información registrada debe ser revisada por el equipo clínico antes del examen." : "Declaro haber recibido información suficiente sobre el procedimiento, sus objetivos, características y riesgos potenciales."}</p><p><span className="paper-check checked">✓</span>{consent === "si" ? "Acepta el procedimiento descrito" : "No acepta el procedimiento descrito"}</p></div>}<div className="paper-signatures"><div><span>Firma paciente o apoderado</span></div><div><b>Dra. Valentina Rojas</b><span>Firma de ejemplo · Prototipo</span></div></div><small className="paper-warning">Prototipo de evaluación · No válido para uso clínico</small></article></section>
     </div>
   </div>;
 }

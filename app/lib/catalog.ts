@@ -5,10 +5,10 @@ export const demoPatients = [
 ];
 
 export const formCatalog = [
-  { id: "laboratorio", title: "Solicitud de laboratorio", eyebrow: "Policlínico", description: "Bioquímica, hematología, coagulación y más", template: "/templates/laboratorio.pdf", accent: "cyan" },
-  { id: "imagenologia", title: "Solicitud de imagenología", eyebrow: "Radiología", description: "Radiología simple, TAC, ecografía y mamografía", template: "/templates/imagenologia.pdf", accent: "navy" },
-  { id: "encuesta", title: "Encuesta de contraste", eyebrow: "Seguridad", description: "Antecedentes, alergias, creatinina y ayuno", template: "/templates/encuesta-imagenologia.pdf", accent: "amber" },
-  { id: "consentimiento", title: "Consentimiento informado", eyebrow: "General", description: "Procedimiento, aceptación, representante y firmas", template: "/templates/consentimiento.pdf", accent: "green" },
+  { id: "laboratorio", title: "Solicitud de laboratorio", eyebrow: "Policlínico", description: "Formulario original de exámenes de laboratorio del Policlínico HHR.", template: "/templates/laboratorio.pdf", sourceFile: "Solicitud de examen de laboratorio policlinico.pdf", pageSize: "Carta", sha256: "0fabdedcf24914f00af09a99b30b7f4d4f7a66509671996dc771ff1c31219921", accent: "cyan" },
+  { id: "imagenologia", title: "Solicitud de imagenología", eyebrow: "Radiología", description: "Formulario original de radiología, scanner, ecografía y mamografía.", template: "/templates/imagenologia.pdf", sourceFile: "Solicit-imagen.pdf", pageSize: "612 × 936 pt", sha256: "8561373bdbf0160dd0afb8e129148976513be83e403907a057ae3ef2a929c0c9", accent: "navy" },
+  { id: "encuesta", title: "Encuesta de imagenología", eyebrow: "Seguridad", description: "Encuesta original de antecedentes y seguridad para medios de contraste.", template: "/templates/encuesta-imagenologia.pdf", sourceFile: "Encuestaimagen.pdf", pageSize: "Carta", sha256: "dc59fb93bff9a2e3d9cd460e4767fa9aa07f31bd4c2186c3c5aa925bbe87cc0d", accent: "amber" },
+  { id: "consentimiento", title: "Consentimiento informado", eyebrow: "General", description: "Consentimiento informado general original del Hospital Hanga Roa.", template: "/templates/consentimiento.pdf", sourceFile: "consentimiento.pdf", pageSize: "A4", sha256: "aa4f2679a437020e82f10f794ad9b74c812cd76c0e22f5a2ae1c7df875509cb2", accent: "green" },
 ] as const;
 
 export const documentTemplates = [
