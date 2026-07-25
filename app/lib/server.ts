@@ -3,6 +3,8 @@ import { env } from "cloudflare:workers";
 type AppEnv = {
   DB: D1Database;
   FILES: R2Bucket;
+  OPENAI_API_KEY?: string;
+  OPENAI_MODEL?: string;
 };
 
 const schemaStatements = [
