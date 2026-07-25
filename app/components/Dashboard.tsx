@@ -28,11 +28,10 @@ export function Dashboard() {
   return <div className="page-wrap dashboard-page">
     <section className="hero-row">
       <div><span className="eyebrow">Centro documental clínico</span><h1>Buenos días, doctora.</h1><p>Cree, revise, imprima y respalde documentos desde un solo lugar.</p></div>
-      <div className="hero-status"><span className="status-dot" /><div><strong>Modo prototipo</strong><small>Entorno privado · Datos ficticios</small></div></div>
     </section>
 
     <section aria-labelledby="quick-title">
-      <div className="section-heading"><div><span className="eyebrow">Comenzar</span><h2 id="quick-title">¿Qué necesita hacer?</h2></div><span className="secure-copy"><FileCheck2 size={15} /> Revisión humana obligatoria</span></div>
+      <div className="section-heading"><div><span className="eyebrow">Comenzar</span><h2 id="quick-title">¿Qué necesita hacer?</h2></div></div>
       <div className="action-grid">{actions.map(action => { const Icon = action.icon; return <Link href={action.href} key={action.href} className={`action-card ${action.tone}`}><span className="action-icon"><Icon size={22} /></span><span className="eyebrow">{action.eyebrow}</span><h3>{action.title}</h3><p>{action.text}</p><span className="card-link">Abrir <ArrowRight size={15} /></span></Link>; })}</div>
     </section>
 

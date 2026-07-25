@@ -10,6 +10,15 @@ export async function GET(request: Request) {
   const owner = requestOwner(request);
   if (!owner) return jsonError("Autenticación requerida.", 401);
   const db = await ensureDatabase();
+  const id = new URL(request.url).searchParams.get("id");
+  if (id) {
+    const document = await db.prepare(`SELECT id, template_id AS templateId, title, patient_name AS patientName, patient_rut_masked AS patientRutMasked, status, content_json AS contentJson, version, updated_at AS updatedAt FROM documents WHERE id = ? AND owner_email = ?`).bind(id, owner).first<Record<string, unknown>>();
+    if (!document) return jsonError("Documento no encontrado.", 404);
+    const { contentJson, ...metadata } = document;
+    let content: unknown = {};
+    try { content = JSON.parse(String(contentJson ?? "{}")); } catch { content = {}; }
+    return Response.json({ document: { ...metadata, content } });
+  }
   const result = await db.prepare(`SELECT id, template_id AS templateId, title, patient_name AS patientName, patient_rut_masked AS patientRutMasked, status, version, updated_at AS updatedAt FROM documents WHERE owner_email = ? ORDER BY updated_at DESC LIMIT 30`).bind(owner).all();
   return Response.json({ documents: result.results.length ? result.results : demoDocuments });
 }

@@ -30,11 +30,10 @@ export async function AppFrame({ active, children }: { active: string; children:
             return <Link key={item.href} href={item.href} className={current ? "nav-link active" : "nav-link"} aria-current={current ? "page" : undefined}><Icon size={18} /><span>{item.label}</span></Link>;
           })}
         </nav>
-        <div className="prototype-note"><span className="status-dot" />Modo prototipo<small>No ingresar datos reales.</small></div>
         <div className="user-card"><span>{user.displayName.slice(0, 2).toUpperCase()}</span><div><strong>{user.displayName}</strong><small>Sesión privada</small></div></div>
       </aside>
       <main className="main-area">
-        <header className="mobile-bar print-hide"><Link href="/" className="mobile-brand"><Image src="/hhr-logo.svg" alt="" width={30} height={30} /> HHR Documentos</Link><span>Prototipo</span></header>
+        <header className="mobile-bar print-hide"><Link href="/" className="mobile-brand"><Image src="/hhr-logo.svg" alt="" width={30} height={30} /> HHR Documentos</Link></header>
         {children}
         <nav className="mobile-nav print-hide" aria-label="Navegación móvil">
           {nav.slice(0, 5).map(item => { const Icon = item.icon; return <Link key={item.href} href={item.href} aria-label={item.label} className={item.label === active ? "active" : ""}><Icon size={19} /><small>{item.label === "Asistente IA" ? "IA" : item.label}</small></Link>; })}

@@ -13,7 +13,7 @@ test("builds the clinical document workspace without starter artifacts", async (
   assert.match(layout, /HHR Documentos/);
   assert.match(layout, /Centro privado para crear/);
   assert.match(dashboard, /Centro documental clínico/);
-  assert.match(dashboard, /Entorno privado · Datos ficticios/);
+  assert.match(dashboard, /Cree, revise, imprima y respalde/);
   assert.doesNotMatch(`${layout}${dashboard}${packageJson}`, /codex-preview|react-loading-skeleton|Your site is taking shape/i);
 });
 
@@ -34,14 +34,22 @@ test("ships the clinical routes, storage bindings and source templates", async (
   ];
   await Promise.all(required.map(path => access(new URL(path, import.meta.url))));
 
-  const [hosting, scanner, mobileUpload] = await Promise.all([
+  const [hosting, scanner, mobileCapture, scanProcessing, mobileUpload] = await Promise.all([
     readFile(new URL("../.openai/hosting.json", import.meta.url), "utf8"),
     readFile(new URL("../app/components/ScannerDesk.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/components/MobileCapture.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/lib/scan-processing.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/api/mobile-upload/[token]/route.ts", import.meta.url), "utf8"),
   ]);
   assert.match(hosting, /"d1"\s*:\s*"DB"/);
   assert.match(hosting, /"r2"\s*:\s*"FILES"/);
   assert.match(scanner, /10 \* 60 \* 1000/);
+  assert.match(mobileCapture, /getUserMedia/);
+  assert.match(mobileCapture, /Editar bordes y estilo/);
+  assert.match(mobileCapture, /Esquina \$\{index \+ 1\}/);
+  assert.match(scanProcessing, /renderScannedPage/);
+  assert.match(scanProcessing, /uniform int u_filter/);
+  assert.match(scanProcessing, /DEFAULT_SCAN_CORNERS/);
   assert.match(mobileUpload, /15 \* 1024 \* 1024/);
   assert.match(mobileUpload, /FILES\.put/);
 });
@@ -73,7 +81,9 @@ test("keeps the clinical studios usable from mobile through desktop", async () =
   assert.match(documentStudio, /aria-label="Vista del documento"/);
   assert.match(documentStudio, /aria-controls="document-editor"/);
   assert.match(documentStudio, /aria-controls="document-preview"/);
-  assert.match(documentStudio, /formatStoredDate\(patient\.birthDate\)/);
+  assert.match(documentStudio, /formatStoredDate\(displayedPatient\.birthDate\)/);
+  assert.match(documentStudio, /Documentos recientes/);
+  assert.match(documentStudio, /api\/documents\?id=/);
   assert.match(styles, /@media \(max-width: 1240px\)/);
   assert.match(styles, /\.document-editor-layout > \.mobile-hidden \{ display: none; \}/);
   assert.match(styles, /\.page-header > \*, \.hero-row > \*.*min-width: 0;/);
