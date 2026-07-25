@@ -15,11 +15,13 @@ const schemaStatements = [
   `CREATE TABLE IF NOT EXISTS document_versions (id TEXT PRIMARY KEY, document_id TEXT NOT NULL, owner_email TEXT NOT NULL, version INTEGER NOT NULL, content_json TEXT NOT NULL, created_at TEXT NOT NULL)`,
   `CREATE TABLE IF NOT EXISTS files (id TEXT PRIMARY KEY, owner_email TEXT NOT NULL, object_key TEXT NOT NULL, name TEXT NOT NULL, mime_type TEXT NOT NULL, size INTEGER NOT NULL, origin TEXT NOT NULL, status TEXT NOT NULL, patient_id TEXT, created_at TEXT NOT NULL, updated_at TEXT NOT NULL)`,
   `CREATE TABLE IF NOT EXISTS document_files (id TEXT PRIMARY KEY, document_id TEXT NOT NULL, file_id TEXT NOT NULL, created_at TEXT NOT NULL)`,
+  `CREATE TABLE IF NOT EXISTS signatures (id TEXT PRIMARY KEY, owner_email TEXT NOT NULL, professional_name TEXT NOT NULL, professional_rut TEXT NOT NULL, specialty TEXT NOT NULL, object_key TEXT NOT NULL, mime_type TEXT NOT NULL, size INTEGER NOT NULL, created_at TEXT NOT NULL, updated_at TEXT NOT NULL)`,
   `CREATE TABLE IF NOT EXISTS mobile_upload_sessions (id TEXT PRIMARY KEY, owner_email TEXT NOT NULL, token_hash TEXT NOT NULL UNIQUE, expires_at TEXT NOT NULL, status TEXT NOT NULL, created_at TEXT NOT NULL, updated_at TEXT NOT NULL)`,
   `CREATE TABLE IF NOT EXISTS ai_import_runs (id TEXT PRIMARY KEY, owner_email TEXT NOT NULL, source_name TEXT NOT NULL, target_type TEXT NOT NULL, status TEXT NOT NULL, created_at TEXT NOT NULL)`,
   `CREATE TABLE IF NOT EXISTS audit_events (id TEXT PRIMARY KEY, owner_email TEXT NOT NULL, action TEXT NOT NULL, entity_type TEXT NOT NULL, entity_id TEXT NOT NULL, metadata_json TEXT NOT NULL, created_at TEXT NOT NULL)`,
   `CREATE INDEX IF NOT EXISTS documents_owner_updated_idx ON documents(owner_email, updated_at DESC)`,
   `CREATE INDEX IF NOT EXISTS files_owner_created_idx ON files(owner_email, created_at DESC)`,
+  `CREATE INDEX IF NOT EXISTS signatures_owner_updated_idx ON signatures(owner_email, updated_at DESC)`,
   `CREATE INDEX IF NOT EXISTS sessions_token_idx ON mobile_upload_sessions(token_hash)`,
 ];
 

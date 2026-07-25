@@ -72,6 +72,18 @@ export const documentFiles = sqliteTable("document_files", {
   createdAt: text("created_at").notNull(),
 });
 
+export const signatures = sqliteTable("signatures", {
+  id: text("id").primaryKey(),
+  ownerEmail: text("owner_email").notNull(),
+  professionalName: text("professional_name").notNull(),
+  professionalRut: text("professional_rut").notNull(),
+  specialty: text("specialty").notNull(),
+  objectKey: text("object_key").notNull(),
+  mimeType: text("mime_type").notNull(),
+  size: integer("size").notNull(),
+  ...timestamps,
+});
+
 export const mobileUploadSessions = sqliteTable("mobile_upload_sessions", {
   id: text("id").primaryKey(),
   ownerEmail: text("owner_email").notNull(),

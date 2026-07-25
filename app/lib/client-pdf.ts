@@ -3,8 +3,9 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
 type PdfSection = { title: string; body: string };
+type PdfSignature = { imageUrl: string; professionalName: string; professionalRut: string; specialty: string; x: number; y: number; width: number };
 
-export async function downloadClinicalPdf(options: { fileName: string; title: string; subtitle?: string; sections: PdfSection[]; footer?: string }) {
+export async function downloadClinicalPdf(options: { fileName: string; title: string; subtitle?: string; sections: PdfSection[]; footer?: string; signature?: PdfSignature }) {
   const { jsPDF } = await loadJsPdf();
   const pdf = new jsPDF({ orientation: "portrait", unit: "pt", format: "letter" });
   const left = 64;
@@ -39,12 +40,47 @@ export async function downloadClinicalPdf(options: { fileName: string; title: st
     pdf.text(lines, left, y, { lineHeightFactor: 1.45 });
     y += lines.length * 15 + 22;
   }
+  if (options.signature) {
+    const signatureImage = await imageData(options.signature.imageUrl);
+    const signatureWidth = Math.max(90, Math.min(210, 612 * options.signature.width / 100));
+    const signatureHeight = Math.min(74, signatureWidth / signatureImage.ratio);
+    const signatureX = Math.max(24, Math.min(612 - signatureWidth - 24, 612 * options.signature.x / 100 - signatureWidth / 2));
+    const signatureY = Math.max(430, Math.min(635, 792 * options.signature.y / 100));
+    pdf.addImage(signatureImage.dataUrl, signatureImage.format, signatureX, signatureY, signatureWidth, signatureHeight, undefined, "FAST");
+    pdf.setFont("helvetica", "bold");
+    pdf.setFontSize(8.5);
+    pdf.setTextColor(31, 41, 45);
+    pdf.text(options.signature.professionalName, signatureX + signatureWidth / 2, signatureY + signatureHeight + 11, { align: "center" });
+    pdf.setFont("helvetica", "normal");
+    pdf.setFontSize(7.5);
+    const detail = [options.signature.specialty, options.signature.professionalRut ? `RUT: ${options.signature.professionalRut}` : ""].filter(Boolean).join(" · ");
+    if (detail) pdf.text(detail, signatureX + signatureWidth / 2, signatureY + signatureHeight + 22, { align: "center" });
+  }
   pdf.setDrawColor(207, 216, 218);
   pdf.line(left, 700, left + width, 700);
   pdf.setFontSize(8.5);
   pdf.setTextColor(90, 102, 108);
   pdf.text(options.footer ?? "Prototipo de evaluación · Documento no válido para uso clínico", 306, 722, { align: "center" });
   pdf.save(options.fileName);
+}
+
+async function imageData(url: string) {
+  const response = await fetch(url);
+  if (!response.ok) throw new Error("No se pudo incluir la firma en el PDF.");
+  const blob = await response.blob();
+  const dataUrl = await new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result));
+    reader.onerror = () => reject(new Error("No se pudo leer la firma."));
+    reader.readAsDataURL(blob);
+  });
+  const ratio = await new Promise<number>((resolve, reject) => {
+    const image = new Image();
+    image.onload = () => resolve(Math.max(.5, image.naturalWidth / Math.max(1, image.naturalHeight)));
+    image.onerror = () => reject(new Error("La imagen de firma no es válida."));
+    image.src = dataUrl;
+  });
+  return { dataUrl, ratio, format: blob.type === "image/png" ? "PNG" : "JPEG" };
 }
 
 let jsPdfPromise: Promise<{ jsPDF: any }> | null = null;

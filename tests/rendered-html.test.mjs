@@ -25,6 +25,8 @@ test("ships the clinical routes, storage bindings and source templates", async (
     "../app/escaner/page.tsx",
     "../app/ia/page.tsx",
     "../app/conexiones/page.tsx",
+    "../app/api/signatures/route.ts",
+    "../app/api/signatures/[id]/route.ts",
     "../public/templates/laboratorio.pdf",
     "../public/templates/imagenologia.pdf",
     "../public/templates/encuesta-imagenologia.pdf",
@@ -68,7 +70,9 @@ test("uses byte-identical PDFs from origin/main/Formularios", async () => {
 
   const studio = await readFile(new URL("../app/components/FormsStudio.tsx", import.meta.url), "utf8");
   assert.match(studio, /className="official-pdf-frame"/);
-  assert.match(studio, /Descargar original/);
+  assert.match(studio, /forms-navigation/);
+  assert.match(studio, /Descargar/);
+  assert.doesNotMatch(studio, /GitHub|origin\/main|SHA-256|Sin campos inventados|Cómo utilizarlo/);
   assert.doesNotMatch(studio, /clinical-paper|downloadClinicalPdf|Prestaciones solicitadas/);
 });
 
@@ -81,9 +85,14 @@ test("keeps the clinical studios usable from mobile through desktop", async () =
   assert.match(documentStudio, /aria-label="Vista del documento"/);
   assert.match(documentStudio, /aria-controls="document-editor"/);
   assert.match(documentStudio, /aria-controls="document-preview"/);
-  assert.match(documentStudio, /formatStoredDate\(displayedPatient\.birthDate\)/);
-  assert.match(documentStudio, /Documentos recientes/);
+  assert.match(documentStudio, /patient-manual-grid/);
+  assert.match(documentStudio, /Fecha de nacimiento/);
+  assert.match(documentStudio, /signature-library/);
+  assert.match(documentStudio, /Arrastre la firma en la hoja/);
+  assert.match(documentStudio, /recent-document-list/);
+  assert.doesNotMatch(documentStudio, /<select/);
   assert.match(documentStudio, /api\/documents\?id=/);
+  assert.match(documentStudio, /api\/signatures/);
   assert.match(styles, /@media \(max-width: 1240px\)/);
   assert.match(styles, /\.document-editor-layout > \.mobile-hidden \{ display: none; \}/);
   assert.match(styles, /\.page-header > \*, \.hero-row > \*.*min-width: 0;/);
