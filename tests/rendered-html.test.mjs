@@ -63,3 +63,18 @@ test("uses byte-identical PDFs from origin/main/Formularios", async () => {
   assert.match(studio, /Descargar original/);
   assert.doesNotMatch(studio, /clinical-paper|downloadClinicalPdf|Prestaciones solicitadas/);
 });
+
+test("keeps the clinical studios usable from mobile through desktop", async () => {
+  const [documentStudio, styles] = await Promise.all([
+    readFile(new URL("../app/components/DocumentStudio.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/globals.css", import.meta.url), "utf8"),
+  ]);
+
+  assert.match(documentStudio, /aria-label="Vista del documento"/);
+  assert.match(documentStudio, /aria-controls="document-editor"/);
+  assert.match(documentStudio, /aria-controls="document-preview"/);
+  assert.match(documentStudio, /formatStoredDate\(patient\.birthDate\)/);
+  assert.match(styles, /@media \(max-width: 1240px\)/);
+  assert.match(styles, /\.document-editor-layout > \.mobile-hidden \{ display: none; \}/);
+  assert.match(styles, /\.page-header > \*, \.hero-row > \*.*min-width: 0;/);
+});
