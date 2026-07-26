@@ -27,17 +27,17 @@ export function Dashboard() {
 
   return <div className="page-wrap dashboard-page">
     <section className="hero-row">
-      <div><span className="eyebrow">Centro documental clínico</span><h1>Buenos días, doctora.</h1><p>Cree, revise, imprima y respalde documentos desde un solo lugar.</p></div>
+      <div><span className="eyebrow">Centro documental clínico</span><h1>¿Qué necesita hacer?</h1><p>Cree, revise, imprima y respalde documentos desde un solo lugar.</p></div>
     </section>
 
     <section aria-labelledby="quick-title">
-      <div className="section-heading"><div><span className="eyebrow">Comenzar</span><h2 id="quick-title">¿Qué necesita hacer?</h2></div></div>
+      <div className="section-heading"><div><span className="eyebrow">Comenzar</span><h2 id="quick-title">Acciones principales</h2></div></div>
       <div className="action-grid">{actions.map(action => { const Icon = action.icon; return <Link href={action.href} key={action.href} className={`action-card ${action.tone}`}><span className="action-icon"><Icon size={22} /></span><span className="eyebrow">{action.eyebrow}</span><h3>{action.title}</h3><p>{action.text}</p><span className="card-link">Abrir <ArrowRight size={15} /></span></Link>; })}</div>
     </section>
 
     <div className="dashboard-columns">
       <section className="panel" aria-labelledby="recent-documents"><div className="panel-header"><div><span className="eyebrow">Actividad</span><h2 id="recent-documents">Documentos recientes</h2></div><Link href="/documentos">Ver todos</Link></div>
-        <div className="document-list">{documents.slice(0, 4).map(doc => <Link href={`/documentos?document=${encodeURIComponent(doc.id)}`} className="document-row" key={doc.id}><span className="file-glyph"><FileCheck2 size={18} /></span><span className="document-main"><strong>{doc.title}</strong><small>{doc.patientName} · {doc.patientRutMasked}</small></span><span className={`status-pill ${doc.status.toLowerCase()}`}>{doc.status}</span><span className="document-time">v{doc.version}<small><Clock3 size={12} /> {new Date(doc.updatedAt).toLocaleDateString("es-CL")}</small></span></Link>)}</div>
+        <div className="document-list">{documents.slice(0, 4).map(doc => <Link href={`/documentos?document=${encodeURIComponent(doc.id)}`} className="document-row" key={doc.id}><span className="file-glyph"><FileCheck2 size={18} /></span><span className="document-main"><strong>{doc.title}</strong>{doc.patientName ? <small>{[doc.patientName, doc.patientRutMasked].filter(Boolean).join(" · ")}</small> : null}</span><span className={`status-pill ${doc.status.toLowerCase()}`}>{doc.status}</span><span className="document-time">v{doc.version}<small><Clock3 size={12} /> {new Date(doc.updatedAt).toLocaleDateString("es-CL")}</small></span></Link>)}</div>
       </section>
       <section className="panel" aria-labelledby="recent-files"><div className="panel-header"><div><span className="eyebrow">Respaldo</span><h2 id="recent-files">Recibidos desde celular</h2></div><Link href="/archivos">Biblioteca</Link></div>
         {files.length ? <div className="file-mini-list">{files.filter(file => file.origin === "QR móvil").slice(0, 4).map(file => <a href={`/api/files/${file.id}`} target="_blank" key={file.id}><span><FolderOpen size={17} /></span><div><strong>{file.name}</strong><small>{formatBytes(file.size)} · {new Date(file.createdAt).toLocaleDateString("es-CL")}</small></div></a>)}</div> : <div className="empty-state compact"><ScanLine size={28} /><strong>Aún no hay capturas</strong><p>Cree un QR temporal para recibir documentos.</p><Link href="/escaner">Iniciar escáner</Link></div>}

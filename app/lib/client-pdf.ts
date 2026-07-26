@@ -2,10 +2,12 @@
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
+import { clampSignatureY } from "./document-layout";
+
 type PdfSection = { title: string; body: string };
 type PdfSignature = { imageUrl: string; professionalName: string; professionalRut: string; specialty: string; x: number; y: number; width: number };
 
-export async function downloadClinicalPdf(options: { fileName: string; title: string; subtitle?: string; sections: PdfSection[]; footer?: string; signature?: PdfSignature }) {
+export async function downloadClinicalPdf(options: { fileName: string; title: string; subtitle?: string | string[]; sections: PdfSection[]; date?: string; footer?: string; signature?: PdfSignature }) {
   const { jsPDF } = await loadJsPdf();
   const pdf = new jsPDF({ orientation: "portrait", unit: "pt", format: "letter" });
   const left = 64;
@@ -16,11 +18,13 @@ export async function downloadClinicalPdf(options: { fileName: string; title: st
   pdf.setFontSize(17);
   pdf.text(options.title.toUpperCase(), 306, y, { align: "center" });
   if (options.subtitle) {
-    y += 23;
+    const subtitleLines = Array.isArray(options.subtitle) ? options.subtitle : [options.subtitle];
+    y += 20;
     pdf.setFont("helvetica", "normal");
     pdf.setFontSize(9);
     pdf.setTextColor(82, 103, 112);
-    pdf.text(options.subtitle, 306, y, { align: "center" });
+    pdf.text(subtitleLines, 306, y, { align: "center", lineHeightFactor: 1.35 });
+    y += (subtitleLines.length - 1) * 12;
   }
   y += 28;
   pdf.setDrawColor(207, 216, 218);
@@ -45,7 +49,7 @@ export async function downloadClinicalPdf(options: { fileName: string; title: st
     const signatureWidth = Math.max(90, Math.min(210, 612 * options.signature.width / 100));
     const signatureHeight = Math.min(74, signatureWidth / signatureImage.ratio);
     const signatureX = Math.max(24, Math.min(612 - signatureWidth - 24, 612 * options.signature.x / 100 - signatureWidth / 2));
-    const signatureY = Math.max(430, Math.min(635, 792 * options.signature.y / 100));
+    const signatureY = pdf.internal.pageSize.getHeight() * clampSignatureY(options.signature.y) / 100;
     pdf.addImage(signatureImage.dataUrl, signatureImage.format, signatureX, signatureY, signatureWidth, signatureHeight, undefined, "FAST");
     pdf.setFont("helvetica", "bold");
     pdf.setFontSize(8.5);
@@ -60,7 +64,13 @@ export async function downloadClinicalPdf(options: { fileName: string; title: st
   pdf.line(left, 700, left + width, 700);
   pdf.setFontSize(8.5);
   pdf.setTextColor(90, 102, 108);
-  pdf.text(options.footer ?? "Prototipo de evaluación · Documento no válido para uso clínico", 306, 722, { align: "center" });
+  pdf.text(options.footer ?? "Hospital Hanga Roa", 306, 722, { align: "center" });
+  if (options.date) {
+    pdf.setFont("helvetica", "normal");
+    pdf.setFontSize(9);
+    pdf.setTextColor(31, 41, 45);
+    pdf.text(`Fecha: ${options.date}`, left + width, 746, { align: "right" });
+  }
   pdf.save(options.fileName);
 }
 
@@ -129,7 +139,7 @@ async function normalizedImage(file: File, rotation: number) {
   context.translate(canvas.width / 2, canvas.height / 2);
   context.rotate(turns * Math.PI / 180);
   context.drawImage(image, -image.naturalWidth / 2, -image.naturalHeight / 2);
-  return { dataUrl: canvas.toDataURL("image/jpeg", 0.9), width: canvas.width, height: canvas.height };
+  return { dataUrl: canvas.toDataURL("image/jpeg", 0.95), width: canvas.width, height: canvas.height };
 }
 
 export async function createScannedPdf(pages: Array<{ file: File; rotation: number }>) {
@@ -143,11 +153,11 @@ export async function createScannedPdf(pages: Array<{ file: File; rotation: numb
     else if (landscape) { pdf.deletePage(1); pdf.addPage("a4", "landscape"); }
     const pageWidth = pdf.internal.pageSize.getWidth();
     const pageHeight = pdf.internal.pageSize.getHeight();
-    const margin = 22;
+    const margin = 12;
     const scale = Math.min((pageWidth - margin * 2) / image.width, (pageHeight - margin * 2) / image.height);
     const width = image.width * scale;
     const height = image.height * scale;
-    pdf.addImage(image.dataUrl, "JPEG", (pageWidth - width) / 2, (pageHeight - height) / 2, width, height, undefined, "FAST");
+    pdf.addImage(image.dataUrl, "JPEG", (pageWidth - width) / 2, (pageHeight - height) / 2, width, height, undefined, "SLOW");
   }
   return pdf.output("blob") as Blob;
 }

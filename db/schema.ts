@@ -1,4 +1,5 @@
-import { integer, sqliteTable, text } from "drizzle-orm/sqlite-core";
+import { sql } from "drizzle-orm";
+import { integer, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
 
 const timestamps = {
   createdAt: text("created_at").notNull(),
@@ -11,7 +12,8 @@ export const users = sqliteTable("users", {
   ...timestamps,
 });
 
-export const patientsDemo = sqliteTable("patients_demo", {
+// Legacy table retained for migration compatibility; no sample records are seeded.
+export const legacyPatients = sqliteTable("patients_demo", {
   id: text("id").primaryKey(),
   ownerEmail: text("owner_email").notNull(),
   name: text("name").notNull(),
@@ -81,8 +83,13 @@ export const signatures = sqliteTable("signatures", {
   objectKey: text("object_key").notNull(),
   mimeType: text("mime_type").notNull(),
   size: integer("size").notNull(),
+  isDefault: integer("is_default", { mode: "boolean" }).notNull().default(false),
   ...timestamps,
-});
+}, (table) => [
+  uniqueIndex("signatures_owner_default_idx")
+    .on(table.ownerEmail)
+    .where(sql`"is_default" = 1`),
+]);
 
 export const mobileUploadSessions = sqliteTable("mobile_upload_sessions", {
   id: text("id").primaryKey(),
@@ -101,6 +108,21 @@ export const aiImportRuns = sqliteTable("ai_import_runs", {
   status: text("status").notNull(),
   createdAt: text("created_at").notNull(),
 });
+
+export const aiPrompts = sqliteTable("ai_prompts", {
+  id: text("id").primaryKey(),
+  ownerEmail: text("owner_email").notNull(),
+  name: text("name").notNull(),
+  targetType: text("target_type").notNull(),
+  instructions: text("instructions").notNull(),
+  revision: integer("revision").notNull().default(1),
+  isDefault: integer("is_default", { mode: "boolean" }).notNull().default(false),
+  ...timestamps,
+}, (table) => [
+  uniqueIndex("ai_prompts_owner_target_default_idx")
+    .on(table.ownerEmail, table.targetType)
+    .where(sql`"is_default" = 1`),
+]);
 
 export const auditEvents = sqliteTable("audit_events", {
   id: text("id").primaryKey(),

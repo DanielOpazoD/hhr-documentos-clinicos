@@ -63,3 +63,28 @@ No actionable P0, P1 or P2 differences remain.
 - [x] Institutional PDF integrity tests preserved.
 
 final result: passed
+
+---
+
+## Iteración · receta, fecha y perfil profesional (2026-07-26)
+
+### Evidencia comparada
+
+- Referencia aportada: `/var/folders/6c/jzmkty3d3zdc1p13lrvwgm7m0000gn/T/codex-clipboard-348c200f-c43a-4ce4-9b5c-02e8747f6199.png` (1324 × 1160).
+- Implementación final: `outputs/receta-externa-implementacion-final.png` (594 × 930).
+- Comparación conjunta normalizada: `outputs/receta-externa-comparacion.png` (1340 × 680).
+- Estado equivalente: receta externa guardada, paciente sin completar, profesional firmante visible y fecha 26-07-2026.
+
+### Resultado visual y funcional
+
+- La cabecera usa `Servicio de Salud Metropolitano Oriente` y conserva el nombre del hospital y el logo real.
+- Medicamento e indicación se consolidaron en un único bloque de prescripción iniciado por `Rp.`.
+- La firma permanece en el tercio inferior y la fecha queda como último dato del documento, debajo del pie de receta.
+- El editor replica el mismo modelo: un único cuadro de escritura, sin controles de reordenamiento innecesarios.
+- La jerarquía, el contraste, las líneas y la densidad se mantienen consistentes con el sistema visual existente.
+- El documento previo de receta se abre sin perder compatibilidad: sus secciones antiguas se normalizan al nuevo bloque único.
+- Atajos verificados en navegador: `Ctrl/Cmd+N`, `Escape` y `Enter`.
+
+No quedan diferencias visuales P0, P1 o P2 para este alcance.
+
+final result: passed

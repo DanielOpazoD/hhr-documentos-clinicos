@@ -1,5 +1,7 @@
 "use client";
 
+/* eslint-disable @next/next/no-img-element -- The QR image is generated as an ephemeral data URL and should not be optimized remotely. */
+
 // The small QR encoder is vendored from the MIT-licensed `qrcode` package so
 // mobile capture remains functional in the self-contained Sites bundle.
 import QRCode from "@/app/vendor/qrcode/browser";

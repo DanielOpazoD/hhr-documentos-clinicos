@@ -1,9 +1,12 @@
 "use client";
 
-import { ArrowDown, ArrowUp, Camera, Check, FileImage, Loader2, Pencil, RotateCw, Trash2, UploadCloud, X } from "@/app/components/Icons";
+/* eslint-disable @next/next/no-img-element -- Camera blob URLs are edited in canvas/WebGL and must remain exact client-side sources. */
+
+import { ArrowDown, ArrowUp, Camera, Check, FileImage, Loader2, Pencil, RefreshCw, RotateCw, Trash2, UploadCloud, X } from "@/app/components/Icons";
 import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
 import { createScannedPdf } from "@/app/lib/client-pdf";
-import { DEFAULT_SCAN_CORNERS, prepareScanSource, renderScannedPage, type ScanCorners, type ScanFilter, type ScanQuality } from "@/app/lib/scan-processing";
+import { DEFAULT_SCAN_ADJUSTMENTS, DEFAULT_SCAN_CORNERS, prepareScanSource, renderScannedPage, type ScanAdjustments, type ScanCorners, type ScanFilter, type ScanQuality } from "@/app/lib/scan-processing";
+import { detectDocumentCorners } from "@/app/features/scanner/document-detection";
 
 type PageFile = {
   id: string;
@@ -17,19 +20,25 @@ type PageFile = {
   quality: ScanQuality;
   filter: ScanFilter;
   corners: ScanCorners;
+  adjustments: ScanAdjustments;
+  edgeConfidence: number;
 };
 
-type ReviewState = { pageId: string; corners: ScanCorners; filter: ScanFilter };
+type ReviewState = { pageId: string; corners: ScanCorners; filter: ScanFilter; adjustments: ScanAdjustments };
 
 const filterOptions: Array<{ id: ScanFilter; label: string; description: string }> = [
-  { id: "auto", label: "Automático", description: "Papel blanco y texto nítido" },
+  { id: "auto", label: "Documento", description: "Papel blanco y texto nítido" },
   { id: "color", label: "Color", description: "Conserva el aspecto original" },
   { id: "gray", label: "Grises", description: "Documento sobrio y legible" },
   { id: "bw", label: "Blanco y negro", description: "Máximo contraste" },
 ];
 
 const cloneCorners = (corners: ScanCorners) => corners.map(point => ({ ...point })) as ScanCorners;
-const previewFilter = (filter: ScanFilter) => filter === "auto" ? "brightness(1.1) contrast(1.22) saturate(.88)" : filter === "gray" ? "grayscale(1) brightness(1.08) contrast(1.25)" : filter === "bw" ? "grayscale(1) brightness(1.15) contrast(1.85)" : "none";
+const previewFilter = (filter: ScanFilter, adjustments: ScanAdjustments) => {
+  const brightness = 1 + adjustments.whiten / 500;
+  const contrast = .85 + adjustments.contrast / 120;
+  return filter === "auto" ? `brightness(${brightness}) contrast(${contrast}) saturate(.88)` : filter === "gray" ? `grayscale(1) brightness(${brightness}) contrast(${contrast})` : filter === "bw" ? `grayscale(1) brightness(${brightness}) contrast(${Math.max(1.6, contrast + .45)})` : `brightness(${1 + adjustments.whiten / 1000}) contrast(${Math.max(1, contrast - .25)})`;
+};
 
 function canvasFile(canvas: HTMLCanvasElement, name: string) {
   return new Promise<File>((resolve, reject) => canvas.toBlob(blob => blob
@@ -37,12 +46,14 @@ function canvasFile(canvas: HTMLCanvasElement, name: string) {
     : reject(new Error("No se pudo preparar la imagen.")), "image/jpeg", .94));
 }
 
-function ScanReviewEditor({ page, review, processing, onChange, onApply, onClose }: {
+function ScanReviewEditor({ page, review, processing, detecting, onChange, onApply, onRedetect, onClose }: {
   page: PageFile;
   review: ReviewState;
   processing: boolean;
+  detecting: boolean;
   onChange: (change: Partial<ReviewState>) => void;
   onApply: () => void;
+  onRedetect: () => void;
   onClose: () => void;
 }) {
   function moveCorner(index: number, event: ReactPointerEvent<HTMLButtonElement>) {
@@ -64,9 +75,9 @@ function ScanReviewEditor({ page, review, processing, onChange, onApply, onClose
   const points = review.corners.map(point => `${point.x * 100},${point.y * 100}`).join(" ");
   const ratio = page.sourceWidth / page.sourceHeight;
   return <div className="scan-review"><header><button onClick={onClose} aria-label="Cerrar editor"><X size={22} /></button><div><strong>Ajustar escaneo</strong><small>Arrastre las cuatro esquinas hasta el borde del papel</small></div><i /></header>
-    <section className="scan-review-workspace"><div className="scan-source-frame" style={{ aspectRatio: `${page.sourceWidth} / ${page.sourceHeight}`, width: `min(100%, calc(62vh * ${ratio}))` }}><img src={page.sourceUrl} alt="Original para ajustar bordes" style={{ filter: previewFilter(review.filter) }} /><svg viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true"><polygon points={points} /></svg>{review.corners.map((point, index) => <button key={index} className="corner-handle" style={{ left: `${point.x * 100}%`, top: `${point.y * 100}%` }} aria-label={`Esquina ${index + 1}`} onPointerDown={event => { event.currentTarget.setPointerCapture(event.pointerId); event.preventDefault(); }} onPointerMove={event => moveCorner(index, event)}><span /></button>)}</div><p>La corrección de perspectiva enderezará el área seleccionada.</p></section>
-    <section className="scan-filter-panel"><strong>Estilo</strong><div>{filterOptions.map(option => <button key={option.id} className={review.filter === option.id ? "active" : ""} onClick={() => onChange({ filter: option.id })}><span className={`filter-swatch ${option.id}`} /><span><strong>{option.label}</strong><small>{option.description}</small></span>{review.filter === option.id ? <Check size={15} /> : null}</button>)}</div></section>
-    <footer><button className="button secondary" onClick={() => onChange({ corners: cloneCorners(DEFAULT_SCAN_CORNERS), filter: "auto" })}>Restablecer</button><button className="button primary" disabled={processing} onClick={onApply}>{processing ? <Loader2 size={17} className="spin" /> : <Check size={17} />}{processing ? "Procesando…" : "Aplicar escaneo"}</button></footer>
+    <section className="scan-review-workspace"><div className="scan-source-frame" style={{ aspectRatio: `${page.sourceWidth} / ${page.sourceHeight}`, width: `min(100%, calc(62vh * ${ratio}))` }}><img src={page.sourceUrl} alt="Original para ajustar bordes" style={{ filter: previewFilter(review.filter, review.adjustments) }} /><svg viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true"><polygon points={points} /></svg>{review.corners.map((point, index) => <button key={index} className="corner-handle" style={{ left: `${point.x * 100}%`, top: `${point.y * 100}%` }} aria-label={`Esquina ${index + 1}`} onPointerDown={event => { event.currentTarget.setPointerCapture(event.pointerId); event.preventDefault(); }} onPointerMove={event => moveCorner(index, event)}><span /></button>)}</div><div className="scan-edge-tools"><span>{page.edgeConfidence ? "Bordes detectados automáticamente" : "Revise los cuatro bordes"}</span><button disabled={detecting} onClick={onRedetect}><RefreshCw size={13} className={detecting ? "spin" : ""} /> {detecting ? "Detectando…" : "Detectar de nuevo"}</button></div></section>
+    <section className="scan-filter-panel"><strong>Estilo</strong><div>{filterOptions.map(option => <button key={option.id} className={review.filter === option.id ? "active" : ""} onClick={() => onChange({ filter: option.id })}><span className={`filter-swatch ${option.id}`} /><span><strong>{option.label}</strong><small>{option.description}</small></span>{review.filter === option.id ? <Check size={15} /> : null}</button>)}</div><details className="scan-adjustments"><summary>Ajustes del acabado</summary><div><label><span>Blancura del papel <b>{review.adjustments.whiten}%</b></span><input type="range" min="0" max="100" value={review.adjustments.whiten} onChange={event => onChange({ adjustments: { ...review.adjustments, whiten: Number(event.target.value) } })} /></label><label><span>Contraste <b>{review.adjustments.contrast}%</b></span><input type="range" min="0" max="100" value={review.adjustments.contrast} onChange={event => onChange({ adjustments: { ...review.adjustments, contrast: Number(event.target.value) } })} /></label></div></details></section>
+    <footer><button className="button secondary" onClick={() => onChange({ corners: cloneCorners(DEFAULT_SCAN_CORNERS), filter: "auto", adjustments: { ...DEFAULT_SCAN_ADJUSTMENTS } })}>Restablecer</button><button className="button primary" disabled={processing || detecting} onClick={onApply}>{processing ? <Loader2 size={17} className="spin" /> : <Check size={17} />}{processing ? "Procesando…" : "Aplicar escaneo"}</button></footer>
   </div>;
 }
 
@@ -82,6 +93,7 @@ export function MobileCapture({ token }: { token: string }) {
   const [output, setOutput] = useState<"images" | "pdf">("pdf");
   const [busy, setBusy] = useState(false);
   const [processing, setProcessing] = useState(false);
+  const [detecting, setDetecting] = useState(false);
   const [done, setDone] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [cameraOpen, setCameraOpen] = useState(false);
@@ -109,7 +121,7 @@ export function MobileCapture({ token }: { token: string }) {
     if (!navigator.mediaDevices?.getUserMedia) { cameraInputRef.current?.click(); return; }
     try {
       setCameraOpen(true);
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: false, video: { facingMode: { ideal: "environment" }, width: { ideal: 2560 }, height: { ideal: 1920 } } });
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: false, video: { facingMode: { ideal: "environment" }, width: { ideal: 4096 }, height: { ideal: 3072 } } });
       streamRef.current = stream;
       const track = stream.getVideoTracks()[0];
       const capabilities = track.getCapabilities?.() as MediaTrackCapabilities & { torch?: boolean; focusMode?: string[] };
@@ -139,12 +151,14 @@ export function MobileCapture({ token }: { token: string }) {
       for (let index = 0; index < files.length; index++) {
         const pageNumber = pages.length + index + 1;
         const source = await prepareScanSource(files[index], pageNumber);
-        const corners = cloneCorners(DEFAULT_SCAN_CORNERS);
-        const processed = await renderScannedPage(source.file, source.width, source.height, corners, "auto", pageNumber);
-        added.push({ id: crypto.randomUUID(), file: processed.file, url: URL.createObjectURL(processed.file), sourceFile: source.file, sourceUrl: URL.createObjectURL(source.file), sourceWidth: source.width, sourceHeight: source.height, rotation: 0, quality: processed.quality, filter: "auto", corners });
+        const detection = await detectDocumentCorners(source.file);
+        const corners = cloneCorners(detection.corners);
+        const adjustments = { ...DEFAULT_SCAN_ADJUSTMENTS };
+        const processed = await renderScannedPage(source.file, source.width, source.height, corners, "auto", pageNumber, adjustments);
+        added.push({ id: crypto.randomUUID(), file: processed.file, url: URL.createObjectURL(processed.file), sourceFile: source.file, sourceUrl: URL.createObjectURL(source.file), sourceWidth: source.width, sourceHeight: source.height, rotation: 0, quality: processed.quality, filter: "auto", corners, adjustments, edgeConfidence: detection.confidence });
       }
       setPages(value => [...value, ...added]);
-      if (added[0]) setReview({ pageId: added[0].id, corners: cloneCorners(added[0].corners), filter: added[0].filter });
+      if (added[0]) setReview({ pageId: added[0].id, corners: cloneCorners(added[0].corners), filter: added[0].filter, adjustments: { ...added[0].adjustments } });
     } catch { setError("Una imagen no pudo procesarse. Pruebe con JPG, PNG o una foto nueva."); }
     finally { setProcessing(false); }
   }
@@ -158,14 +172,16 @@ export function MobileCapture({ token }: { token: string }) {
   async function capturePage() {
     const video = videoRef.current;
     if (!video?.videoWidth || pages.length >= 8) return;
-    const scale = Math.min(1, 2600 / Math.max(video.videoWidth, video.videoHeight));
-    const canvas = document.createElement("canvas");
-    canvas.width = Math.max(1, Math.round(video.videoWidth * scale));
-    canvas.height = Math.max(1, Math.round(video.videoHeight * scale));
-    const context = canvas.getContext("2d");
-    if (!context) return;
-    context.drawImage(video, 0, 0, canvas.width, canvas.height);
-    const file = await canvasFile(canvas, `captura-${pages.length + 1}.jpg`);
+    const track = streamRef.current?.getVideoTracks()[0];
+    type StillCapture = new (mediaTrack: MediaStreamTrack) => { takePhoto: () => Promise<Blob> };
+    const ImageCaptureClass = (globalThis as typeof globalThis & { ImageCapture?: StillCapture }).ImageCapture;
+    let file: File;
+    if (track && ImageCaptureClass) {
+      try {
+        const blob = await new ImageCaptureClass(track).takePhoto();
+        file = new File([blob], `captura-${pages.length + 1}.jpg`, { type: blob.type || "image/jpeg" });
+      } catch { file = await captureVideoFrame(video, pages.length + 1); }
+    } else file = await captureVideoFrame(video, pages.length + 1);
     setFlash(true);
     window.setTimeout(() => setFlash(false), 140);
     stopCamera();
@@ -180,19 +196,32 @@ export function MobileCapture({ token }: { token: string }) {
     setError(null);
     try {
       const pageNumber = pages.findIndex(item => item.id === page.id) + 1;
-      const processed = await renderScannedPage(page.sourceFile, page.sourceWidth, page.sourceHeight, review.corners, review.filter, pageNumber);
+      const processed = await renderScannedPage(page.sourceFile, page.sourceWidth, page.sourceHeight, review.corners, review.filter, pageNumber, review.adjustments);
       const nextUrl = URL.createObjectURL(processed.file);
       setPages(value => value.map(item => {
         if (item.id !== page.id) return item;
         URL.revokeObjectURL(item.url);
-        return { ...item, file: processed.file, url: nextUrl, quality: processed.quality, filter: review.filter, corners: cloneCorners(review.corners) };
+        return { ...item, file: processed.file, url: nextUrl, quality: processed.quality, filter: review.filter, corners: cloneCorners(review.corners), adjustments: { ...review.adjustments } };
       }));
       setReview(null);
     } catch { setError("No se pudo aplicar el recorte. Restablezca los bordes e intente nuevamente."); }
     finally { setProcessing(false); }
   }
 
-  function editPage(page: PageFile) { setReview({ pageId: page.id, corners: cloneCorners(page.corners), filter: page.filter }); }
+  async function redetectPage() {
+    if (!review) return;
+    const page = pages.find(item => item.id === review.pageId);
+    if (!page) return;
+    setDetecting(true);
+    try {
+      const detection = await detectDocumentCorners(page.sourceFile);
+      setReview(value => value ? { ...value, corners: cloneCorners(detection.corners) } : value);
+      setPages(value => value.map(item => item.id === page.id ? { ...item, edgeConfidence: detection.confidence } : item));
+    } catch { setError("No se pudieron detectar los bordes. Puede ajustarlos manualmente."); }
+    finally { setDetecting(false); }
+  }
+
+  function editPage(page: PageFile) { setReview({ pageId: page.id, corners: cloneCorners(page.corners), filter: page.filter, adjustments: { ...page.adjustments } }); }
   function update(id: string, change: Partial<PageFile>) { setPages(value => value.map(page => page.id === id ? { ...page, ...change } : page)); }
   function remove(id: string) { setPages(value => value.filter(page => { if (page.id === id) { URL.revokeObjectURL(page.url); URL.revokeObjectURL(page.sourceUrl); } return page.id !== id; })); }
   function move(index: number, direction: -1 | 1) { const next = [...pages]; const target = index + direction; if (target < 0 || target >= next.length) return; [next[index], next[target]] = [next[target], next[index]]; setPages(next); }
@@ -214,6 +243,17 @@ export function MobileCapture({ token }: { token: string }) {
       {pages.length ? <div className="scan-finish"><label>Nombre<input value={name} maxLength={80} onChange={event => setName(event.target.value)} /></label><div className="format-switch"><button className={output === "pdf" ? "active" : ""} onClick={() => setOutput("pdf")}>PDF único</button><button className={output === "images" ? "active" : ""} onClick={() => setOutput("images")}>Imágenes</button></div><button className="button primary full capture-submit" disabled={busy || !name.trim()} onClick={() => void upload()}>{busy ? <Loader2 size={18} className="spin" /> : <UploadCloud size={18} />}{busy ? "Guardando…" : "Guardar en HHR Documentos"}</button></div> : null}
     </section>
     {cameraOpen ? <div className="camera-stage"><video ref={videoRef} autoPlay muted playsInline /><div className={flash ? "camera-flash visible" : "camera-flash"} /><header><button onClick={stopCamera} aria-label="Cerrar cámara"><X size={23} /></button><span>{pages.length ? `${pages.length} capturadas` : "Encuadre el documento"}</span>{torchAvailable ? <button className={torchOn ? "active" : ""} onClick={() => void toggleTorch()} aria-label="Luz">{torchOn ? "Luz on" : "Luz"}</button> : <i />}</header><div className="document-guide"><i /><i /><i /><i /><span>{cameraReady ? "Mantenga el teléfono paralelo al papel" : "Iniciando cámara…"}</span></div><footer>{pages.length ? <img src={pages[pages.length - 1].url} alt="Última página" /> : <i />}<button className="camera-shutter" disabled={!cameraReady || pages.length >= 8} onClick={() => void capturePage()} aria-label="Capturar página"><span /></button><button className="camera-done" onClick={stopCamera}>{pages.length ? "Listo" : "Cancelar"}</button></footer></div> : null}
-    {review && reviewPage ? <ScanReviewEditor page={reviewPage} review={review} processing={processing} onChange={change => setReview(value => value ? { ...value, ...change } : value)} onApply={() => void applyReview()} onClose={() => setReview(null)} /> : null}
+    {review && reviewPage ? <ScanReviewEditor page={reviewPage} review={review} processing={processing} detecting={detecting} onChange={change => setReview(value => value ? { ...value, ...change } : value)} onApply={() => void applyReview()} onRedetect={() => void redetectPage()} onClose={() => setReview(null)} /> : null}
   </main>;
+}
+
+async function captureVideoFrame(video: HTMLVideoElement, pageNumber: number) {
+  const scale = Math.min(1, 3600 / Math.max(video.videoWidth, video.videoHeight));
+  const canvas = document.createElement("canvas");
+  canvas.width = Math.max(1, Math.round(video.videoWidth * scale));
+  canvas.height = Math.max(1, Math.round(video.videoHeight * scale));
+  const context = canvas.getContext("2d");
+  if (!context) throw new Error("No se pudo capturar la imagen.");
+  context.drawImage(video, 0, 0, canvas.width, canvas.height);
+  return canvasFile(canvas, `captura-${pageNumber}.jpg`);
 }

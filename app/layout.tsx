@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Geist } from "next/font/google";
 import { headers } from "next/headers";
+import { productIdentity } from "@/app/lib/product";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -13,7 +14,7 @@ export async function generateMetadata(): Promise<Metadata> {
   const host = requestHeaders.get("host") ?? "localhost:3001";
   const protocol = requestHeaders.get("x-forwarded-proto") ?? (host.startsWith("localhost") ? "http" : "https");
   const base = new URL(`${protocol}://${host}`);
-  const description = "Centro privado para crear, revisar, imprimir y respaldar documentos clínicos de demostración.";
+  const description = productIdentity.description;
   return {
     metadataBase: base,
     title: { default: "HHR Documentos", template: "%s · HHR Documentos" },

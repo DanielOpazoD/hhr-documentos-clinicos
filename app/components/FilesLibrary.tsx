@@ -1,5 +1,7 @@
 "use client";
 
+/* eslint-disable @next/next/no-img-element -- Private authenticated previews are served dynamically and must not pass through an image optimizer. */
+
 import { Archive, Download, Eye, File, FileImage, FileText, Grid2X2, List, Pencil, Search, UploadCloud, X } from "@/app/components/Icons";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { formatBytes } from "@/app/lib/client-pdf";

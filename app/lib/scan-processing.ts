@@ -1,9 +1,14 @@
 "use client";
 
+import { enhanceScan } from "@/app/features/scanner/scan-enhancement";
+
 export type ScanFilter = "auto" | "color" | "gray" | "bw";
 export type ScanPoint = { x: number; y: number };
 export type ScanCorners = [ScanPoint, ScanPoint, ScanPoint, ScanPoint];
 export type ScanQuality = { level: "good" | "warn"; label: string; detail: string };
+export type ScanAdjustments = { whiten: number; contrast: number };
+
+export const DEFAULT_SCAN_ADJUSTMENTS: ScanAdjustments = { whiten: 72, contrast: 58 };
 
 export const DEFAULT_SCAN_CORNERS: ScanCorners = [
   { x: .06, y: .05 },
@@ -14,19 +19,17 @@ export const DEFAULT_SCAN_CORNERS: ScanCorners = [
 
 type DecodedImage = { source: CanvasImageSource; width: number; height: number; release: () => void };
 
-function canvasToFile(canvas: HTMLCanvasElement, name: string, quality = .9) {
+function canvasToFile(canvas: HTMLCanvasElement, name: string, quality = .96) {
   return new Promise<File>((resolve, reject) => canvas.toBlob(blob => blob
     ? resolve(new File([blob], name, { type: "image/jpeg" }))
     : reject(new Error("No se pudo preparar la imagen.")), "image/jpeg", quality));
 }
 
 async function decodeImage(file: File): Promise<DecodedImage> {
-  if (globalThis.createImageBitmap) {
-    try {
-      const bitmap = await createImageBitmap(file, { imageOrientation: "from-image" });
-      return { source: bitmap, width: bitmap.width, height: bitmap.height, release: () => bitmap.close() };
-    } catch { /* Safari puede decodificar formatos que createImageBitmap no admite. */ }
-  }
+  try {
+    const bitmap = await createImageBitmap(file, { imageOrientation: "from-image" });
+    return { source: bitmap, width: bitmap.width, height: bitmap.height, release: () => bitmap.close() };
+  } catch { /* Safari puede decodificar formatos que createImageBitmap no admite. */ }
   return new Promise((resolve, reject) => {
     const url = URL.createObjectURL(file);
     const image = new Image();
@@ -64,7 +67,7 @@ export function scanQuality(canvas: HTMLCanvasElement): ScanQuality {
 export async function prepareScanSource(file: File, index: number) {
   const image = await decodeImage(file);
   try {
-    const scale = Math.min(1, 2600 / Math.max(image.width, image.height));
+    const scale = Math.min(1, 4200 / Math.max(image.width, image.height));
     const canvas = document.createElement("canvas");
     canvas.width = Math.max(1, Math.round(image.width * scale));
     canvas.height = Math.max(1, Math.round(image.height * scale));
@@ -73,7 +76,7 @@ export async function prepareScanSource(file: File, index: number) {
     context.fillStyle = "#fff";
     context.fillRect(0, 0, canvas.width, canvas.height);
     context.drawImage(image.source, 0, 0, canvas.width, canvas.height);
-    return { file: await canvasToFile(canvas, `pagina-${index}-original.jpg`, .94), width: canvas.width, height: canvas.height };
+    return { file: await canvasToFile(canvas, `pagina-${index}-original.jpg`, .97), width: canvas.width, height: canvas.height };
   } finally { image.release(); }
 }
 
@@ -163,7 +166,7 @@ function drawWebGl(canvas: HTMLCanvasElement, image: DecodedImage, corners: Scan
   gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
   gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
   gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, 1);
-  gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, image.source);
+  gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, image.source as TexImageSource);
   const filterValue = filter === "auto" ? 1 : filter === "gray" ? 2 : filter === "bw" ? 3 : 0;
   gl.uniform1i(gl.getUniformLocation(program, "u_filter"), filterValue);
   gl.viewport(0, 0, canvas.width, canvas.height);
@@ -187,20 +190,21 @@ function drawFallback(canvas: HTMLCanvasElement, image: DecodedImage, corners: S
   context.filter = "none";
 }
 
-export async function renderScannedPage(sourceFile: File, sourceWidth: number, sourceHeight: number, corners: ScanCorners, filter: ScanFilter, pageNumber: number) {
+export async function renderScannedPage(sourceFile: File, sourceWidth: number, sourceHeight: number, corners: ScanCorners, filter: ScanFilter, pageNumber: number, adjustments: ScanAdjustments = DEFAULT_SCAN_ADJUSTMENTS) {
   const topWidth = distance(corners[0], corners[1], sourceWidth, sourceHeight);
   const bottomWidth = distance(corners[3], corners[2], sourceWidth, sourceHeight);
   const leftHeight = distance(corners[0], corners[3], sourceWidth, sourceHeight);
   const rightHeight = distance(corners[1], corners[2], sourceWidth, sourceHeight);
   const rawWidth = Math.max(1, Math.round((topWidth + bottomWidth) / 2));
   const rawHeight = Math.max(1, Math.round((leftHeight + rightHeight) / 2));
-  const scale = Math.min(1, 2400 / Math.max(rawWidth, rawHeight));
-  const canvas = document.createElement("canvas");
-  canvas.width = Math.max(1, Math.round(rawWidth * scale));
-  canvas.height = Math.max(1, Math.round(rawHeight * scale));
+  const scale = Math.min(1, 3600 / Math.max(rawWidth, rawHeight));
+  const rawCanvas = document.createElement("canvas");
+  rawCanvas.width = Math.max(1, Math.round(rawWidth * scale));
+  rawCanvas.height = Math.max(1, Math.round(rawHeight * scale));
   const image = await decodeImage(sourceFile);
   try {
-    if (!drawWebGl(canvas, image, corners, filter)) drawFallback(canvas, image, corners, filter);
-    return { file: await canvasToFile(canvas, `pagina-${pageNumber}.jpg`), quality: scanQuality(canvas), width: canvas.width, height: canvas.height };
+    if (!drawWebGl(rawCanvas, image, corners, "color")) drawFallback(rawCanvas, image, corners, "color");
+    const canvas = enhanceScan(rawCanvas, filter, adjustments);
+    return { file: await canvasToFile(canvas, `pagina-${pageNumber}.jpg`, .96), quality: scanQuality(canvas), width: canvas.width, height: canvas.height };
   } finally { image.release(); }
 }

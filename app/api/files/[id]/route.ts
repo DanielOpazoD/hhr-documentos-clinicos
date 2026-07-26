@@ -1,4 +1,8 @@
-import { appEnv, audit, ensureDatabase, jsonError, requestOwner } from "@/app/lib/server";
+import { audit } from "@/app/lib/server/audit";
+import { requestOwner } from "@/app/lib/server/auth";
+import { ensureDatabase } from "@/app/lib/server/database";
+import { appEnv } from "@/app/lib/server/environment";
+import { jsonError } from "@/app/lib/server/http";
 
 export async function GET(request: Request, context: { params: Promise<{ id: string }> }) {
   const owner = requestOwner(request);

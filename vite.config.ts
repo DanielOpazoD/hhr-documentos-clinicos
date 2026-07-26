@@ -44,6 +44,15 @@ export default defineConfig(async () => {
   const { cloudflare } = await import("@cloudflare/vite-plugin");
 
   return {
+    optimizeDeps: {
+      // Vinext intentionally keeps this CommonJS dependency external for SSR,
+      // but the image shim is also evaluated by the browser during development.
+      // Pre-bundling provides the expected ESM default export in that graph.
+      include: ["ipaddr.js"],
+      // Keep React and framework shims in one module graph. Pre-bundling these
+      // packages can create a second hook dispatcher during local development.
+      exclude: ["next/link", "next/image", "lucide-react", "sharp"],
+    },
     server: isCodexSeatbeltSandbox
       ? { watch: { useFsEvents: false, usePolling: true } }
       : undefined,

@@ -1,4 +1,8 @@
-import { audit, ensureDatabase, jsonError, requestOwner, sha256 } from "@/app/lib/server";
+import { audit } from "@/app/lib/server/audit";
+import { requestOwner } from "@/app/lib/server/auth";
+import { ensureDatabase } from "@/app/lib/server/database";
+import { jsonError } from "@/app/lib/server/http";
+import { sha256 } from "@/app/lib/server/security";
 
 export async function POST(request: Request) {
   const owner = requestOwner(request);

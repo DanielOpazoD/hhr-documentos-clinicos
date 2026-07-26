@@ -1,4 +1,7 @@
-import { audit, ensureDatabase, jsonError, requestOwner } from "@/app/lib/server";
+import { audit } from "@/app/lib/server/audit";
+import { requestOwner } from "@/app/lib/server/auth";
+import { ensureDatabase } from "@/app/lib/server/database";
+import { jsonError, readJsonObject } from "@/app/lib/server/http";
 
 export async function GET(request: Request) {
   const owner = requestOwner(request);
@@ -20,12 +23,16 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   const owner = requestOwner(request);
   if (!owner) return jsonError("Autenticación requerida.", 401);
-  const payload = await request.json() as Record<string, unknown>;
+  const payload = await readJsonObject(request);
+  if (!payload) return jsonError("Solicitud JSON inválida.");
   const title = String(payload.title ?? "").trim();
   const patientName = String(payload.patientName ?? "").trim();
   const templateId = String(payload.templateId ?? "documento_libre");
   const status = ["Borrador", "Revisado", "Finalizado"].includes(String(payload.status)) ? String(payload.status) : "Borrador";
-  if (!title || !patientName) return jsonError("Título y paciente son obligatorios.");
+  if (!title) return jsonError("El título es obligatorio.");
+  if (status !== "Borrador" && !patientName) {
+    return jsonError("Identifique al paciente antes de revisar o finalizar.");
+  }
 
   const db = await ensureDatabase();
   const id = String(payload.id ?? crypto.randomUUID());

@@ -1,4 +1,9 @@
-import { appEnv, audit, ensureDatabase, jsonError, requestOwner, safeFileName } from "@/app/lib/server";
+import { audit } from "@/app/lib/server/audit";
+import { requestOwner } from "@/app/lib/server/auth";
+import { ensureDatabase } from "@/app/lib/server/database";
+import { appEnv } from "@/app/lib/server/environment";
+import { jsonError } from "@/app/lib/server/http";
+import { safeFileName } from "@/app/lib/server/security";
 
 const allowed = new Set(["application/pdf", "application/vnd.openxmlformats-officedocument.wordprocessingml.document", "image/jpeg", "image/png", "image/heic", "image/heif"]);
 const maxBytes = 15 * 1024 * 1024;

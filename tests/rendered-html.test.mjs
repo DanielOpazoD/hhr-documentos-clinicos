@@ -3,17 +3,27 @@ import { createHash } from "node:crypto";
 import { access, readFile } from "node:fs/promises";
 import test from "node:test";
 
-test("builds the clinical document workspace without starter artifacts", async () => {
+test("builds the clinical document workspace from a production product identity", async () => {
   await access(new URL("../dist/server/index.js", import.meta.url));
-  const [layout, dashboard, packageJson] = await Promise.all([
+  const [layout, dashboard, packageJson, nodeVersion, product, constitution, readiness] = await Promise.all([
     readFile(new URL("../app/layout.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/components/Dashboard.tsx", import.meta.url), "utf8"),
     readFile(new URL("../package.json", import.meta.url), "utf8"),
+    readFile(new URL("../.nvmrc", import.meta.url), "utf8"),
+    readFile(new URL("../app/lib/product.ts", import.meta.url), "utf8"),
+    readFile(new URL("../docs/PRODUCT_CONSTITUTION.md", import.meta.url), "utf8"),
+    readFile(new URL("../docs/PRODUCTION_READINESS.md", import.meta.url), "utf8"),
   ]);
   assert.match(layout, /HHR Documentos/);
-  assert.match(layout, /Centro privado para crear/);
+  assert.match(product, /Centro privado para crear/);
   assert.match(dashboard, /Centro documental clínico/);
   assert.match(dashboard, /Cree, revise, imprima y respalde/);
+  assert.match(constitution, /## Misión/);
+  assert.match(constitution, /## Constitución de programación/);
+  assert.match(readiness, /## Controles pendientes antes de uso clínico institucional/);
+  assert.match(packageJson, /lucide-react/);
+  assert.match(packageJson, /"node": ">=22\.13"/);
+  assert.equal(nodeVersion.trim(), "22.13.0");
   assert.doesNotMatch(`${layout}${dashboard}${packageJson}`, /codex-preview|react-loading-skeleton|Your site is taking shape/i);
 });
 
@@ -27,6 +37,8 @@ test("ships the clinical routes, storage bindings and source templates", async (
     "../app/conexiones/page.tsx",
     "../app/api/signatures/route.ts",
     "../app/api/signatures/[id]/route.ts",
+    "../app/api/ai/prompts/route.ts",
+    "../app/api/ai/prompts/[id]/route.ts",
     "../public/templates/laboratorio.pdf",
     "../public/templates/imagenologia.pdf",
     "../public/templates/encuesta-imagenologia.pdf",
@@ -36,11 +48,13 @@ test("ships the clinical routes, storage bindings and source templates", async (
   ];
   await Promise.all(required.map(path => access(new URL(path, import.meta.url))));
 
-  const [hosting, scanner, mobileCapture, scanProcessing, mobileUpload] = await Promise.all([
+  const [hosting, scanner, mobileCapture, scanProcessing, documentDetection, scanEnhancement, mobileUpload] = await Promise.all([
     readFile(new URL("../.openai/hosting.json", import.meta.url), "utf8"),
     readFile(new URL("../app/components/ScannerDesk.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/components/MobileCapture.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/lib/scan-processing.ts", import.meta.url), "utf8"),
+    readFile(new URL("../app/features/scanner/document-detection.ts", import.meta.url), "utf8"),
+    readFile(new URL("../app/features/scanner/scan-enhancement.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/api/mobile-upload/[token]/route.ts", import.meta.url), "utf8"),
   ]);
   assert.match(hosting, /"d1"\s*:\s*"DB"/);
@@ -49,9 +63,18 @@ test("ships the clinical routes, storage bindings and source templates", async (
   assert.match(mobileCapture, /getUserMedia/);
   assert.match(mobileCapture, /Editar bordes y estilo/);
   assert.match(mobileCapture, /Esquina \$\{index \+ 1\}/);
+  assert.match(mobileCapture, /Detectar de nuevo/);
+  assert.match(mobileCapture, /Blancura del papel/);
+  assert.match(mobileCapture, /ImageCapture/);
   assert.match(scanProcessing, /renderScannedPage/);
   assert.match(scanProcessing, /uniform int u_filter/);
   assert.match(scanProcessing, /DEFAULT_SCAN_CORNERS/);
+  assert.match(scanProcessing, /4200/);
+  assert.match(documentDetection, /strongestLine/);
+  assert.match(documentDetection, /detectDocumentCorners/);
+  assert.match(scanEnhancement, /otsuThreshold/);
+  assert.match(scanEnhancement, /enhanceScan/);
+  assert.match(scanEnhancement, /high - low < 24/);
   assert.match(mobileUpload, /15 \* 1024 \* 1024/);
   assert.match(mobileUpload, /FILES\.put/);
 });
@@ -77,23 +100,172 @@ test("uses byte-identical PDFs from origin/main/Formularios", async () => {
 });
 
 test("keeps the clinical studios usable from mobile through desktop", async () => {
-  const [documentStudio, styles] = await Promise.all([
-    readFile(new URL("../app/components/DocumentStudio.tsx", import.meta.url), "utf8"),
+  const documentModules = [
+    "../app/components/DocumentStudio.tsx",
+    "../app/features/documents/DocumentCommandBar.tsx",
+    "../app/features/documents/DocumentLibrary.tsx",
+    "../app/features/documents/AiProvenance.tsx",
+    "../app/features/documents/ai-metadata.ts",
+    "../app/features/documents/PatientEditor.tsx",
+    "../app/features/documents/DocumentPreview.tsx",
+    "../app/features/documents/document-pdf.ts",
+    "../app/lib/document-layout.ts",
+    "../app/features/documents/SignatureEditor.tsx",
+    "../app/features/documents/SignatureProfileSelector.tsx",
+    "../app/features/documents/SectionsEditor.tsx",
+    "../app/features/documents/templates.ts",
+    "../app/features/documents/use-document-keyboard.ts",
+    "../app/features/documents/use-document-identity.ts",
+    "../app/features/documents/use-document-workspace.ts",
+    "../app/features/documents/use-document-persistence.ts",
+    "../app/features/documents/use-signature-workspace.ts",
+    "../app/features/documents/api.ts",
+  ];
+  const [moduleSources, styles] = await Promise.all([
+    Promise.all(documentModules.map((path) => readFile(new URL(path, import.meta.url), "utf8"))),
     readFile(new URL("../app/globals.css", import.meta.url), "utf8"),
   ]);
+  const documentStudio = moduleSources.join("\n");
 
   assert.match(documentStudio, /aria-label="Vista del documento"/);
   assert.match(documentStudio, /aria-controls="document-editor"/);
   assert.match(documentStudio, /aria-controls="document-preview"/);
   assert.match(documentStudio, /patient-manual-grid/);
   assert.match(documentStudio, /Fecha de nacimiento/);
-  assert.match(documentStudio, /signature-library/);
+  assert.match(documentStudio, /Profesional firmante/);
+  assert.match(documentStudio, /Especialidad/);
+  assert.doesNotMatch(documentStudio, /Previsión/);
+  assert.match(documentStudio, /Perfil profesional/);
+  assert.match(documentStudio, /Predeterminado/);
+  assert.match(documentStudio, /makeDefaultSignature/);
   assert.match(documentStudio, /Arrastre la firma en la hoja/);
   assert.match(documentStudio, /recent-document-list/);
-  assert.doesNotMatch(documentStudio, /<select/);
+  assert.match(documentStudio, /aria-keyshortcuts="Control\+N Meta\+N"/);
+  assert.match(documentStudio, /aria-keyshortcuts="Control\+S Meta\+S"/);
+  assert.match(documentStudio, /event\.key === "Escape"/);
+  assert.match(documentStudio, /event\.key === "Enter"/);
+  assert.match(documentStudio, /id: "prescripcion", title: "Rp\."/);
+  assert.doesNotMatch(documentStudio, /id: "medicamento"|id: "indicacion"/);
   assert.match(documentStudio, /api\/documents\?id=/);
   assert.match(documentStudio, /api\/signatures/);
+  assert.match(documentStudio, /aiMetadata/);
+  assert.match(documentStudio, /Ver trazabilidad/);
+  assert.match(documentStudio, /Object\.fromEntries/);
+  assert.match(documentStudio, /editedSectionIds/);
+  assert.match(documentStudio, /legacyInsurance/);
+  assert.match(documentStudio, /if \(placedSignature\) setPlacedSignature\(null\)/);
+  assert.match(documentStudio, /professionalName: (?:snapshot\.)?placedSignature\.professionalName/);
+  assert.match(documentStudio, /Servicio de Salud Metropolitano Oriente/);
+  assert.match(documentStudio, /date: formatStoredDate\(input\.issueDate\)/);
+  assert.match(documentStudio, /SIGNATURE_Y_MAX_PERCENT = 70/);
+  assert.match(documentStudio, /defaultProfileApplied\.current = true/);
+  assert.match(documentStudio, /markSignatureDirty/);
+  assert.match(documentStudio, /workspaceEpoch/);
+  assert.match(documentStudio, /flushPendingSave/);
+  assert.match(documentStudio, /savePromise/);
+  assert.match(documentStudio, /dirtyRef/);
+  assert.match(documentStudio, /Math\.max\(width \/ 2, Math\.min\(100 - width \/ 2, current\.x\)\)/);
+  assert.match(documentStudio, /event\.currentTarget\.value = ""/);
+  assert.equal(moduleSources.filter((source) => source.split("\n").length > 350).length, 0);
   assert.match(styles, /@media \(max-width: 1240px\)/);
+  assert.match(styles, /\.simplified-studio \.document-editor-layout \{ grid-template-columns: 1fr; \}/);
   assert.match(styles, /\.document-editor-layout > \.mobile-hidden \{ display: none; \}/);
   assert.match(styles, /\.page-header > \*, \.hero-row > \*.*min-width: 0;/);
+});
+
+test("contains no production sample workflow or fictitious record creation", async () => {
+  const [catalog, aiStudio, aiClient, connections, settings, layout, auth, clientPdf, headersConfig] = await Promise.all([
+    readFile(new URL("../app/lib/catalog.ts", import.meta.url), "utf8"),
+    readFile(new URL("../app/components/AiStudio.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/features/ai/client.ts", import.meta.url), "utf8"),
+    readFile(new URL("../app/components/Connections.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/configuracion/page.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/layout.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/lib/page-auth.ts", import.meta.url), "utf8"),
+    readFile(new URL("../app/lib/client-pdf.ts", import.meta.url), "utf8"),
+    readFile(new URL("../next.config.ts", import.meta.url), "utf8"),
+  ]);
+  const productionSurface = [catalog, aiStudio, aiClient, connections, settings, layout, auth, clientPdf].join("\n");
+  assert.doesNotMatch(productionSurface, /Paciente ficticio|Modo demostración|Ver ejemplo|Prototipo de evaluación|Simulación de IA|Dra\. Valentina Rojas/i);
+  assert.match(aiClient, /patientName,/);
+  assert.match(aiClient, /patient: result\.patient/);
+  assert.match(aiClient, /signer: result\.signer/);
+  assert.match(connections, /No configurada/);
+  assert.match(headersConfig, /X-Content-Type-Options/);
+  assert.match(headersConfig, /Permissions-Policy/);
+});
+
+test("offers isolated OpenAI and local Gemma providers", async () => {
+  const modules = await Promise.all([
+    "../app/features/ai/server/providers.ts",
+    "../app/features/ai/server/prompt.ts",
+    "../app/features/ai/server/openai-responses.ts",
+    "../app/features/ai/server/clinical-output.ts",
+    "../app/features/ai/server/local-lm-studio.ts",
+    "../app/features/ai/server/source-extraction.ts",
+    "../app/features/ai/server/import-request.ts",
+    "../app/features/ai/server/progress-stream.ts",
+    "../app/features/ai/AiImportForm.tsx",
+    "../app/features/ai/AiDraftResult.tsx",
+    "../app/features/ai/AiIdentityEditor.tsx",
+    "../app/features/ai/AiProcessingStatus.tsx",
+    "../app/features/ai/use-ai-studio.ts",
+    "../app/features/ai/client.ts",
+    "../app/features/ai/prompt-client.ts",
+    "../app/features/ai/PromptManager.tsx",
+    "../app/features/ai/prompt-catalog.ts",
+    "../app/features/ai/prompt-types.ts",
+    "../app/features/ai/server/prompt-store.ts",
+    "../app/features/ai/server/prompt-validation.ts",
+    "../app/api/ai/providers/route.ts",
+    "../app/api/ai/import/route.ts",
+    "../app/api/ai/prompts/route.ts",
+    "../app/api/ai/prompts/[id]/route.ts",
+  ].map((path) => readFile(new URL(path, import.meta.url), "utf8")));
+  const source = modules.join("\n");
+  assert.match(source, /hhr-gemma-local/);
+  assert.match(source, /127\.0\.0\.1:1234/);
+  assert.match(source, /provider-options/);
+  assert.match(source, /Privado · sin salir del equipo/);
+  assert.match(source, /getResolvedPDFJS/);
+  assert.match(source, /loadingTask\.destroy/);
+  assert.match(source, /MAX_PDF_PAGES/);
+  assert.match(source, /MAX_DOCX_XML_BYTES/);
+  assert.match(source, /UnzipInflate/);
+  assert.match(source, /HHR_PAGE_/);
+  assert.match(source, /\\u001e\\u001f/);
+  assert.match(source, /form\.append\("files"/);
+  assert.match(source, /application\/x-ndjson/);
+  assert.match(source, /processing_summary/);
+  assert.match(source, /identityConfirmed/);
+  assert.match(source, /Datos de identidad revisados/);
+  assert.match(source, /LOCAL_CONTEXT_TOKENS/);
+  assert.match(source, /LOCAL_IMAGE_TOKEN_RESERVE/);
+  assert.match(source, /MAX_BATCH_SIZE = 15 \* 1024 \* 1024/);
+  assert.match(source, /Puede analizar hasta 8 archivos por vez\. Quite uno antes de agregar más\./);
+  assert.match(source, /Prompts de documentos/);
+  assert.match(source, /Duplicar para editar/);
+  assert.match(source, /Usar por defecto/);
+  assert.match(source, /clinical-draft-v4/);
+  assert.match(source, /promptId/);
+  assert.match(source, /promptInstructions/);
+  assert.match(source, /Los prompts base no se pueden eliminar/);
+  assert.doesNotMatch(source, /merged\.slice\(0, 8\)/);
+  assert.match(source, /En toda fuente PDF, incluso escaneada, usa el número de página real del PDF/);
+  assert.match(source, /sourceMimeType === "application\/pdf"\s*\? pageNumber === null/);
+  assert.match(source, /MAX_IMAGE_PIXELS/);
+  assert.match(source, /El DOCX contiene imágenes incrustadas/);
+  assert.match(source, /documentId \? \{ id: documentId \}/);
+  assert.match(source, /Actualizar borrador/);
+  assert.match(source, /Configuración local inválida/);
+  assert.match(source, /source_index/);
+  assert.match(source, /const original = await sourceContent/);
+  assert.match(source, /sourceIndex >= sourceCount/);
+  assert.match(source, /pagesWithoutText/);
+  assert.match(source, /getPdfPageCount/);
+  assert.match(source, /invalidPage/);
+  assert.match(source, /Paciente identificado/);
+  assert.match(source, /Profesional firmante/);
+  assert.match(source, /disabled=\{controller\.processing\}/);
+  assert.doesNotMatch(source, /0\.0\.0\.0/);
 });
