@@ -232,7 +232,8 @@ test("integrates connections and measured AI usage into tabbed settings", async 
   assert.match(usageStore, /estimated_cost_microusd/);
   assert.match(database, /CREATE TABLE IF NOT EXISTS ai_usage_events/);
   assert.match(schema, /aiUsageEvents/);
-  assert.match(migration, /CREATE TABLE `ai_usage_events`/);
+  assert.match(migration, /CREATE TABLE IF NOT EXISTS `ai_usage_events`/);
+  assert.doesNotMatch(migration, /ALTER TABLE `signatures`/);
 });
 
 test("offers isolated OpenAI and local Gemma providers", async () => {
