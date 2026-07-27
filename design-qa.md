@@ -1,90 +1,36 @@
-# Design QA · HHR Documentos
+# Design QA
 
-## Comparison target
+## Target
 
-- Source visual truth: `outputs/design-audit/06-direccion-minimalista.png`.
-- Baseline audit captures: `outputs/design-audit/02-formularios.png`, `03-ia.png`, `04-documentos.png`, `05-archivos.png`.
-- Rendered desktop implementation: `outputs/design-qa/documentos-desktop.png`.
-- Rendered mobile implementation: `outputs/design-qa/formularios-mobile.png`, `ia-mobile.png`, `documentos-mobile-preview.png`, `archivos-mobile.png`.
-- Combined comparison evidence: `outputs/design-qa/comparison-desktop.png` and `outputs/design-qa/comparison-mobile.png`. In both files the design direction is above and the implementation is below.
+- Source: user screenshot of `/documentos` (`926 x 1508` px).
+- Implementation: browser-rendered local `/documentos` at a `926 x 1500` CSS viewport, DPR 1 (`926 x 1500` px capture).
+- Intent: preserve the existing HHR visual language while reducing navigation width, document-list density, explanatory copy, and surface complexity.
 
-The source is a design-system and responsive-direction board rather than a pixel-equivalent application screen. The comparison therefore evaluates the explicit visual rules and responsive behavior without claiming pixel-level identity between different states.
+## Evidence
 
-## Capture normalization
+- Full comparison: `outputs/design-qa/design-qa-comparison.png`
+- Focused navigation/library comparison: `outputs/design-qa/design-qa-library-focus.png`
+- Browser implementation: `outputs/design-qa/design-qa-documents-desktop.png`
+- Mobile implementation (`390 x 844`): `outputs/design-qa/design-qa-documents-mobile.png`
+- Usage settings: `outputs/design-qa/design-qa-settings-usage.png`
 
-- Source pixels: 1465 x 761.
-- Desktop implementation pixels and CSS viewport: 1440 x 900 at device scale factor 1.
-- Mobile implementation pixels and CSS viewport: 320 x 760 at device scale factor 1.
-- Tablet verification CSS viewport: 1121 x 900.
-- Desktop combined comparison: source resized proportionally to 1440 px wide; implementation retained at 1440 x 900.
-- Mobile combined comparison: source resized proportionally to 1328 px wide; four unscaled 320 x 760 captures placed in one row with 16 px gaps.
-- Theme/state: light theme, private prototype, fictitious clinical data. Documentos uses the default certificate template; its mobile capture has `Vista previa` selected.
+The focused comparison was required because document titles, active-row treatment, and relative rail widths were too small to judge reliably in the full composition.
 
-## Findings
+## Findings and iterations
 
-No actionable P0, P1 or P2 differences remain.
+1. P2: at the reference width, the document library initially collapsed into a wide horizontal block above the editor. Fixed by retaining a compact `188px` document rail from `821px` through `1240px`.
+2. P2: Configuration was absent from the five-item mobile bottom navigation. Fixed with a quiet settings action in the mobile header.
+3. No remaining P0, P1, or P2 visual issues. The final version exposes substantially more working area, keeps the title hierarchy and HHR palette, and preserves touch access to delete controls on mobile.
 
-- Fonts and typography: Geist is retained; page titles now use a responsive 28-36 px range with reduced tracking and clear hierarchy. Text wraps at 320 px without truncating the core task.
-- Spacing and layout rhythm: the working canvas is capped at 1160 px; core radii are 10-12 px with restrained shadows. Desktop keeps editor and preview in parallel, tablet stacks them, and mobile uses an explicit Editar/Vista previa switch.
-- Colors and visual tokens: the navy, cyan, paper, positive green and restricted yellow palette match the direction board. Yellow remains focused on the brand and clinical/status communication.
-- Image quality and asset fidelity: the real HHR logo is used as an image asset. The four institutional PDFs remain the byte-identical repository originals; no form or logo was redrawn with code.
-- Copy and content: the global prototype indicator remains visible, while the IA badge is simplified to `IA real` to avoid duplicating the environment label. Safety, integrity and human-review copy remain explicit.
-- Responsive behavior: `documentElement.scrollWidth === clientWidth` at 320, 1121 and 1440 px. Persistent navigation and primary controls remain visible.
-- Interaction and accessibility: the document switch is a named tablist with `aria-selected` and `aria-controls`; form tabs, IA radio targets and the file-origin filter update real state.
+The source and local implementation contain different document counts; this affects row quantity only, not the compared layout or interaction pattern.
 
-## Comparison history
+## Interaction and runtime checks
 
-### Iteration 1 · blocked
-
-- Earlier evidence: the audit captures showed cropped mobile content and the design board classified reflow as P0. The initial local implementation had no horizontal scrollbar at 320 px, but Documentos required scrolling through the entire editor before reaching the preview, and its desktop minimum tracks could become unsafe around the sidebar/tablet boundary.
-- P0/P1 fixes: added mobile Editar/Vista previa tabs; introduced explicit `min-width: 0` contracts for nested grid children; moved the original PDF preview before the long form information on mobile; raised the stacking breakpoint to 1240 px; reduced mobile action and panel density.
-- Runtime fix: replaced timezone-dependent stored-date formatting that caused hydration failure and blocked React interactions.
-- P2 fix: corrected the IA selection indicator so only the selected result shows a check.
-
-### Iteration 2 · passed
-
-- Post-fix desktop evidence: `outputs/design-qa/documentos-desktop.png` shows the 1160 px workspace, fixed sidebar, restrained surfaces, editor/preview pairing and one dominant CTA.
-- Post-fix mobile evidence: `outputs/design-qa/comparison-mobile.png` shows one-column reflow, bottom navigation, the selected original form, simplified IA status, the document preview tab and a complete file toolbar at 320 px.
-- Focused interaction evidence: `Vista previa` changes the editor from `display: block` to `none` and the preview from `none` to `block`; the selected form updates its PDF source; IA selection opacities resolve to one visible check; the file origin resolves to `QR móvil`.
-- Browser checks: page identity, meaningful DOM, framework-overlay absence and console health passed in a clean final browser session. Final console error/warning list: empty.
-- Automated checks: lint completed with no errors; build passed; 4/4 Node tests passed. Four pre-existing non-blocking `no-img-element` warnings remain in unrelated dynamic image/camera surfaces.
-
-## Follow-up polish
-
-- P3: a later typography pass could standardize a few remaining 8-10 px legacy microcopy sizes, but this does not block usability or fidelity at the tested viewports.
-
-## Implementation checklist
-
-- [x] Reflow verified from 320 px.
-- [x] Tablet/sidebar boundary verified at 1121 px.
-- [x] Desktop editor and preview verified at 1440 px.
-- [x] Core mobile interactions exercised.
-- [x] Hydration and console checked after a clean server restart.
-- [x] Institutional PDF integrity tests preserved.
-
-final result: passed
-
----
-
-## Iteración · receta, fecha y perfil profesional (2026-07-26)
-
-### Evidencia comparada
-
-- Referencia aportada: `/var/folders/6c/jzmkty3d3zdc1p13lrvwgm7m0000gn/T/codex-clipboard-348c200f-c43a-4ce4-9b5c-02e8747f6199.png` (1324 × 1160).
-- Implementación final: `outputs/receta-externa-implementacion-final.png` (594 × 930).
-- Comparación conjunta normalizada: `outputs/receta-externa-comparacion.png` (1340 × 680).
-- Estado equivalente: receta externa guardada, paciente sin completar, profesional firmante visible y fecha 26-07-2026.
-
-### Resultado visual y funcional
-
-- La cabecera usa `Servicio de Salud Metropolitano Oriente` y conserva el nombre del hospital y el logo real.
-- Medicamento e indicación se consolidaron en un único bloque de prescripción iniciado por `Rp.`.
-- La firma permanece en el tercio inferior y la fecha queda como último dato del documento, debajo del pie de receta.
-- El editor replica el mismo modelo: un único cuadro de escritura, sin controles de reordenamiento innecesarios.
-- La jerarquía, el contraste, las líneas y la densidad se mantienen consistentes con el sistema visual existente.
-- El documento previo de receta se abre sin perder compatibilidad: sus secciones antiguas se normalizan al nuevo bloque único.
-- Atajos verificados en navegador: `Ctrl/Cmd+N`, `Escape` y `Enter`.
-
-No quedan diferencias visuales P0, P1 o P2 para este alcance.
+- Saved a clinical draft and verified it appeared in Recientes.
+- Opened the inline delete confirmation and cancelled it with `Escape` without deleting the document.
+- Created and fully deleted a temporary QA draft; the recent-document count returned from 6 to 5.
+- Verified Configuración tabs and the empty token/cost state.
+- Verified document and settings layouts at desktop and mobile breakpoints.
+- Browser console errors: none.
 
 final result: passed

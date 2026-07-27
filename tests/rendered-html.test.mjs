@@ -39,6 +39,7 @@ test("ships the clinical routes, storage bindings and source templates", async (
     "../app/api/signatures/[id]/route.ts",
     "../app/api/ai/prompts/route.ts",
     "../app/api/ai/prompts/[id]/route.ts",
+    "../app/api/ai/usage/route.ts",
     "../public/templates/laboratorio.pdf",
     "../public/templates/imagenologia.pdf",
     "../public/templates/encuesta-imagenologia.pdf",
@@ -147,6 +148,9 @@ test("keeps the clinical studios usable from mobile through desktop", async () =
   assert.match(documentStudio, /id: "prescripcion", title: "Rp\."/);
   assert.doesNotMatch(documentStudio, /id: "medicamento"|id: "indicacion"/);
   assert.match(documentStudio, /api\/documents\?id=/);
+  assert.match(documentStudio, /method: "DELETE"/);
+  assert.match(documentStudio, /Confirmar eliminación de/);
+  assert.match(documentStudio, /deleteDocument/);
   assert.match(documentStudio, /api\/signatures/);
   assert.match(documentStudio, /aiMetadata/);
   assert.match(documentStudio, /Ver trazabilidad/);
@@ -190,9 +194,45 @@ test("contains no production sample workflow or fictitious record creation", asy
   assert.match(aiClient, /patientName,/);
   assert.match(aiClient, /patient: result\.patient/);
   assert.match(aiClient, /signer: result\.signer/);
-  assert.match(connections, /No configurada/);
+  assert.match(connections, /No configurado/);
+  assert.doesNotMatch(settings, /Misión|Reducir la fricción administrativa|Unificar formularios/);
+  assert.match(settings, /id: "conexiones"/);
+  assert.match(settings, /id: "uso"/);
   assert.match(headersConfig, /X-Content-Type-Options/);
   assert.match(headersConfig, /Permissions-Policy/);
+});
+
+test("integrates connections and measured AI usage into tabbed settings", async () => {
+  const [navigation, settings, redirect, dashboard, usageApi, usageStore, database, schema, migration] = await Promise.all([
+    readFile(new URL("../app/components/AppFrame.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/configuracion/page.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/conexiones/page.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/features/ai/AiUsageDashboard.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/api/ai/usage/route.ts", import.meta.url), "utf8"),
+    readFile(new URL("../app/features/ai/server/usage.ts", import.meta.url), "utf8"),
+    readFile(new URL("../app/lib/server/database.ts", import.meta.url), "utf8"),
+    readFile(new URL("../db/schema.ts", import.meta.url), "utf8"),
+    readFile(new URL("../drizzle/0002_zippy_electro.sql", import.meta.url), "utf8"),
+  ]);
+  assert.doesNotMatch(navigation, /href: "\/conexiones"/);
+  assert.match(navigation, /mobile-settings-link/);
+  assert.match(redirect, /redirect\("\/configuracion\?tab=conexiones"\)/);
+  assert.match(settings, /PromptManager/);
+  assert.match(settings, /Connections/);
+  assert.match(settings, /AiUsageDashboard/);
+  assert.match(settings, /SystemSettings/);
+  assert.match(dashboard, /Costo estimado/);
+  assert.match(dashboard, /Tokens/);
+  assert.match(dashboard, /Modelo/);
+  assert.match(dashboard, /No reemplaza la facturación del proveedor/);
+  assert.match(usageApi, /GROUP BY provider_id, model/);
+  assert.match(usageApi, /owner_email = \?/);
+  assert.match(usageStore, /gpt-5\.6-sol/);
+  assert.match(usageStore, /gpt-5-mini/);
+  assert.match(usageStore, /estimated_cost_microusd/);
+  assert.match(database, /CREATE TABLE IF NOT EXISTS ai_usage_events/);
+  assert.match(schema, /aiUsageEvents/);
+  assert.match(migration, /CREATE TABLE `ai_usage_events`/);
 });
 
 test("offers isolated OpenAI and local Gemma providers", async () => {

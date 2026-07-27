@@ -12,12 +12,14 @@ const schemaStatements = [
   `CREATE TABLE IF NOT EXISTS mobile_upload_sessions (id TEXT PRIMARY KEY, owner_email TEXT NOT NULL, token_hash TEXT NOT NULL UNIQUE, expires_at TEXT NOT NULL, status TEXT NOT NULL, created_at TEXT NOT NULL, updated_at TEXT NOT NULL)`,
   `CREATE TABLE IF NOT EXISTS ai_import_runs (id TEXT PRIMARY KEY, owner_email TEXT NOT NULL, source_name TEXT NOT NULL, target_type TEXT NOT NULL, status TEXT NOT NULL, created_at TEXT NOT NULL)`,
   `CREATE TABLE IF NOT EXISTS ai_prompts (id TEXT PRIMARY KEY, owner_email TEXT NOT NULL, name TEXT NOT NULL, target_type TEXT NOT NULL, instructions TEXT NOT NULL, revision INTEGER NOT NULL DEFAULT 1, is_default INTEGER NOT NULL DEFAULT 0, created_at TEXT NOT NULL, updated_at TEXT NOT NULL)`,
+  `CREATE TABLE IF NOT EXISTS ai_usage_events (id TEXT PRIMARY KEY, owner_email TEXT NOT NULL, run_id TEXT NOT NULL, provider_id TEXT NOT NULL, model TEXT NOT NULL, input_tokens INTEGER NOT NULL DEFAULT 0, cached_input_tokens INTEGER NOT NULL DEFAULT 0, output_tokens INTEGER NOT NULL DEFAULT 0, total_tokens INTEGER NOT NULL DEFAULT 0, estimated_cost_microusd INTEGER, pricing_source TEXT NOT NULL, created_at TEXT NOT NULL)`,
   `CREATE TABLE IF NOT EXISTS audit_events (id TEXT PRIMARY KEY, owner_email TEXT NOT NULL, action TEXT NOT NULL, entity_type TEXT NOT NULL, entity_id TEXT NOT NULL, metadata_json TEXT NOT NULL, created_at TEXT NOT NULL)`,
   `CREATE INDEX IF NOT EXISTS documents_owner_updated_idx ON documents(owner_email, updated_at DESC)`,
   `CREATE INDEX IF NOT EXISTS files_owner_created_idx ON files(owner_email, created_at DESC)`,
   `CREATE INDEX IF NOT EXISTS signatures_owner_updated_idx ON signatures(owner_email, updated_at DESC)`,
   `CREATE INDEX IF NOT EXISTS ai_prompts_owner_target_idx ON ai_prompts(owner_email, target_type, updated_at DESC)`,
   `CREATE UNIQUE INDEX IF NOT EXISTS ai_prompts_owner_target_default_idx ON ai_prompts(owner_email, target_type) WHERE is_default = 1`,
+  `CREATE INDEX IF NOT EXISTS ai_usage_owner_created_idx ON ai_usage_events(owner_email, created_at DESC)`,
   `CREATE INDEX IF NOT EXISTS sessions_token_idx ON mobile_upload_sessions(token_hash)`,
 ];
 

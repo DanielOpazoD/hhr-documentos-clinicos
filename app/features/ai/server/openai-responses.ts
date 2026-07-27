@@ -2,6 +2,7 @@ import { outputSchema, systemPrompt } from "./prompt";
 import type { AiEvidence, AiPatient, AiProgressReporter, AiSigner, AiSourceInput, AiTargetId } from "../types";
 import { parseClinicalOutput } from "./clinical-output";
 import { extractLocalSource, getPdfPageCount } from "./source-extraction";
+import type { AiTokenUsage } from "../usage-types";
 
 export type OpenAiOutput = {
   documentKind: string;
@@ -58,6 +59,25 @@ function extractReasoningSummary(payload: unknown): string | null {
   return text || null;
 }
 
+function extractTokenUsage(payload: unknown): AiTokenUsage {
+  const usage = (payload as {
+    usage?: {
+      input_tokens?: number;
+      output_tokens?: number;
+      total_tokens?: number;
+      input_tokens_details?: { cached_tokens?: number };
+    };
+  } | null)?.usage;
+  const inputTokens = Math.max(0, Number(usage?.input_tokens ?? 0));
+  const outputTokens = Math.max(0, Number(usage?.output_tokens ?? 0));
+  return {
+    inputTokens,
+    cachedInputTokens: Math.max(0, Number(usage?.input_tokens_details?.cached_tokens ?? 0)),
+    outputTokens,
+    totalTokens: Math.max(0, Number(usage?.total_tokens ?? inputTokens + outputTokens)),
+  };
+}
+
 function sourceContent(file: File, sourceName: string, mimeType: string) {
   return file.arrayBuffer().then((buffer) => {
     const fileData = `data:${mimeType};base64,${toBase64(buffer)}`;
@@ -79,7 +99,7 @@ export async function generateClinicalDraft(input: {
   target: AiTargetId;
   promptInstructions: string;
   onProgress?: AiProgressReporter;
-}): Promise<OpenAiOutput> {
+}): Promise<{ output: OpenAiOutput; usage: AiTokenUsage }> {
   await input.onProgress?.({ stage: "reading", label: "Leyendo documentos", detail: `Preparando ${input.sources.length} fuente${input.sources.length === 1 ? "" : "s"}` });
   const sourceTexts = await Promise.all(input.sources.map((source) =>
     extractLocalSource(source.file, source.mimeType).catch(() => null),
@@ -156,5 +176,8 @@ export async function generateClinicalDraft(input: {
     sourcePageCounts,
   });
   const reasoningSummary = extractReasoningSummary(payload);
-  return reasoningSummary ? { ...output, reasoningSummary } : output;
+  return {
+    output: reasoningSummary ? { ...output, reasoningSummary } : output,
+    usage: extractTokenUsage(payload),
+  };
 }

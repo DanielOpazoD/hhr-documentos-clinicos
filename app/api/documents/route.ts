@@ -55,3 +55,20 @@ export async function POST(request: Request) {
   await audit(owner, existing ? "updated" : "created", "document", id, { status, version });
   return Response.json({ document: { id, title, patientName, templateId, status, version, updatedAt: now } }, { status: existing ? 200 : 201 });
 }
+
+export async function DELETE(request: Request) {
+  const owner = requestOwner(request);
+  if (!owner) return jsonError("Autenticación requerida.", 401);
+  const id = new URL(request.url).searchParams.get("id")?.trim();
+  if (!id) return jsonError("Documento no especificado.");
+  const db = await ensureDatabase();
+  const document = await db.prepare("SELECT id FROM documents WHERE id = ? AND owner_email = ?").bind(id, owner).first();
+  if (!document) return jsonError("Documento no encontrado.", 404);
+  await db.batch([
+    db.prepare("DELETE FROM document_files WHERE document_id = ?").bind(id),
+    db.prepare("DELETE FROM document_versions WHERE document_id = ? AND owner_email = ?").bind(id, owner),
+    db.prepare("DELETE FROM documents WHERE id = ? AND owner_email = ?").bind(id, owner),
+  ]);
+  await audit(owner, "deleted", "document", id, {});
+  return Response.json({ ok: true });
+}

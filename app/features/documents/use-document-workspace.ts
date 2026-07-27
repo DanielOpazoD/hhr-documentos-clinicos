@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { DocumentStatus } from "@/app/lib/catalog";
-import { getDocument, listDocuments } from "./api";
+import { getDocument, listDocuments, removeStoredDocument } from "./api";
 import { formatSavedTime } from "./formatters";
 import {
   createSections,
@@ -36,6 +36,7 @@ export function useDocumentWorkspace() {
   const [mobileView, setMobileView] = useState<"edit" | "preview">("edit");
   const [loadError, setLoadError] = useState<string | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
+  const [deletingDocumentId, setDeletingDocumentId] = useState<string | null>(null);
   const [aiMetadata, setAiMetadata] = useState<StoredAiMetadata | null>(null);
   const editRevision = useRef(0);
   const dirtyRef = useRef(false);
@@ -212,6 +213,21 @@ export function useDocumentWorkspace() {
     signatures,
   ]);
 
+  const deleteDocument = useCallback(async (id: string) => {
+    if (!(await flushPendingSave())) return;
+    setDeletingDocumentId(id);
+    setLoadError(null);
+    try {
+      await removeStoredDocument(id);
+      if (documentId === id) await createDocument(DEFAULT_TEMPLATE_ID);
+      await refreshDocuments();
+    } catch (error) {
+      setLoadError(error instanceof Error ? error.message : "No se pudo eliminar el documento.");
+    } finally {
+      setDeletingDocumentId(null);
+    }
+  }, [createDocument, documentId, flushPendingSave, refreshDocuments]);
+
   const updateSection = useCallback((id: string, body: string) => {
     setSections((current) => current.map((section) =>
       section.id === id ? { ...section, body } : section,
@@ -287,12 +303,14 @@ export function useDocumentWorkspace() {
     setMobileView,
     loadError,
     saveError,
+    deletingDocumentId,
     ...signatureWorkspace,
     markDirty,
     markSignatureDirty,
     persist,
     openDocument,
     createDocument,
+    deleteDocument,
     updateSection,
     moveSection,
     downloadPdf,

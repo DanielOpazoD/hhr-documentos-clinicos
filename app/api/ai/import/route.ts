@@ -8,6 +8,7 @@ import { audit } from "@/app/lib/server/audit";
 import { requestOwner } from "@/app/lib/server/auth";
 import { ensureDatabase } from "@/app/lib/server/database";
 import { jsonError } from "@/app/lib/server/http";
+import { recordAiUsage } from "@/app/features/ai/server/usage";
 
 async function updateRunStatus(id: string, status: string) {
   const db = await ensureDatabase();
@@ -47,7 +48,7 @@ export async function POST(request: Request) {
   return progressStream(async (emit) => {
     emit({ type: "status", stage: "preparing", label: "Preparando archivos", detail: `${sources.length} fuente${sources.length === 1 ? "" : "s"} lista${sources.length === 1 ? "" : "s"} para analizar` });
     try {
-      const { output: result, provider } = await generateDraftWithProvider({
+      const { output: result, provider, usage } = await generateDraftWithProvider({
         providerId,
         sources,
         target,
@@ -55,6 +56,13 @@ export async function POST(request: Request) {
         onProgress: (progress) => emit({ type: "status", ...progress }),
       });
       await updateRunStatus(id, "completado");
+      const usageRecorded = await recordAiUsage({
+        owner,
+        runId: id,
+        providerId: provider.id,
+        model: provider.model,
+        usage,
+      }).then(() => true).catch(() => false);
       await audit(owner, "generated", "ai_import", id, {
         sourceNames: sources.map((source) => source.sourceName),
         target,
@@ -66,6 +74,9 @@ export async function POST(request: Request) {
         totalSize: sources.reduce((total, source) => total + source.file.size, 0),
         store: false,
         processingAuthorized: true,
+        usageRecorded,
+        inputTokens: usage.inputTokens,
+        outputTokens: usage.outputTokens,
       });
       emit({ type: "status", stage: "completed", label: "Borrador listo", detail: "Identidad, contenido y fuentes preparados para revisión" });
       emit({ type: "result", result: {

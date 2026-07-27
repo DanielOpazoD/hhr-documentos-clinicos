@@ -36,6 +36,11 @@ export async function saveDocument(input: SaveDocumentInput) {
   return data.document;
 }
 
+export async function removeStoredDocument(id: string): Promise<void> {
+  const response = await fetch(`/api/documents?id=${encodeURIComponent(id)}`, { method: "DELETE" });
+  await parseResponse<{ ok: true }>(response);
+}
+
 export async function listSignatures(signal?: AbortSignal): Promise<SignatureRecord[]> {
   const response = await fetch("/api/signatures", { signal });
   const data = await parseResponse<{ signatures?: SignatureRecord[] }>(response);

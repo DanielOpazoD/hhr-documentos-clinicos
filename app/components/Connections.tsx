@@ -1,68 +1,61 @@
-import {
-  Activity,
-  FileHeart,
-  FlaskConical,
-  LockKeyhole,
-  RadioTower,
-} from "@/app/components/Icons";
+"use client";
 
-const connections = [
-  {
-    name: "Ficha clínica",
-    icon: FileHeart,
-    status: "No configurada",
-    scope: "Identidad del paciente y resumen clínico",
-    contract: "Lectura iniciada por el usuario",
-  },
-  {
-    name: "Laboratorio",
-    icon: FlaskConical,
-    status: "No configurada",
-    scope: "Resultados estructurados y fecha de toma",
-    contract: "Lectura y validación de respuesta completa",
-  },
-  {
-    name: "Radiología",
-    icon: RadioTower,
-    status: "No configurada",
-    scope: "Hallazgos e impresión del informe",
-    contract: "Lectura y rechazo de respuestas parciales",
-  },
+import { useEffect, useState } from "react";
+import { FileHeart, FlaskConical, RadioTower, Sparkles } from "@/app/components/Icons";
+import { fetchAiProviders } from "@/app/features/ai/client";
+import type { AiProviderInfo } from "@/app/features/ai/types";
+
+const clinicalConnections = [
+  { name: "Ficha clínica", icon: FileHeart },
+  { name: "Laboratorio", icon: FlaskConical },
+  { name: "Radiología", icon: RadioTower },
 ] as const;
 
 export function Connections() {
+  const [providers, setProviders] = useState<AiProviderInfo[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let active = true;
+    void fetchAiProviders()
+      .then((items) => { if (active) setProviders(items); })
+      .catch(() => { if (active) setProviders([]); })
+      .finally(() => { if (active) setLoading(false); });
+    return () => { active = false; };
+  }, []);
+
   return (
-    <div className="page-wrap">
-      <header className="page-header">
-        <div>
-          <span className="eyebrow">Integraciones</span>
-          <h1>Conexiones clínicas</h1>
-          <p>Estado real de las fuentes externas disponibles para el centro documental.</p>
-        </div>
-      </header>
-
-      <div className="connection-grid">
-        {connections.map((connection) => {
-          const Icon = connection.icon;
-          return (
-            <article className="connection-card" key={connection.name}>
-              <div className="connection-icon"><Icon size={23} /></div>
-              <span className="connection-status"><span />{connection.status}</span>
-              <h2>{connection.name}</h2>
-              <p>{connection.scope}</p>
-              <footer><Activity size={14} /> {connection.contract}</footer>
+    <div className="settings-stack">
+      <section className="settings-section">
+        <header><h2>Modelos</h2></header>
+        <div className="connection-list">
+          {loading ? <div className="settings-loading">Consultando…</div> : providers.map((provider) => (
+            <article key={provider.id}>
+              <span className="settings-row-icon"><Sparkles size={17} /></span>
+              <div><strong>{provider.name}</strong><small>{provider.model}</small></div>
+              <span className={provider.available ? "connection-state connected" : "connection-state"}>
+                {provider.available ? "Activo" : "No configurado"}
+              </span>
             </article>
-          );
-        })}
-      </div>
-
-      <div className="security-strip">
-        <LockKeyhole size={19} />
-        <div>
-          <strong>Integraciones de mínima exposición</strong>
-          <p>Las conexiones futuras serán de solo lectura, con activación explícita, sesiones acotadas y registro de operaciones.</p>
+          ))}
         </div>
-      </div>
+      </section>
+
+      <section className="settings-section">
+        <header><h2>Sistemas clínicos</h2></header>
+        <div className="connection-list">
+          {clinicalConnections.map((connection) => {
+            const Icon = connection.icon;
+            return (
+              <article key={connection.name}>
+                <span className="settings-row-icon"><Icon size={17} /></span>
+                <div><strong>{connection.name}</strong></div>
+                <span className="connection-state">No configurado</span>
+              </article>
+            );
+          })}
+        </div>
+      </section>
     </div>
   );
 }

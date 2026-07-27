@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { integer, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
+import { index, integer, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
 
 const timestamps = {
   createdAt: text("created_at").notNull(),
@@ -122,6 +122,23 @@ export const aiPrompts = sqliteTable("ai_prompts", {
   uniqueIndex("ai_prompts_owner_target_default_idx")
     .on(table.ownerEmail, table.targetType)
     .where(sql`"is_default" = 1`),
+]);
+
+export const aiUsageEvents = sqliteTable("ai_usage_events", {
+  id: text("id").primaryKey(),
+  ownerEmail: text("owner_email").notNull(),
+  runId: text("run_id").notNull(),
+  providerId: text("provider_id").notNull(),
+  model: text("model").notNull(),
+  inputTokens: integer("input_tokens").notNull().default(0),
+  cachedInputTokens: integer("cached_input_tokens").notNull().default(0),
+  outputTokens: integer("output_tokens").notNull().default(0),
+  totalTokens: integer("total_tokens").notNull().default(0),
+  estimatedCostMicrousd: integer("estimated_cost_microusd"),
+  pricingSource: text("pricing_source").notNull(),
+  createdAt: text("created_at").notNull(),
+}, (table) => [
+  index("ai_usage_owner_created_idx").on(table.ownerEmail, table.createdAt),
 ]);
 
 export const auditEvents = sqliteTable("audit_events", {

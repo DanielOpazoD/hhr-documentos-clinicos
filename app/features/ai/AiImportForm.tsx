@@ -93,7 +93,7 @@ export function AiImportForm({ controller }: { controller: AiStudioController })
         </div>
         <div className="prompt-picker">
           <label htmlFor="ai-prompt">Prompt</label>
-          <div><select id="ai-prompt" value={controller.selectedPromptId} disabled={controller.processing || controller.promptsLoading} onChange={(event) => controller.setSelectedPromptId(event.target.value)}>{controller.promptProfiles.filter((item) => item.target === controller.target).map((item) => <option key={item.id} value={item.id}>{item.name}{item.builtIn ? " · base" : ` · v${item.revision}`}</option>)}</select><Link href="/configuracion#prompts">Configurar</Link></div>
+          <div><select id="ai-prompt" value={controller.selectedPromptId} disabled={controller.processing || controller.promptsLoading} onChange={(event) => controller.setSelectedPromptId(event.target.value)}>{controller.promptProfiles.filter((item) => item.target === controller.target).map((item) => <option key={item.id} value={item.id}>{item.name}{item.builtIn ? " · base" : ` · v${item.revision}`}</option>)}</select><Link href="/configuracion?tab=ia">Configurar</Link></div>
         </div>
         <button
           className="button primary full"

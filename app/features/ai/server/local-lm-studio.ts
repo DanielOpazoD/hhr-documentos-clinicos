@@ -3,6 +3,7 @@ import { outputSchema, systemPrompt } from "./prompt";
 import { extractLocalSource } from "./source-extraction";
 import type { OpenAiOutput } from "./openai-responses";
 import type { AiProgressReporter, AiSourceInput, AiTargetId } from "../types";
+import type { AiTokenUsage } from "../usage-types";
 
 const LOCAL_CONTEXT_TOKENS = 16_384;
 const LOCAL_OUTPUT_TOKENS = 3_800;
@@ -70,7 +71,7 @@ export async function generateLocalClinicalDraft(input: {
   target: AiTargetId;
   promptInstructions: string;
   onProgress?: AiProgressReporter;
-}): Promise<OpenAiOutput> {
+}): Promise<{ output: OpenAiOutput; usage: AiTokenUsage }> {
   await input.onProgress?.({ stage: "reading", label: "Leyendo documentos", detail: `Extrayendo texto e imágenes de ${input.sources.length} fuente${input.sources.length === 1 ? "" : "s"}` });
   const sources: Array<AiSourceInput & { extractedText: string | null }> = [];
   for (const source of input.sources) {
@@ -107,6 +108,7 @@ export async function generateLocalClinicalDraft(input: {
   const payload = await response.json().catch(() => null) as {
     choices?: Array<{ message?: { content?: string } }>;
     error?: { message?: string };
+    usage?: { prompt_tokens?: number; completion_tokens?: number; total_tokens?: number };
   } | null;
   if (!response.ok) {
     throw new Error(payload?.error?.message ? "Gemma local no pudo procesar el archivo." : "No se pudo conectar con Gemma local.");
@@ -114,8 +116,18 @@ export async function generateLocalClinicalDraft(input: {
   const contentText = payload?.choices?.[0]?.message?.content;
   if (!contentText) throw new Error("Gemma local no devolvió un borrador utilizable.");
   await input.onProgress?.({ stage: "verifying", label: "Verificando el borrador", detail: "Comprobando identidad, citas y campos pendientes" });
-  return parseClinicalOutput(contentText, {
-    sourceTexts: sources.map((source) => source.extractedText),
-    sourceMimeTypes: sources.map((source) => source.mimeType),
-  });
+  const inputTokens = Math.max(0, Number(payload?.usage?.prompt_tokens ?? 0));
+  const outputTokens = Math.max(0, Number(payload?.usage?.completion_tokens ?? 0));
+  return {
+    output: parseClinicalOutput(contentText, {
+      sourceTexts: sources.map((source) => source.extractedText),
+      sourceMimeTypes: sources.map((source) => source.mimeType),
+    }),
+    usage: {
+      inputTokens,
+      cachedInputTokens: 0,
+      outputTokens,
+      totalTokens: Math.max(0, Number(payload?.usage?.total_tokens ?? inputTokens + outputTokens)),
+    },
+  };
 }

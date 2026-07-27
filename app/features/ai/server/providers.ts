@@ -3,6 +3,7 @@ import type { AiProgressReporter, AiProviderId, AiProviderInfo, AiSourceInput, A
 import type { OpenAiOutput } from "./openai-responses";
 import { generateClinicalDraft } from "./openai-responses";
 import { generateLocalClinicalDraft } from "./local-lm-studio";
+import type { AiTokenUsage } from "../usage-types";
 
 const DEFAULT_OPENAI_MODEL = "gpt-5.6-sol";
 const DEFAULT_LOCAL_MODEL = "hhr-gemma-local";
@@ -124,11 +125,11 @@ export async function generateDraftWithProvider(input: {
   target: AiTargetId;
   promptInstructions: string;
   onProgress?: AiProgressReporter;
-}): Promise<{ output: OpenAiOutput; provider: ProviderConfig }> {
+}): Promise<{ output: OpenAiOutput; provider: ProviderConfig; usage: AiTokenUsage }> {
   const provider = providerConfig(input.providerId);
   if (provider.id === "openai") {
     if (!provider.apiKey) throw new Error("La integración con OpenAI no está configurada.");
-    const output = await generateClinicalDraft({
+    const result = await generateClinicalDraft({
       apiKey: provider.apiKey,
       model: provider.model,
       sources: input.sources,
@@ -136,13 +137,13 @@ export async function generateDraftWithProvider(input: {
       promptInstructions: input.promptInstructions,
       onProgress: input.onProgress,
     });
-    return { output, provider };
+    return { ...result, provider };
   }
   if (!provider.baseUrl) throw new Error("Gemma local no está configurada en este equipo.");
   if (provider.execution === "remote" && !provider.apiKey) {
     throw new Error("El gateway privado requiere autenticación.");
   }
-  const output = await generateLocalClinicalDraft({
+  const result = await generateLocalClinicalDraft({
     baseUrl: provider.baseUrl,
     apiKey: provider.apiKey,
     model: provider.model,
@@ -151,5 +152,5 @@ export async function generateDraftWithProvider(input: {
     promptInstructions: input.promptInstructions,
     onProgress: input.onProgress,
   });
-  return { output, provider };
+  return { ...result, provider };
 }

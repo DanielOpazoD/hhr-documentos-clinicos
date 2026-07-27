@@ -15,6 +15,13 @@
       "when": 1784956143507,
       "tag": "0001_large_luminals",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1785109394358,
+      "tag": "0002_zippy_electro",
+      "breakpoints": true
     }
   ]
 }
