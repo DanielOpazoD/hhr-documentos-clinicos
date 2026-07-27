@@ -4,6 +4,7 @@ import type {
   SignatureRecord,
   StoredDocument,
   StoredDocumentDetail,
+  StoredDocumentVersion,
 } from "./types";
 
 async function parseResponse<T>(response: Response): Promise<T> {
@@ -34,6 +35,21 @@ export async function saveDocument(input: SaveDocumentInput) {
   });
   const data = await parseResponse<{ document: StoredDocument }>(response);
   return data.document;
+}
+
+export async function listDocumentVersions(id: string): Promise<StoredDocumentVersion[]> {
+  const response = await fetch(`/api/documents/${encodeURIComponent(id)}/versions`);
+  const data = await parseResponse<{ versions?: StoredDocumentVersion[] }>(response);
+  return data.versions ?? [];
+}
+
+export async function restoreDocumentVersion(id: string, version: number, expectedUpdatedAt: string): Promise<void> {
+  const response = await fetch(`/api/documents/${encodeURIComponent(id)}/versions`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ version, expectedUpdatedAt }),
+  });
+  await parseResponse<{ ok: true }>(response);
 }
 
 export async function removeStoredDocument(id: string): Promise<void> {

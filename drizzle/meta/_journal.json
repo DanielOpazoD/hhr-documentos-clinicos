@@ -22,6 +22,13 @@
       "when": 1785109394358,
       "tag": "0002_zippy_electro",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "6",
+      "when": 1785184931517,
+      "tag": "0003_classy_spectrum",
+      "breakpoints": true
     }
   ]
 }

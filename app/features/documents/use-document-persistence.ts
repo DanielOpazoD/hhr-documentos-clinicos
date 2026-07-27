@@ -12,6 +12,7 @@ type MutableValue<T> = { current: T };
 export type DocumentPersistenceSnapshot = {
   aiMetadata: StoredAiMetadata | null;
   documentId: string | null;
+  documentUpdatedAt: string | null;
   issueDate: string;
   legacyInsurance: string;
   patient: PatientData;
@@ -32,6 +33,7 @@ export function useDocumentPersistence(options: {
   refreshDocuments: () => Promise<void>;
   setDirty: Dispatch<SetStateAction<boolean>>;
   setDocumentId: Dispatch<SetStateAction<string | null>>;
+  setDocumentUpdatedAt: (value: string | null) => void;
   setSavedAt: Dispatch<SetStateAction<string | null>>;
   setStatus: Dispatch<SetStateAction<DocumentStatus>>;
   setVersion: Dispatch<SetStateAction<number>>;
@@ -70,6 +72,7 @@ export function useDocumentPersistence(options: {
       try {
         const saved = await saveDocument({
           id: snapshot.documentId ?? undefined,
+          expectedUpdatedAt: snapshot.documentUpdatedAt ?? undefined,
           templateId: snapshot.templateId,
           title: snapshot.visibleTitle,
           patientName: patientFullName(snapshot.patient),
@@ -126,6 +129,7 @@ function applySavedDocument(
   setSaveEpoch: Dispatch<SetStateAction<number>>,
 ) {
   options.setDocumentId(saved.id);
+  options.setDocumentUpdatedAt(saved.updatedAt);
   options.setVersion(saved.version);
   options.setSavedAt(formatSavedTime());
   const revisionIsCurrent = options.editRevision.current === revision;

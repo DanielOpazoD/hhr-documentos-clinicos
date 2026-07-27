@@ -11,6 +11,7 @@ Espacio web privado para crear, revisar, imprimir, escanear y respaldar document
 - Catálogo versionado de prompts por tipo de documento.
 - Escáner móvil multipágina con detección y edición de bordes, corrección de perspectiva y acabados en color, grises o blanco y negro.
 - Biblioteca privada de documentos y archivos con almacenamiento D1/R2 en Sites.
+- Historial clínico restaurable y protección contra sobrescrituras accidentales entre pestañas.
 
 La IA genera borradores editables. La revisión y firma final permanecen bajo control del profesional.
 

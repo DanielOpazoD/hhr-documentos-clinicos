@@ -6,19 +6,21 @@ import { DocumentCommandBar } from "@/app/features/documents/DocumentCommandBar"
 import { DocumentEditor } from "@/app/features/documents/DocumentEditor";
 import { DocumentLibrary } from "@/app/features/documents/DocumentLibrary";
 import { DocumentPreview } from "@/app/features/documents/DocumentPreview";
+import { DocumentHistoryDialog } from "@/app/features/documents/DocumentHistoryDialog";
 import { useDocumentWorkspace } from "@/app/features/documents/use-document-workspace";
 import { useDocumentKeyboard } from "@/app/features/documents/use-document-keyboard";
 
 export function DocumentStudio() {
   const workspace = useDocumentWorkspace();
-  const { persist, setNewMenuOpen, setSignatureDeleteId, setSignatureFormOpen } = workspace;
+  const { closeDocumentHistory, persist, setNewMenuOpen, setSignatureDeleteId, setSignatureFormOpen } = workspace;
   const saveFromKeyboard = useCallback(() => void persist(), [persist]);
   const openNewDocumentMenu = useCallback(() => setNewMenuOpen(true), [setNewMenuOpen]);
   const closeTransientControls = useCallback(() => {
     setNewMenuOpen(false);
+    closeDocumentHistory();
     setSignatureDeleteId(null);
     setSignatureFormOpen(false);
-  }, [setNewMenuOpen, setSignatureDeleteId, setSignatureFormOpen]);
+  }, [closeDocumentHistory, setNewMenuOpen, setSignatureDeleteId, setSignatureFormOpen]);
   useDocumentKeyboard({
     saving: workspace.saving,
     onSave: saveFromKeyboard,
@@ -66,6 +68,7 @@ export function DocumentStudio() {
           </div>
         </main>
       </div>
+      {workspace.historyOpen ? <DocumentHistoryDialog {...workspace} /> : null}
     </div>
   );
 }

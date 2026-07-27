@@ -3,13 +3,25 @@ import { requestOwner } from "@/app/lib/server/auth";
 import { ensureDatabase } from "@/app/lib/server/database";
 import { jsonError, readJsonObject } from "@/app/lib/server/http";
 import {
+  isDocumentWriteConflict,
   nextDocumentVersion,
   normalizeDocumentStatus,
   requiresPatientIdentity,
 } from "@/app/features/documents/document-policy";
+import { serializeDocumentVersionSnapshot } from "@/app/features/documents/document-version";
 
 // D1 admite hasta 100 parámetros enlazados; la consulta también enlaza al propietario.
 const MAX_DOCUMENTS_PER_REQUEST = 99;
+
+type ExistingDocument = { version: number; status: string; updatedAt: string };
+
+function changedRows(result: D1Result): number {
+  return typeof result.meta.changes === "number" ? result.meta.changes : 0;
+}
+
+function conflictError() {
+  return jsonError("Este documento cambió en otra pestaña. Vuelva a abrirlo antes de guardar.", 409);
+}
 
 export async function GET(request: Request) {
   const owner = requestOwner(request);
@@ -37,6 +49,9 @@ export async function POST(request: Request) {
   const patientName = String(payload.patientName ?? "").trim();
   const templateId = String(payload.templateId ?? "documento_libre");
   const status = normalizeDocumentStatus(payload.status);
+  const expectedUpdatedAt = typeof payload.expectedUpdatedAt === "string" && payload.expectedUpdatedAt
+    ? payload.expectedUpdatedAt
+    : undefined;
   if (!title) return jsonError("El título es obligatorio.");
   if (requiresPatientIdentity(status) && !patientName) {
     return jsonError("Identifique al paciente antes de revisar o finalizar.");
@@ -45,19 +60,38 @@ export async function POST(request: Request) {
   const db = await ensureDatabase();
   const id = String(payload.id ?? crypto.randomUUID());
   const now = new Date().toISOString();
-  const existing = await db.prepare(`SELECT version, status FROM documents WHERE id = ? AND owner_email = ?`).bind(id, owner).first<{ version: number; status: string }>();
+  const existing = await db.prepare(`SELECT version, status, updated_at AS updatedAt FROM documents WHERE id = ? AND owner_email = ?`).bind(id, owner).first<ExistingDocument>();
+  if (existing && !expectedUpdatedAt) return conflictError();
+  if (existing && isDocumentWriteConflict(existing.updatedAt, expectedUpdatedAt)) return conflictError();
   const version = nextDocumentVersion(existing, status);
   const createsVersion = Boolean(existing && version > existing.version);
   const contentJson = JSON.stringify(payload.content ?? {});
+  const patientRutMasked = String(payload.patientRutMasked ?? "");
+  const snapshotJson = serializeDocumentVersionSnapshot({
+    templateId,
+    title,
+    patientName,
+    patientRutMasked,
+    status,
+    content: payload.content ?? {},
+  });
 
   if (existing) {
-    const update = db.prepare(`UPDATE documents SET template_id = ?, title = ?, patient_name = ?, patient_rut_masked = ?, status = ?, content_json = ?, version = ?, updated_at = ? WHERE id = ? AND owner_email = ?`).bind(templateId, title, patientName, String(payload.patientRutMasked ?? ""), status, contentJson, version, now, id, owner);
-    if (createsVersion) await db.batch([update, db.prepare(`INSERT INTO document_versions (id, document_id, owner_email, version, content_json, created_at) VALUES (?, ?, ?, ?, ?, ?)`).bind(crypto.randomUUID(), id, owner, version, contentJson, now)]);
-    else await update.run();
+    const update = db.prepare(`UPDATE documents SET template_id = ?, title = ?, patient_name = ?, patient_rut_masked = ?, status = ?, content_json = ?, version = ?, updated_at = ? WHERE id = ? AND owner_email = ? AND updated_at = ?`)
+      .bind(templateId, title, patientName, patientRutMasked, status, contentJson, version, now, id, owner, expectedUpdatedAt);
+    if (createsVersion) {
+      const versionInsert = db.prepare(`INSERT INTO document_versions (id, document_id, owner_email, version, content_json, snapshot_json, created_at) SELECT ?, ?, ?, ?, ?, ?, ? WHERE EXISTS (SELECT 1 FROM documents WHERE id = ? AND owner_email = ? AND updated_at = ?)`)
+        .bind(crypto.randomUUID(), id, owner, version, contentJson, snapshotJson, now, id, owner, expectedUpdatedAt);
+      const results = await db.batch([versionInsert, update]);
+      if (changedRows(results[1]) === 0) return conflictError();
+    } else {
+      const result = await update.run();
+      if (changedRows(result) === 0) return conflictError();
+    }
   } else {
     await db.batch([
-      db.prepare(`INSERT INTO documents (id, owner_email, template_id, title, patient_name, patient_rut_masked, status, content_json, version, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`).bind(id, owner, templateId, title, patientName, String(payload.patientRutMasked ?? ""), status, contentJson, version, now, now),
-      db.prepare(`INSERT INTO document_versions (id, document_id, owner_email, version, content_json, created_at) VALUES (?, ?, ?, ?, ?, ?)`).bind(crypto.randomUUID(), id, owner, version, contentJson, now),
+      db.prepare(`INSERT INTO documents (id, owner_email, template_id, title, patient_name, patient_rut_masked, status, content_json, version, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`).bind(id, owner, templateId, title, patientName, patientRutMasked, status, contentJson, version, now, now),
+      db.prepare(`INSERT INTO document_versions (id, document_id, owner_email, version, content_json, snapshot_json, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)`).bind(crypto.randomUUID(), id, owner, version, contentJson, snapshotJson, now),
     ]);
   }
   await audit(owner, existing ? "updated" : "created", "document", id, { status, version });
