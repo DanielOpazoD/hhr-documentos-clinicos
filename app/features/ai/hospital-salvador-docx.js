@@ -112,7 +112,7 @@ function fillOfficialFields(documentXml, valuesByKey) {
 
 /** @param {Date} date */
 function formatDate(date) {
-  return new Intl.DateTimeFormat("es-CL", { day: "2-digit", month: "2-digit", year: "numeric", timeZone: "UTC" })
+  return new Intl.DateTimeFormat("es-CL", { day: "2-digit", month: "2-digit", year: "numeric" })
     .format(date)
     .replaceAll("/", "-");
 }

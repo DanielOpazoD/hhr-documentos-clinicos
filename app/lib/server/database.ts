@@ -37,11 +37,21 @@ async function ensureSignatureProfileColumns(db: D1Database) {
   await db.prepare("CREATE UNIQUE INDEX IF NOT EXISTS signatures_owner_default_idx ON signatures(owner_email) WHERE is_default = 1").run();
 }
 
+async function migrateLegacyAiPromptTargets(db: D1Database) {
+  await db.batch([
+    db.prepare("UPDATE ai_prompts SET is_default = 0 WHERE target_type IN ('resumen', 'informe', 'antecedentes')"),
+    db.prepare("UPDATE ai_prompts SET target_type = 'informe_medico' WHERE target_type IN ('resumen', 'informe', 'antecedentes')"),
+  ]);
+}
+
 export async function ensureDatabase(): Promise<D1Database> {
   const db = appEnv().DB;
   if (!db) throw new Error("La base de datos no está disponible.");
   schemaReady ??= db.batch(schemaStatements.map((statement) => db.prepare(statement)))
-    .then(() => ensureSignatureProfileColumns(db))
+    .then(async () => {
+      await ensureSignatureProfileColumns(db);
+      await migrateLegacyAiPromptTargets(db);
+    })
     .catch((error) => {
       schemaReady = null;
       throw error;

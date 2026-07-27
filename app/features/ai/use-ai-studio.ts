@@ -156,14 +156,26 @@ export function useAiStudio() {
     setResult((current) => ({
       ...current,
       sections: current.sections.map((section, itemIndex) =>
-        itemIndex === index ? { ...section, title } : section,
+        itemIndex === index ? { ...section, title, evidenceStale: true } : section,
       ),
     }));
     setDraftHasChanges(true);
   }
 
   function updatePatient(field: keyof AiPatient, value: string) {
-    setResult((current) => ({ ...current, patient: { ...current.patient, [field]: value } }));
+    setResult((current) => {
+      const patient = { ...current.patient, [field]: value };
+      const fullName = [patient.firstNames, patient.lastNames].filter(Boolean).join(" ").trim();
+      return {
+        ...current,
+        patient,
+        sections: target === "traslado_salvador" ? current.sections.map((section) => {
+          if (section.key === "full_name") return { ...section, text: fullName || "No consignado", evidenceStale: true };
+          if (section.key === "rut") return { ...section, text: patient.rut.trim() || "No consignado", evidenceStale: true };
+          return section;
+        }) : current.sections,
+      };
+    });
     setIdentityConfirmed(false);
     setDraftHasChanges(true);
   }

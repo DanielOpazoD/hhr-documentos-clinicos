@@ -373,7 +373,15 @@ test("ships the eight reviewed clinical prompts as configurable defaults", async
   assert.match(promptSchema, /no construyas una tendencia entre fórmulas distintas/);
   assert.match(promptSchema, /intervalo de referencia, unidad y método/);
   assert.match(promptSchema, /No agregues controles, tamizajes, plazos ni planes de seguimiento/);
-  assert.match(await readFile(new URL("../app/features/ai/server/clinical-output.ts", import.meta.url), "utf8"), /los 18 campos únicos del formulario/);
+  const clinicalOutput = await readFile(new URL("../app/features/ai/server/clinical-output.ts", import.meta.url), "utf8");
+  assert.match(clinicalOutput, /los 18 campos únicos del formulario/);
+  assert.match(clinicalOutput, /no consta\)\\s\*\[\.!\]\?\$/);
+  const aiController = await readFile(new URL("../app/features/ai/use-ai-studio.ts", import.meta.url), "utf8");
+  assert.match(aiController, /title, evidenceStale: true/);
+  assert.match(aiController, /section\.key === "full_name"/);
+  const database = await readFile(new URL("../app/lib/server/database.ts", import.meta.url), "utf8");
+  assert.match(database, /migrateLegacyAiPromptTargets/);
+  assert.match(database, /target_type = 'informe_medico'/);
 });
 
 test("fills the official Hospital del Salvador Word without changing its institutional parts", async () => {
@@ -385,13 +393,21 @@ test("fills the official Hospital del Salvador Word without changing its institu
     title: field.label,
     text: `Contenido verificado ${index + 1}`,
   }));
-  const output = createHospitalSalvadorDocxBytes(
-    template,
-    sections,
-    { firstNames: "Paciente", lastNames: "Control", rut: "11.111.111-1" },
-    { name: "Dr. Daniel Opazo", rut: "17.752.753-K", specialty: "Medicina Interna" },
-    new Date("2026-07-26T12:00:00Z"),
-  );
+  const previousTimeZone = process.env.TZ;
+  let output;
+  try {
+    process.env.TZ = "Pacific/Easter";
+    output = createHospitalSalvadorDocxBytes(
+      template,
+      sections,
+      { firstNames: "Paciente", lastNames: "Control", rut: "11.111.111-1" },
+      { name: "Dr. Daniel Opazo", rut: "17.752.753-K", specialty: "Medicina Interna" },
+      new Date("2026-07-27T01:30:00Z"),
+    );
+  } finally {
+    if (previousTimeZone === undefined) delete process.env.TZ;
+    else process.env.TZ = previousTimeZone;
+  }
   const sourcePackage = unzipSync(template);
   const outputPackage = unzipSync(output);
 

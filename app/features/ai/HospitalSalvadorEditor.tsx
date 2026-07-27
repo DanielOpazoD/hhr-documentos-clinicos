@@ -15,10 +15,18 @@ export function HospitalSalvadorEditor({ controller }: { controller: AiStudioCon
           {personal.map((field) => {
             const item = indexedSections.get(field.key);
             if (!item) return null;
+            const canonicalValue = field.key === "full_name"
+              ? [controller.result.patient.firstNames, controller.result.patient.lastNames].filter(Boolean).join(" ").trim()
+              : field.key === "rut" ? controller.result.patient.rut.trim() : null;
             return (
               <label className={field.key === "support_network" ? "wide" : ""} key={field.key}>
                 <span>{field.label}</span>
-                <input value={item.section.text} onChange={(event) => controller.updateSection(item.index, event.target.value)} />
+                <input
+                  value={canonicalValue || item.section.text}
+                  readOnly={canonicalValue !== null}
+                  title={canonicalValue !== null ? "Se edita en Paciente identificado" : undefined}
+                  onChange={(event) => controller.updateSection(item.index, event.target.value)}
+                />
                 <AiSectionEvidence section={item.section} sources={controller.result.sources} />
               </label>
             );

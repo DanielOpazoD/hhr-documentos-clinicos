@@ -50,7 +50,7 @@ function isoDate(value: unknown): string {
 }
 
 function declaredAbsence(value: string): boolean {
-  return /^(no consignad[oa]|no se dispone|no disponible|sin información|no aparece|no consta)/i.test(value.trim());
+  return /^(?:no consignad[oa]|no se dispone|no disponible|sin información|no aparece|no consta)\s*[.!]?$/i.test(value.trim());
 }
 
 export function parseClinicalOutput(
