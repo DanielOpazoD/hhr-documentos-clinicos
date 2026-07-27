@@ -37,8 +37,17 @@ export async function saveDocument(input: SaveDocumentInput) {
 }
 
 export async function removeStoredDocument(id: string): Promise<void> {
-  const response = await fetch(`/api/documents?id=${encodeURIComponent(id)}`, { method: "DELETE" });
-  await parseResponse<{ ok: true }>(response);
+  await removeStoredDocuments([id]);
+}
+
+export async function removeStoredDocuments(ids: string[]): Promise<string[]> {
+  const response = await fetch("/api/documents", {
+    method: "DELETE",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ ids }),
+  });
+  const data = await parseResponse<{ ok: true; deletedIds: string[] }>(response);
+  return data.deletedIds;
 }
 
 export async function listSignatures(signal?: AbortSignal): Promise<SignatureRecord[]> {

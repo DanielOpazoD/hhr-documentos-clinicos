@@ -3,6 +3,9 @@ import { requestOwner } from "@/app/lib/server/auth";
 import { ensureDatabase } from "@/app/lib/server/database";
 import { jsonError, readJsonObject } from "@/app/lib/server/http";
 
+// D1 admite hasta 100 parámetros enlazados; la consulta también enlaza al propietario.
+const MAX_DOCUMENTS_PER_REQUEST = 99;
+
 export async function GET(request: Request) {
   const owner = requestOwner(request);
   if (!owner) return jsonError("Autenticación requerida.", 401);
@@ -16,7 +19,7 @@ export async function GET(request: Request) {
     try { content = JSON.parse(String(contentJson ?? "{}")); } catch { content = {}; }
     return Response.json({ document: { ...metadata, content } });
   }
-  const result = await db.prepare(`SELECT id, template_id AS templateId, title, patient_name AS patientName, patient_rut_masked AS patientRutMasked, status, version, updated_at AS updatedAt FROM documents WHERE owner_email = ? ORDER BY updated_at DESC LIMIT 30`).bind(owner).all();
+  const result = await db.prepare(`SELECT id, template_id AS templateId, title, patient_name AS patientName, patient_rut_masked AS patientRutMasked, status, version, updated_at AS updatedAt FROM documents WHERE owner_email = ? ORDER BY updated_at DESC LIMIT ${MAX_DOCUMENTS_PER_REQUEST}`).bind(owner).all();
   return Response.json({ documents: result.results });
 }
 
@@ -59,16 +62,34 @@ export async function POST(request: Request) {
 export async function DELETE(request: Request) {
   const owner = requestOwner(request);
   if (!owner) return jsonError("Autenticación requerida.", 401);
-  const id = new URL(request.url).searchParams.get("id")?.trim();
-  if (!id) return jsonError("Documento no especificado.");
+  const queryId = new URL(request.url).searchParams.get("id")?.trim();
+  const payload = queryId ? null : await readJsonObject(request);
+  const requestedIds = queryId
+    ? [queryId]
+    : Array.isArray(payload?.ids) ? payload.ids.map((id) => String(id).trim()).filter(Boolean) : [];
+  const ids = [...new Set(requestedIds)];
+  if (!ids.length) return jsonError("Documento no especificado.");
+  if (ids.length > MAX_DOCUMENTS_PER_REQUEST) return jsonError(`Puede eliminar hasta ${MAX_DOCUMENTS_PER_REQUEST} documentos por operación.`);
   const db = await ensureDatabase();
-  const document = await db.prepare("SELECT id FROM documents WHERE id = ? AND owner_email = ?").bind(id, owner).first();
-  if (!document) return jsonError("Documento no encontrado.", 404);
+  const placeholders = ids.map(() => "?").join(",");
+  const owned = await db.prepare(`SELECT id FROM documents WHERE owner_email = ? AND id IN (${placeholders})`).bind(owner, ...ids).all<{ id: string }>();
+  const ownedIds = owned.results.map((document) => document.id);
+  if (ownedIds.length !== ids.length) return jsonError("Uno o más documentos no están disponibles.", 404);
+  const deletedAt = new Date().toISOString();
+  const ownedPlaceholders = ownedIds.map(() => "?").join(",");
   await db.batch([
-    db.prepare("DELETE FROM document_files WHERE document_id = ?").bind(id),
-    db.prepare("DELETE FROM document_versions WHERE document_id = ? AND owner_email = ?").bind(id, owner),
-    db.prepare("DELETE FROM documents WHERE id = ? AND owner_email = ?").bind(id, owner),
+    db.prepare(`DELETE FROM document_files WHERE document_id IN (${ownedPlaceholders})`).bind(...ownedIds),
+    db.prepare(`DELETE FROM document_versions WHERE owner_email = ? AND document_id IN (${ownedPlaceholders})`).bind(owner, ...ownedIds),
+    db.prepare(`DELETE FROM documents WHERE owner_email = ? AND id IN (${ownedPlaceholders})`).bind(owner, ...ownedIds),
+    db.prepare("INSERT INTO audit_events (id, owner_email, action, entity_type, entity_id, metadata_json, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)").bind(
+      crypto.randomUUID(),
+      owner,
+      "deleted",
+      ownedIds.length > 1 ? "documents" : "document",
+      ownedIds.length > 1 ? `bulk:${crypto.randomUUID()}` : ownedIds[0],
+      JSON.stringify({ bulk: ownedIds.length > 1, ids: ownedIds }),
+      deletedAt,
+    ),
   ]);
-  await audit(owner, "deleted", "document", id, {});
-  return Response.json({ ok: true });
+  return Response.json({ ok: true, deletedIds: ownedIds });
 }

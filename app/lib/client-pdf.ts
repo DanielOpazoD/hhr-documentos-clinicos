@@ -2,8 +2,6 @@
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
-import { clampSignatureY } from "./document-layout";
-
 type PdfSection = { title: string; body: string };
 type PdfSignature = { imageUrl: string; professionalName: string; professionalRut: string; specialty: string; x: number; y: number; width: number };
 
@@ -49,7 +47,9 @@ export async function downloadClinicalPdf(options: { fileName: string; title: st
     const signatureWidth = Math.max(90, Math.min(210, 612 * options.signature.width / 100));
     const signatureHeight = Math.min(74, signatureWidth / signatureImage.ratio);
     const signatureX = Math.max(24, Math.min(612 - signatureWidth - 24, 612 * options.signature.x / 100 - signatureWidth / 2));
-    const signatureY = pdf.internal.pageSize.getHeight() * clampSignatureY(options.signature.y) / 100;
+    const signatureBlockHeight = signatureHeight + 42;
+    if (y + signatureBlockHeight > 680) { pdf.addPage(); y = 82; }
+    const signatureY = y + 10;
     pdf.addImage(signatureImage.dataUrl, signatureImage.format, signatureX, signatureY, signatureWidth, signatureHeight, undefined, "FAST");
     pdf.setFont("helvetica", "bold");
     pdf.setFontSize(8.5);
@@ -59,6 +59,7 @@ export async function downloadClinicalPdf(options: { fileName: string; title: st
     pdf.setFontSize(7.5);
     const detail = [options.signature.specialty, options.signature.professionalRut ? `RUT: ${options.signature.professionalRut}` : ""].filter(Boolean).join(" · ");
     if (detail) pdf.text(detail, signatureX + signatureWidth / 2, signatureY + signatureHeight + 22, { align: "center" });
+    y = signatureY + signatureBlockHeight;
   }
   pdf.setDrawColor(207, 216, 218);
   pdf.line(left, 700, left + width, 700);

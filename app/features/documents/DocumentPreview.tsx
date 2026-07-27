@@ -60,27 +60,29 @@ export function DocumentPreview({
           </section>
         ))}
         {placedSignature ? (
-          <div
-            className="placed-signature"
-            style={{ left: `${placedSignature.x}%`, top: `${placedSignature.y}%`, width: `${placedSignature.width}%` }}
-            onPointerDown={(event) => {
-              event.currentTarget.setPointerCapture(event.pointerId);
-              event.preventDefault();
-            }}
-            onPointerMove={moveSignature}
-          >
-            <span className="signature-drag-handle print-hide">Mover</span>
-            <NextImage
-              src={placedSignature.imageUrl}
-              alt={`Firma de ${placedSignature.professionalName}`}
-              width={220}
-              height={90}
-              draggable={false}
-              unoptimized
-            />
-            <strong>{placedSignature.professionalName}</strong>
-            {placedSignature.specialty ? <span>{placedSignature.specialty}</span> : null}
-            {placedSignature.professionalRut ? <span>RUT: {placedSignature.professionalRut}</span> : null}
+          <div className="signature-placement-zone">
+            <div
+              className="placed-signature"
+              style={{ left: `${placedSignature.x}%`, width: `${placedSignature.width}%` }}
+              onPointerDown={(event) => {
+                event.currentTarget.setPointerCapture(event.pointerId);
+                event.preventDefault();
+              }}
+              onPointerMove={moveSignature}
+            >
+              <span className="signature-drag-handle print-hide">Mover</span>
+              <NextImage
+                src={placedSignature.imageUrl}
+                alt={`Firma de ${placedSignature.professionalName}`}
+                width={220}
+                height={90}
+                draggable={false}
+                unoptimized
+              />
+              <strong>{placedSignature.professionalName}</strong>
+              {placedSignature.specialty ? <span>{placedSignature.specialty}</span> : null}
+              {placedSignature.professionalRut ? <span>RUT: {placedSignature.professionalRut}</span> : null}
+            </div>
           </div>
         ) : signer.name ? (
           <div className="document-signer">

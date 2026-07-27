@@ -1,6 +1,8 @@
 import { useRef } from "react";
 import { FilePlus2, Pencil, UploadCloud, X } from "@/app/components/Icons";
+import { SignatureImageEditor } from "./SignatureImageEditor";
 import { SignatureProfileSelector } from "./SignatureProfileSelector";
+import { DEFAULT_SIGNATURE_IMAGE_SETTINGS } from "./prepare-signature";
 import type { DocumentWorkspace } from "./use-document-workspace";
 
 type Props = Pick<
@@ -17,7 +19,9 @@ type Props = Pick<
   | "signatureError"
   | "signatureForm"
   | "signatureFormOpen"
+  | "signatureImageSettings"
   | "signatures"
+  | "setSignatureImageSettings"
   | "signer"
   | "updateSigner"
 >;
@@ -35,7 +39,9 @@ export function SignatureEditor({
   signatureError,
   signatureForm,
   signatureFormOpen,
+  signatureImageSettings,
   signatures,
+  setSignatureImageSettings,
   signer,
   updateSigner,
 }: Props) {
@@ -83,17 +89,25 @@ export function SignatureEditor({
             ref={inputRef}
             hidden
             type="file"
-            accept="image/png,image/jpeg"
+            accept="image/*"
             onChange={(event) => {
               const file = event.currentTarget.files?.[0] ?? null;
               event.currentTarget.value = "";
               setSignatureForm((current) => ({ ...current, file }));
+              setSignatureImageSettings({ ...DEFAULT_SIGNATURE_IMAGE_SETTINGS });
             }}
           />
           <button className="signature-file-button" onClick={() => inputRef.current?.click()}>
             <UploadCloud size={17} />
-            {signatureForm.file ? signatureForm.file.name : "Elegir PNG o JPG"}
+            {signatureForm.file ? "Cambiar foto" : "Elegir foto de la firma"}
           </button>
+          {signatureForm.file ? (
+            <SignatureImageEditor
+              file={signatureForm.file}
+              settings={signatureImageSettings}
+              onChange={setSignatureImageSettings}
+            />
+          ) : null}
           <button className="button primary" disabled={signatureBusy || !signer.name.trim()} onClick={() => void saveSignature(signer)}>
             {signatureBusy ? "Guardando…" : "Guardar y usar"}
           </button>
@@ -103,7 +117,7 @@ export function SignatureEditor({
 
       {placedSignature ? (
         <div className="signature-position-controls">
-          <span>Arrastre la firma en la hoja</span>
+          <span>La firma se agrega después del contenido. Puede moverla horizontalmente.</span>
           <div>
             <button onClick={() => setHorizontalPosition(24)}>Izquierda</button>
             <button onClick={() => setHorizontalPosition(50)}>Centro</button>

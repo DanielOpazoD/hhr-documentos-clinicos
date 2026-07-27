@@ -3,9 +3,13 @@
 import { useCallback, useEffect, useState } from "react";
 import type { PointerEvent as ReactPointerEvent } from "react";
 import { createSignature, listSignatures, setDefaultSignature } from "./api";
-import { prepareSignatureUpload } from "./prepare-signature";
+import {
+  DEFAULT_SIGNATURE_IMAGE_SETTINGS,
+  prepareSignatureUpload,
+  type SignatureImageSettings,
+} from "./prepare-signature";
 import type { PlacedSignature, SignatureForm, SignatureRecord, SignerData } from "./types";
-import { clampSignatureY, SIGNATURE_Y_DEFAULT_PERCENT } from "@/app/lib/document-layout";
+import { SIGNATURE_Y_DEFAULT_PERCENT } from "@/app/lib/document-layout";
 
 const emptySignatureForm: SignatureForm = {
   file: null,
@@ -19,6 +23,7 @@ export function useSignatureWorkspace(markDirty: () => void) {
   const [placedSignature, setPlacedSignature] = useState<PlacedSignature | null>(null);
   const [signatureFormOpen, setSignatureFormOpen] = useState(false);
   const [signatureForm, setSignatureForm] = useState<SignatureForm>({ ...emptySignatureForm });
+  const [signatureImageSettings, setSignatureImageSettings] = useState<SignatureImageSettings>({ ...DEFAULT_SIGNATURE_IMAGE_SETTINGS });
   const [signatureBusy, setSignatureBusy] = useState(false);
   const [signatureError, setSignatureError] = useState<string | null>(null);
 
@@ -39,15 +44,14 @@ export function useSignatureWorkspace(markDirty: () => void) {
 
   const moveSignature = useCallback((event: ReactPointerEvent<HTMLDivElement>) => {
     if (!event.currentTarget.hasPointerCapture(event.pointerId)) return;
-    const paper = event.currentTarget.parentElement?.getBoundingClientRect();
-    if (!paper) return;
+    const placementZone = event.currentTarget.closest(".signature-placement-zone")?.getBoundingClientRect();
+    if (!placementZone) return;
     setPlacedSignature((current) => {
       if (!current) return current;
       const half = current.width / 2;
       return {
         ...current,
-        x: Math.min(100 - half, Math.max(half, ((event.clientX - paper.left) / paper.width) * 100)),
-        y: clampSignatureY(((event.clientY - paper.top) / paper.height) * 100),
+        x: Math.min(100 - half, Math.max(half, ((event.clientX - placementZone.left) / placementZone.width) * 100)),
       };
     });
     markDirty();
@@ -61,7 +65,7 @@ export function useSignatureWorkspace(markDirty: () => void) {
     setSignatureBusy(true);
     setSignatureError(null);
     try {
-      const preparedFile = await prepareSignatureUpload(signatureForm.file);
+      const preparedFile = await prepareSignatureUpload(signatureForm.file, signatureImageSettings);
       const created = await createSignature({
         file: preparedFile,
         professionalName: signer.name.trim(),
@@ -71,6 +75,7 @@ export function useSignatureWorkspace(markDirty: () => void) {
       setSignatures((current) => [created, ...current]);
       attachSignature(created);
       setSignatureForm({ ...emptySignatureForm });
+      setSignatureImageSettings({ ...DEFAULT_SIGNATURE_IMAGE_SETTINGS });
       setSignatureFormOpen(false);
     } catch (error) {
       setSignatureError(error instanceof Error ? error.message : "No se pudo guardar la firma.");
@@ -85,6 +90,7 @@ export function useSignatureWorkspace(markDirty: () => void) {
     setSignatureFormOpen,
     setSignatures,
     signatureForm,
+    signatureImageSettings,
   ]);
 
   const makeDefaultSignature = useCallback(async (id: string) => {
@@ -119,6 +125,8 @@ export function useSignatureWorkspace(markDirty: () => void) {
     setSignatureFormOpen,
     signatureForm,
     setSignatureForm,
+    signatureImageSettings,
+    setSignatureImageSettings,
     signatureBusy,
     signatureError,
     attachSignature,

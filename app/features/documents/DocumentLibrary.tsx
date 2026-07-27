@@ -9,7 +9,7 @@ import type { DocumentWorkspace } from "./use-document-workspace";
 type Props = Pick<
   DocumentWorkspace,
   | "documentId"
-  | "deletingDocumentId"
+  | "deletingDocumentIds"
   | "filteredDocuments"
   | "newMenuOpen"
   | "recentQuery"
@@ -19,12 +19,13 @@ type Props = Pick<
   | "storedDocuments"
   | "createDocument"
   | "deleteDocument"
+  | "deleteDocuments"
   | "openDocument"
 >;
 
 export function DocumentLibrary({
   documentId,
-  deletingDocumentId,
+  deletingDocumentIds,
   filteredDocuments,
   newMenuOpen,
   recentQuery,
@@ -34,18 +35,37 @@ export function DocumentLibrary({
   storedDocuments,
   createDocument,
   deleteDocument,
+  deleteDocuments,
   openDocument,
 }: Props) {
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+  const [selectionMode, setSelectionMode] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(() => new Set());
+  const [confirmBulkDelete, setConfirmBulkDelete] = useState(false);
 
   useEffect(() => {
-    if (!confirmDeleteId) return;
+    if (!confirmDeleteId && !confirmBulkDelete && !selectionMode) return;
     const cancel = (event: KeyboardEvent) => {
-      if (event.key === "Escape") setConfirmDeleteId(null);
+      if (event.key !== "Escape") return;
+      if (confirmDeleteId) setConfirmDeleteId(null);
+      else if (confirmBulkDelete) setConfirmBulkDelete(false);
+      else {
+        setSelectionMode(false);
+        setSelectedIds(new Set());
+      }
     };
     window.addEventListener("keydown", cancel);
     return () => window.removeEventListener("keydown", cancel);
-  }, [confirmDeleteId]);
+  }, [confirmBulkDelete, confirmDeleteId, selectionMode]);
+
+  const allSelected = filteredDocuments.length > 0 && filteredDocuments.every((document) => selectedIds.has(document.id));
+  const toggleSelection = (id: string) => setSelectedIds((current) => {
+    const next = new Set(current);
+    if (next.has(id)) next.delete(id);
+    else next.add(id);
+    setConfirmBulkDelete(false);
+    return next;
+  });
 
   return (
     <aside className="document-library print-hide">
@@ -65,8 +85,14 @@ export function DocumentLibrary({
       ) : null}
 
       <div className="recent-heading">
-        <strong>Recientes</strong>
-        <span>{storedDocuments.length}</span>
+        <div><strong>Recientes</strong><span>{storedDocuments.length}</span></div>
+        {storedDocuments.length ? (
+          <button className="text-button" onClick={() => {
+            setSelectionMode((current) => !current);
+            setSelectedIds(new Set());
+            setConfirmBulkDelete(false);
+          }}>{selectionMode ? "Cancelar" : "Seleccionar"}</button>
+        ) : null}
       </div>
 
       {storedDocuments.length ? (
@@ -76,21 +102,61 @@ export function DocumentLibrary({
             <input
               aria-label="Buscar documentos recientes"
               value={recentQuery}
-              onChange={(event) => setRecentQuery(event.target.value)}
+              onChange={(event) => {
+                setRecentQuery(event.target.value);
+                if (selectionMode) {
+                  setSelectedIds(new Set());
+                  setConfirmBulkDelete(false);
+                }
+              }}
               placeholder="Buscar…"
             />
           </label>
+          {selectionMode ? (
+            <div className="document-selection-bar">
+              <label>
+                <input
+                  type="checkbox"
+                  checked={allSelected}
+                  onChange={() => {
+                    setSelectedIds(allSelected ? new Set() : new Set(filteredDocuments.map((document) => document.id)));
+                    setConfirmBulkDelete(false);
+                  }}
+                />
+                Todos visibles
+              </label>
+              <span>{selectedIds.size} seleccionados</span>
+              <button
+                disabled={!selectedIds.size || deletingDocumentIds.size > 0}
+                className={confirmBulkDelete ? "confirm" : ""}
+                onClick={() => {
+                  if (!confirmBulkDelete) return setConfirmBulkDelete(true);
+                  const ids = [...selectedIds];
+                  setConfirmBulkDelete(false);
+                  void deleteDocuments(ids).then((deleted) => {
+                    if (!deleted) return;
+                    setSelectedIds(new Set());
+                    setSelectionMode(false);
+                  });
+                }}
+              >
+                <Trash2 size={12} /> {confirmBulkDelete ? `Confirmar (${selectedIds.size})` : "Eliminar"}
+              </button>
+            </div>
+          ) : null}
           <div className="recent-document-list">
             {filteredDocuments.map((item) => {
               const confirming = confirmDeleteId === item.id;
-              const deleting = deletingDocumentId === item.id;
+              const deleting = deletingDocumentIds.has(item.id);
+              const selected = selectedIds.has(item.id);
               return (
-                <div className={`${item.id === documentId ? "active " : ""}${confirming ? "delete-pending" : ""}`} key={item.id}>
-                  <button className="recent-document-open" disabled={saving || deleting} onClick={() => void openDocument(item.id)}>
+                <div className={`${item.id === documentId ? "active " : ""}${confirming ? "delete-pending " : ""}${selectionMode ? "selecting " : ""}${selected ? "selected" : ""}`} key={item.id}>
+                  {selectionMode ? <input className="recent-document-checkbox" type="checkbox" aria-label={`Seleccionar ${item.title}`} checked={selected} onChange={() => toggleSelection(item.id)} /> : null}
+                  <button className="recent-document-open" disabled={saving || deleting} onClick={() => selectionMode ? toggleSelection(item.id) : void openDocument(item.id)}>
                     <span><strong>{item.title}</strong>{item.patientName ? <small>{item.patientName}</small> : null}</span>
                     <span><em>{item.status}</em><small>{formatUpdated(item.updatedAt)}</small></span>
                   </button>
-                  <button
+                  {!selectionMode ? <button
                     className="recent-document-delete"
                     disabled={saving || deleting}
                     aria-label={confirming ? `Confirmar eliminación de ${item.title}` : `Eliminar ${item.title}`}
@@ -102,7 +168,7 @@ export function DocumentLibrary({
                     }}
                   >
                     <Trash2 size={13} />{confirming ? <span>Eliminar</span> : null}
-                  </button>
+                  </button> : null}
                 </div>
               );
             })}

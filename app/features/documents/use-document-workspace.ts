@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { DocumentStatus } from "@/app/lib/catalog";
-import { getDocument, listDocuments, removeStoredDocument } from "./api";
+import { getDocument, listDocuments, removeStoredDocuments } from "./api";
 import { formatSavedTime } from "./formatters";
 import {
   createSections,
@@ -36,7 +36,7 @@ export function useDocumentWorkspace() {
   const [mobileView, setMobileView] = useState<"edit" | "preview">("edit");
   const [loadError, setLoadError] = useState<string | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
-  const [deletingDocumentId, setDeletingDocumentId] = useState<string | null>(null);
+  const [deletingDocumentIds, setDeletingDocumentIds] = useState<Set<string>>(() => new Set());
   const [aiMetadata, setAiMetadata] = useState<StoredAiMetadata | null>(null);
   const editRevision = useRef(0);
   const dirtyRef = useRef(false);
@@ -213,24 +213,30 @@ export function useDocumentWorkspace() {
     signatures,
   ]);
 
-  const deleteDocument = useCallback(async (id: string) => {
-    if (!(await flushPendingSave())) return;
-    setDeletingDocumentId(id);
+  const deleteDocuments = useCallback(async (requestedIds: string[]) => {
+    const ids = [...new Set(requestedIds)].filter(Boolean);
+    if (!ids.length) return false;
+    if (!(await flushPendingSave())) return false;
+    setDeletingDocumentIds(new Set(ids));
     setLoadError(null);
     try {
-      await removeStoredDocument(id);
-      if (documentId === id) await createDocument(DEFAULT_TEMPLATE_ID);
+      const deletedIds = await removeStoredDocuments(ids);
+      if (documentId && deletedIds.includes(documentId)) await createDocument(DEFAULT_TEMPLATE_ID);
       await refreshDocuments();
+      return true;
     } catch (error) {
-      setLoadError(error instanceof Error ? error.message : "No se pudo eliminar el documento.");
+      setLoadError(error instanceof Error ? error.message : "No se pudieron eliminar los documentos.");
+      return false;
     } finally {
-      setDeletingDocumentId(null);
+      setDeletingDocumentIds(new Set());
     }
   }, [createDocument, documentId, flushPendingSave, refreshDocuments]);
 
-  const updateSection = useCallback((id: string, body: string) => {
+  const deleteDocument = useCallback((id: string) => deleteDocuments([id]), [deleteDocuments]);
+
+  const updateSection = useCallback((id: string, patch: Partial<Pick<DocumentSection, "title" | "body">>) => {
     setSections((current) => current.map((section) =>
-      section.id === id ? { ...section, body } : section,
+      section.id === id ? { ...section, ...patch } : section,
     ));
     setAiMetadata((current) => current ? {
       ...current,
@@ -238,6 +244,24 @@ export function useDocumentWorkspace() {
     } : current);
     markDirty();
   }, [markDirty, setAiMetadata, setSections]);
+
+  const addSection = useCallback(() => {
+    setSections((current) => [...current, {
+      id: crypto.randomUUID(),
+      title: "Nueva sección",
+      body: "",
+    }]);
+    markDirty();
+  }, [markDirty]);
+
+  const removeSection = useCallback((id: string) => {
+    setSections((current) => current.filter((section) => section.id !== id));
+    setAiMetadata((current) => current ? {
+      ...current,
+      editedSectionIds: [...new Set([...(current.editedSectionIds ?? []), id])],
+    } : current);
+    markDirty();
+  }, [markDirty]);
 
   const moveSection = useCallback((index: number, direction: -1 | 1) => {
     setSections((current) => {
@@ -303,7 +327,7 @@ export function useDocumentWorkspace() {
     setMobileView,
     loadError,
     saveError,
-    deletingDocumentId,
+    deletingDocumentIds,
     ...signatureWorkspace,
     markDirty,
     markSignatureDirty,
@@ -311,6 +335,9 @@ export function useDocumentWorkspace() {
     openDocument,
     createDocument,
     deleteDocument,
+    deleteDocuments,
+    addSection,
+    removeSection,
     updateSection,
     moveSection,
     downloadPdf,

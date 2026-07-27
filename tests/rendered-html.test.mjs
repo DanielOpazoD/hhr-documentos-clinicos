@@ -114,7 +114,9 @@ test("keeps the clinical studios usable from mobile through desktop", async () =
     "../app/features/documents/document-pdf.ts",
     "../app/lib/document-layout.ts",
     "../app/features/documents/SignatureEditor.tsx",
+    "../app/features/documents/SignatureImageEditor.tsx",
     "../app/features/documents/SignatureProfileSelector.tsx",
+    "../app/features/documents/prepare-signature.ts",
     "../app/features/documents/SectionsEditor.tsx",
     "../app/features/documents/templates.ts",
     "../app/features/documents/use-document-keyboard.ts",
@@ -123,6 +125,8 @@ test("keeps the clinical studios usable from mobile through desktop", async () =
     "../app/features/documents/use-document-persistence.ts",
     "../app/features/documents/use-signature-workspace.ts",
     "../app/features/documents/api.ts",
+    "../app/api/documents/route.ts",
+    "../app/lib/client-pdf.ts",
   ];
   const [moduleSources, styles] = await Promise.all([
     Promise.all(documentModules.map((path) => readFile(new URL(path, import.meta.url), "utf8"))),
@@ -141,7 +145,16 @@ test("keeps the clinical studios usable from mobile through desktop", async () =
   assert.match(documentStudio, /Perfil profesional/);
   assert.match(documentStudio, /Predeterminado/);
   assert.match(documentStudio, /makeDefaultSignature/);
-  assert.match(documentStudio, /Arrastre la firma en la hoja/);
+  assert.match(documentStudio, /La firma se agrega después del contenido/);
+  assert.match(documentStudio, /signature-placement-zone/);
+  assert.match(documentStudio, /Fondo blanco automático/);
+  assert.match(documentStudio, /renderSignatureImage/);
+  assert.match(documentStudio, /brightness/);
+  assert.match(documentStudio, /saturation/);
+  assert.match(documentStudio, /addSection/);
+  assert.match(documentStudio, /removeSection/);
+  assert.match(documentStudio, /section-title-input/);
+  assert.match(documentStudio, /Nueva sección/);
   assert.match(documentStudio, /recent-document-list/);
   assert.match(documentStudio, /aria-keyshortcuts="Control\+N Meta\+N"/);
   assert.match(documentStudio, /aria-keyshortcuts="Control\+S Meta\+S"/);
@@ -153,6 +166,10 @@ test("keeps the clinical studios usable from mobile through desktop", async () =
   assert.match(documentStudio, /method: "DELETE"/);
   assert.match(documentStudio, /Confirmar eliminación de/);
   assert.match(documentStudio, /deleteDocument/);
+  assert.match(documentStudio, /deleteDocuments/);
+  assert.match(documentStudio, /selectedIds/);
+  assert.match(documentStudio, /Todos/);
+  assert.match(documentStudio, /deletedIds/);
   assert.match(documentStudio, /api\/signatures/);
   assert.match(documentStudio, /aiMetadata/);
   assert.match(documentStudio, /Ver trazabilidad/);
@@ -172,6 +189,7 @@ test("keeps the clinical studios usable from mobile through desktop", async () =
   assert.match(documentStudio, /dirtyRef/);
   assert.match(documentStudio, /Math\.max\(width \/ 2, Math\.min\(100 - width \/ 2, current\.x\)\)/);
   assert.match(documentStudio, /event\.currentTarget\.value = ""/);
+  assert.match(documentStudio, /signatureBlockHeight/);
   assert.equal(moduleSources.filter((source) => source.split("\n").length > 350).length, 0);
   assert.match(styles, /@media \(max-width: 1240px\)/);
   assert.match(styles, /\.simplified-studio \.document-editor-layout \{ grid-template-columns: 1fr; \}/);
