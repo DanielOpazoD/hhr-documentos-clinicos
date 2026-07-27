@@ -33,8 +33,12 @@ export function DocumentStudio() {
       <header className="page-header compact-page-header">
         <div><h1>Documentos</h1></div>
         <div className="header-actions">
-          <button className="button secondary" onClick={() => window.print()}><Printer size={16} /> Imprimir</button>
-          <button className="button primary" onClick={() => void workspace.downloadPdf()}><Download size={16} /> Descargar PDF</button>
+          <button className="button secondary studio-print-button" onClick={() => window.print()}><Printer size={16} /> Imprimir</button>
+          <button className="button primary studio-download-button" aria-label="Descargar PDF" onClick={() => void workspace.downloadPdf()}>
+            <Download size={16} />
+            <span className="desktop-action-label">Descargar PDF</span>
+            <span className="mobile-action-label" aria-hidden="true">PDF</span>
+          </button>
         </div>
       </header>
 

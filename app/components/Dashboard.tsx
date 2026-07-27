@@ -32,7 +32,7 @@ export function Dashboard() {
 
     <section aria-labelledby="quick-title">
       <div className="section-heading"><div><span className="eyebrow">Comenzar</span><h2 id="quick-title">Acciones principales</h2></div></div>
-      <div className="action-grid">{actions.map(action => { const Icon = action.icon; return <Link href={action.href} key={action.href} className={`action-card ${action.tone}`}><span className="action-icon"><Icon size={22} /></span><span className="eyebrow">{action.eyebrow}</span><h3>{action.title}</h3><p>{action.text}</p><span className="card-link">Abrir <ArrowRight size={15} /></span></Link>; })}</div>
+      <div className="action-grid">{actions.map(action => { const Icon = action.icon; return <Link href={action.href} key={action.href} className={`action-card ${action.tone}`}><span className="action-icon"><Icon size={22} /></span><span className="eyebrow">{action.eyebrow}</span><h3>{action.title}</h3><p>{action.text}</p><span className="card-link"><span className="card-link-label">Abrir</span><ArrowRight size={15} /></span></Link>; })}</div>
     </section>
 
     <div className="dashboard-columns">
