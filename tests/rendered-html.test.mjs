@@ -16,6 +16,7 @@ test("builds the clinical document workspace from a production product identity"
   ]);
   assert.match(layout, /productIdentity\.name/);
   assert.match(product, /HHR-documentos/);
+  assert.match(await readFile(new URL("../app/components/AppFrame.tsx", import.meta.url), "utf8"), /productIdentity\.name/);
   assert.match(product, /Centro privado para crear/);
   assert.match(dashboard, /Centro documental clínico/);
   assert.match(dashboard, /Cree, revise, imprima y respalde/);

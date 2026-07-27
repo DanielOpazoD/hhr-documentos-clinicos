@@ -2,6 +2,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { FileText, FolderArchive, House, ScanLine, Settings, Sparkles, Stethoscope } from "@/app/components/Icons";
 import { requireSiteUser } from "@/app/lib/page-auth";
+import { productIdentity } from "@/app/lib/product";
 
 const nav = [
   { href: "/", label: "Inicio", icon: House },
@@ -18,9 +19,9 @@ export async function AppFrame({ active, children }: { active: string; children:
   return (
     <div className="app-shell">
       <aside className="sidebar print-hide">
-        <Link href="/" className="brand" aria-label="HHR Documentos, inicio">
+        <Link href="/" className="brand" aria-label={`${productIdentity.name}, inicio`}>
           <span className="brand-mark"><Image src="/hhr-logo.svg" alt="" width={36} height={36} priority /></span>
-          <span><strong>HHR</strong><small>Documentos</small></span>
+          <span><strong>{productIdentity.name}</strong></span>
         </Link>
         <nav className="main-nav" aria-label="Navegación principal">
           {nav.map(item => {
@@ -33,7 +34,7 @@ export async function AppFrame({ active, children }: { active: string; children:
       </aside>
       <main className="main-area">
         <header className="mobile-bar print-hide">
-          <Link href="/" className="mobile-brand"><Image src="/hhr-logo.svg" alt="" width={30} height={30} /> HHR Documentos</Link>
+          <Link href="/" className="mobile-brand"><Image src="/hhr-logo.svg" alt="" width={30} height={30} /> {productIdentity.name}</Link>
           <Link href="/configuracion" className={active === "Configuración" ? "mobile-settings-link active" : "mobile-settings-link"} aria-label="Configuración"><Settings size={19} /></Link>
         </header>
         {children}
