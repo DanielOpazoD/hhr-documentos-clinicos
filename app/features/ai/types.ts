@@ -69,10 +69,14 @@ export type AiTargetId =
 
 export type AiProviderId = "openai" | "gemma_local";
 
+export type AiModelGroup = "Recomendados" | "GPT-5.6" | "GPT-5" | "Razonamiento" | "GPT-4.1" | "GPT-4o" | "Personalizados" | "Otros" | "Local";
+
 export type AiModelOption = {
   id: string;
   name: string;
   detail: string;
+  group: AiModelGroup;
+  recommended?: boolean;
 };
 
 export type AiProviderInfo = {

@@ -269,6 +269,7 @@ test("integrates connections and measured AI usage into tabbed settings", async 
 test("offers isolated OpenAI and local Gemma providers", async () => {
   const modules = await Promise.all([
     "../app/features/ai/server/providers.ts",
+    "../app/features/ai/server/openai-models.ts",
     "../app/features/ai/server/prompt.ts",
     "../app/features/ai/server/openai-responses.ts",
     "../app/features/ai/server/clinical-output.ts",
@@ -277,6 +278,7 @@ test("offers isolated OpenAI and local Gemma providers", async () => {
     "../app/features/ai/server/import-request.ts",
     "../app/features/ai/server/progress-stream.ts",
     "../app/features/ai/AiImportForm.tsx",
+    "../app/features/ai/AiModelPicker.tsx",
     "../app/features/ai/AiDraftResult.tsx",
     "../app/features/ai/AiIdentityEditor.tsx",
     "../app/features/ai/AiProcessingStatus.tsx",
@@ -300,7 +302,14 @@ test("offers isolated OpenAI and local Gemma providers", async () => {
   assert.match(source, /DEFAULT_OPENAI_MODEL = "gpt-5-mini"/);
   assert.match(source, /gpt-5\.6-terra/);
   assert.match(source, /gpt-5\.6-sol/);
-  assert.match(source, /ai-model-picker/);
+  assert.match(source, /gpt-5\.6-luna/);
+  assert.match(source, /https:\/\/api\.openai\.com\/v1\/models/);
+  assert.match(source, /ai-model-field/);
+  assert.match(source, /Buscar modelo/);
+  assert.match(source, /event\.key !== "Escape"/);
+  assert.match(source, /supportsReasoning/);
+  assert.match(source, /hhr\.ai-selection\.v1/);
+  assert.match(source, /localStorage\.setItem/);
   assert.match(source, /form\.set\("model", model\)/);
   assert.match(source, /Modelo de OpenAI no permitido/);
   assert.match(source, /Privado · sin salir del equipo/);

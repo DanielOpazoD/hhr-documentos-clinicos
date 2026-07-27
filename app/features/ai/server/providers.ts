@@ -4,15 +4,10 @@ import type { OpenAiOutput } from "./openai-responses";
 import { generateClinicalDraft } from "./openai-responses";
 import { generateLocalClinicalDraft } from "./local-lm-studio";
 import type { AiTokenUsage } from "../usage-types";
+import { DEFAULT_OPENAI_MODEL, isOpenAiModel, listOpenAiModels } from "./openai-models";
 
-const DEFAULT_OPENAI_MODEL = "gpt-5-mini";
 const DEFAULT_LOCAL_MODEL = "hhr-gemma-local";
 const DEVELOPMENT_LOCAL_URL = "http://127.0.0.1:1234/v1";
-const OPENAI_MODELS = [
-  { id: "gpt-5-mini", name: "GPT-5 mini", detail: "Rápido y eficiente · predeterminado" },
-  { id: "gpt-5.6-terra", name: "GPT-5.6 Terra", detail: "Equilibrio entre calidad y costo" },
-  { id: "gpt-5.6-sol", name: "GPT-5.6 Sol", detail: "Mayor capacidad para casos complejos" },
-] as const;
 
 type ProviderConfig = {
   id: AiProviderId;
@@ -37,10 +32,6 @@ function normalizeBaseUrl(value: string): string {
 
 export function isAiProviderId(value: string): value is AiProviderId {
   return value === "openai" || value === "gemma_local";
-}
-
-export function isOpenAiModel(value: string): boolean {
-  return OPENAI_MODELS.some((model) => model.id === value);
 }
 
 function providerConfig(id: AiProviderId, requestedModel?: string): ProviderConfig {
@@ -70,11 +61,12 @@ function providerConfig(id: AiProviderId, requestedModel?: string): ProviderConf
 async function localProviderInfo(config: ProviderConfig): Promise<AiProviderInfo> {
   const local = config.execution === "local";
   const location = local ? "Este Mac" : "Servidor externo";
+  const models = [{ id: config.model, name: config.model, detail: "Modelo configurado en este equipo", group: "Local" as const }];
   if (!config.baseUrl) {
-    return { id: config.id, name: config.name, model: config.model, models: [{ id: config.model, name: config.model, detail: "Modelo configurado en este equipo" }], location, available: false, detail: "Servidor no configurado" };
+    return { id: config.id, name: config.name, model: config.model, models, location, available: false, detail: "Servidor no configurado" };
   }
   if (!local && !config.apiKey) {
-    return { id: config.id, name: config.name, model: config.model, models: [{ id: config.model, name: config.model, detail: "Modelo configurado en este equipo" }], location, available: false, detail: "Falta autenticación del gateway" };
+    return { id: config.id, name: config.name, model: config.model, models, location, available: false, detail: "Falta autenticación del gateway" };
   }
   try {
     const response = await fetch(`${config.baseUrl}/models`, {
@@ -88,7 +80,7 @@ async function localProviderInfo(config: ProviderConfig): Promise<AiProviderInfo
       id: config.id,
       name: config.name,
       model: config.model,
-      models: [{ id: config.model, name: config.model, detail: "Modelo configurado en este equipo" }],
+      models,
       location,
       available: modelReady,
       detail: modelReady
@@ -96,33 +88,31 @@ async function localProviderInfo(config: ProviderConfig): Promise<AiProviderInfo
         : "Modelo no cargado",
     };
   } catch {
-    return { id: config.id, name: config.name, model: config.model, models: [{ id: config.model, name: config.model, detail: "Modelo configurado en este equipo" }], location, available: false, detail: local ? "Inicie LM Studio para usarlo" : "Gateway no disponible" };
+    return { id: config.id, name: config.name, model: config.model, models, location, available: false, detail: local ? "Inicie LM Studio para usarlo" : "Gateway no disponible" };
   }
 }
 
 export async function getAiProviders(): Promise<AiProviderInfo[]> {
   const openai = providerConfig("openai");
-  let localInfo: AiProviderInfo;
-  try {
-    localInfo = await localProviderInfo(providerConfig("gemma_local"));
-  } catch {
-    const runtime = appEnv();
-    localInfo = {
+  const localConfig = providerConfig("gemma_local");
+  const [openAiModels, localInfo] = await Promise.all([
+    listOpenAiModels(openai.apiKey),
+    localProviderInfo(localConfig).catch((): AiProviderInfo => ({
       id: "gemma_local",
       name: "Gemma local",
-      model: runtime.LOCAL_AI_MODEL || process.env.LOCAL_AI_MODEL || DEFAULT_LOCAL_MODEL,
-      models: [{ id: runtime.LOCAL_AI_MODEL || process.env.LOCAL_AI_MODEL || DEFAULT_LOCAL_MODEL, name: runtime.LOCAL_AI_MODEL || process.env.LOCAL_AI_MODEL || DEFAULT_LOCAL_MODEL, detail: "Modelo configurado en este equipo" }],
+      model: localConfig.model,
+      models: [{ id: localConfig.model, name: localConfig.model, detail: "Modelo configurado en este equipo", group: "Local" }],
       location: "Este Mac",
       available: false,
       detail: "Configuración local inválida",
-    };
-  }
+    })),
+  ]);
   return [
     {
       id: openai.id,
       name: openai.name,
-      model: openai.model,
-      models: [...OPENAI_MODELS],
+      model: openAiModels.some((model) => model.id === openai.model) ? openai.model : (openAiModels[0]?.id ?? DEFAULT_OPENAI_MODEL),
+      models: openAiModels,
       location: "Nube",
       available: Boolean(openai.apiKey),
       detail: openai.apiKey ? "PDF, DOCX e imágenes" : "API no configurada",

@@ -2,6 +2,7 @@ import { useRef } from "react";
 import Link from "next/link";
 import { ArrowRight, Check, FileText, FileUp, Sparkles, Trash2 } from "@/app/components/Icons";
 import { AiProcessingStatus } from "./AiProcessingStatus";
+import { AiModelPicker } from "./AiModelPicker";
 import { aiTargetGroups, aiTargets, getTargetDefinition } from "./targets";
 import type { AiStudioController } from "./use-ai-studio";
 
@@ -12,7 +13,7 @@ export function AiImportForm({ controller }: { controller: AiStudioController })
   return (
     <div className="ai-layout">
       <section className="panel ai-upload">
-        <div className="panel-header"><div><span className="eyebrow">Fuentes</span><h2>Agregue los documentos</h2></div><small>{controller.files.length}/8</small></div>
+        <div className="panel-header"><div><h2>Archivos</h2></div><small>{controller.files.length}/8</small></div>
         <input
           ref={inputRef}
           type="file"
@@ -63,7 +64,7 @@ export function AiImportForm({ controller }: { controller: AiStudioController })
       </section>
 
       <section className="panel ai-target">
-        <div className="panel-header"><div><span className="eyebrow">Modelo</span><h2>Elija dónde procesar</h2></div></div>
+        <div className="panel-header"><div><h2>Procesamiento</h2></div></div>
         <fieldset className="provider-options" aria-label="Proveedor de inteligencia artificial">
           {controller.providersLoading ? <p>Comprobando modelos…</p> : controller.providers.map((item) => (
             <label className={controller.provider === item.id ? "selected" : ""} key={item.id} aria-disabled={!item.available}>
@@ -83,21 +84,14 @@ export function AiImportForm({ controller }: { controller: AiStudioController })
           ))}
         </fieldset>
         {controller.selectedProvider ? (
-          <label className="ai-model-picker" htmlFor="ai-model">
-            <span>Modelo {controller.selectedProvider.name}</span>
-            <select
-              id="ai-model"
-              value={controller.model}
-              disabled={controller.processing || !controller.selectedProvider.available}
-              onChange={(event) => controller.setModel(event.target.value)}
-            >
-              {controller.selectedProvider.models.map((model) => (
-                <option key={model.id} value={model.id}>{model.name} · {model.detail}</option>
-              ))}
-            </select>
-          </label>
+          <AiModelPicker
+            models={controller.selectedProvider.models}
+            value={controller.model}
+            disabled={controller.processing || !controller.selectedProvider.available}
+            onChange={controller.setModel}
+          />
         ) : null}
-        <div className="ai-subheading"><span className="eyebrow">Documento</span><h3>¿Qué desea crear?</h3></div>
+        <div className="ai-subheading"><h3>Documento</h3></div>
         <div className="ai-target-catalog" role="listbox" aria-label="Tipo de documento clínico">
           {aiTargetGroups.map((group) => (
             <section key={group} role="group" aria-label={group}>

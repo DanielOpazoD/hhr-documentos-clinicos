@@ -3,6 +3,7 @@ import type { AiEvidence, AiPatient, AiProgressReporter, AiSigner, AiSourceInput
 import { parseClinicalOutput } from "./clinical-output";
 import { extractLocalSource, getPdfPageCount } from "./source-extraction";
 import type { AiTokenUsage } from "../usage-types";
+import { supportsReasoning } from "./openai-models";
 
 export type OpenAiOutput = {
   documentKind: string;
@@ -137,7 +138,7 @@ export async function generateClinicalDraft(input: {
       model: input.model,
       store: false,
       max_output_tokens: input.target === "traslado_salvador" ? 9_000 : 6_500,
-      reasoning: { effort: "low", summary: "auto" },
+      ...(supportsReasoning(input.model) ? { reasoning: { effort: "low", summary: "auto" } } : {}),
       input: [
         { role: "system", content: systemPrompt(input.target, input.promptInstructions) },
         {

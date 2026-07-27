@@ -7,6 +7,8 @@ import { defaultClinicalSigner, getTargetName } from "./targets";
 import type { AiImportResult, AiPatient, AiProgress, AiProviderId, AiProviderInfo, AiSection, AiSigner, AiTargetId } from "./types";
 import type { AiPromptProfile } from "./prompt-types";
 
+const AI_SELECTION_STORAGE_KEY = "hhr.ai-selection.v1";
+
 const emptyResult: AiImportResult = {
   sources: [],
   providerId: "openai",
@@ -48,11 +50,19 @@ export function useAiStudio() {
       .then((availableProviders) => {
         if (!active) return;
         setProviders(availableProviders);
-        const selected = availableProviders.find((item) => item.id === "openai" && item.available)
+        let saved: { provider?: AiProviderId; model?: string } | null = null;
+        try {
+          saved = JSON.parse(window.localStorage.getItem(AI_SELECTION_STORAGE_KEY) ?? "null") as typeof saved;
+        } catch {
+          saved = null;
+        }
+        const selected = availableProviders.find((item) => item.id === saved?.provider && item.available)
+          ?? availableProviders.find((item) => item.id === "openai" && item.available)
           ?? availableProviders.find((item) => item.available);
         if (selected) {
           setProvider(selected.id);
-          setModel(selected.model);
+          const savedModel = saved?.model;
+          setModel(savedModel && selected.models.some((item) => item.id === savedModel) ? savedModel : selected.model);
         }
       })
       .catch(() => {
@@ -92,6 +102,15 @@ export function useAiStudio() {
     () => providers.find((item) => item.id === provider),
     [provider, providers],
   );
+
+  useEffect(() => {
+    if (providersLoading || !selectedProvider?.models.some((item) => item.id === model)) return;
+    try {
+      window.localStorage.setItem(AI_SELECTION_STORAGE_KEY, JSON.stringify({ provider, model }));
+    } catch {
+      // Device preferences are optional; the server-side default remains available.
+    }
+  }, [model, provider, providersLoading, selectedProvider]);
 
   useEffect(() => {
     if (!processing) return;
