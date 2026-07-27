@@ -13,6 +13,7 @@ La aplicación está preparada como un entorno privado funcional, pero no se dec
 - Borradores de IA editables, sin finalización o firma automática.
 - Registro de creación, actualización, carga, generación y errores relevantes.
 - Versionado de documentos al cambiar su estado clínico.
+- Historial visible con restauración no destructiva como borrador y control optimista de concurrencia.
 - Formularios institucionales originales preservados para impresión.
 - Sin pacientes, resultados, conexiones ni documentos de muestra en la aplicación.
 - Encabezados de seguridad para tipo de contenido, marcos, referencia y permisos del navegador.

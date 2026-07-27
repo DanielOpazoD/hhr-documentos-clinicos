@@ -16,3 +16,7 @@ export function nextDocumentVersion(
 export function requiresPatientIdentity(status: DocumentStatus): boolean {
   return status !== "Borrador";
 }
+
+export function isDocumentWriteConflict(currentUpdatedAt: string, expectedUpdatedAt?: string): boolean {
+  return Boolean(expectedUpdatedAt && currentUpdatedAt !== expectedUpdatedAt);
+}

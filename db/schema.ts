@@ -51,8 +51,11 @@ export const documentVersions = sqliteTable("document_versions", {
   ownerEmail: text("owner_email").notNull(),
   version: integer("version").notNull(),
   contentJson: text("content_json").notNull(),
+  snapshotJson: text("snapshot_json"),
   createdAt: text("created_at").notNull(),
-});
+}, (table) => [
+  index("document_versions_document_version_idx").on(table.documentId, table.version),
+]);
 
 export const files = sqliteTable("files", {
   id: text("id").primaryKey(),

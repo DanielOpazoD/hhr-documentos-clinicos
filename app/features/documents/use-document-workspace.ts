@@ -2,7 +2,11 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { DocumentStatus } from "@/app/lib/catalog";
-import { getDocument, listDocuments, removeStoredDocuments } from "./api";
+import {
+  getDocument,
+  listDocuments,
+  removeStoredDocuments,
+} from "./api";
 import { formatSavedTime } from "./formatters";
 import {
   createSections,
@@ -19,6 +23,7 @@ import { downloadDocumentPdf } from "./document-pdf";
 import { applySignatureProfile } from "./signature-profile";
 import { clampSignatureY } from "@/app/lib/document-layout";
 import { useDocumentPersistence } from "./use-document-persistence";
+import { useDocumentHistory } from "./use-document-history";
 
 export function useDocumentWorkspace() {
   const defaultTemplate = getTemplate(DEFAULT_TEMPLATE_ID);
@@ -27,6 +32,7 @@ export function useDocumentWorkspace() {
   const [sections, setSections] = useState<DocumentSection[]>(createSections(defaultTemplate.id));
   const [status, setStatus] = useState<DocumentStatus>("Borrador");
   const [documentId, setDocumentId] = useState<string | null>(null);
+  const [documentUpdatedAt, setDocumentUpdatedAt] = useState<string | null>(null);
   const [version, setVersion] = useState(1);
   const [savedAt, setSavedAt] = useState<string | null>(null);
   const [dirty, setDirty] = useState(false);
@@ -42,6 +48,12 @@ export function useDocumentWorkspace() {
   const dirtyRef = useRef(false);
   const workspaceEpoch = useRef(0);
   const defaultProfileApplied = useRef(false);
+  const documentUpdatedAtRef = useRef<string | null>(null);
+
+  const setDocumentRevision = useCallback((value: string | null) => {
+    documentUpdatedAtRef.current = value;
+    setDocumentUpdatedAt(value);
+  }, []);
 
   const template = getTemplate(templateId);
   const visibleTitle = documentTitle.trim() || template.name;
@@ -88,6 +100,7 @@ export function useDocumentWorkspace() {
   const persistenceSnapshot = useMemo(() => ({
     aiMetadata,
     documentId,
+    documentUpdatedAt,
     issueDate,
     legacyInsurance,
     patient,
@@ -97,7 +110,7 @@ export function useDocumentWorkspace() {
     status,
     templateId,
     visibleTitle,
-  }), [aiMetadata, documentId, issueDate, legacyInsurance, patient, placedSignature, sections, signer, status, templateId, visibleTitle]);
+  }), [aiMetadata, documentId, documentUpdatedAt, issueDate, legacyInsurance, patient, placedSignature, sections, signer, status, templateId, visibleTitle]);
   const { flushPendingSave, persist, saving } = useDocumentPersistence({
     dirty,
     snapshot: persistenceSnapshot,
@@ -107,6 +120,7 @@ export function useDocumentWorkspace() {
     refreshDocuments,
     setDirty,
     setDocumentId,
+    setDocumentUpdatedAt: setDocumentRevision,
     setSavedAt,
     setSaveError,
     setStatus,
@@ -140,6 +154,7 @@ export function useDocumentWorkspace() {
         : null);
       setStatus(stored.status);
       setDocumentId(stored.id);
+      setDocumentRevision(stored.updatedAt);
       setVersion(stored.version);
       setSavedAt(formatSavedTime(new Date(stored.updatedAt)));
       dirtyRef.current = false;
@@ -152,21 +167,26 @@ export function useDocumentWorkspace() {
       }
     }
   }, [
-    flushPendingSave,
-    setDirty,
-    setDocumentId,
-    setDocumentTitle,
-    loadIdentity,
-    setAiMetadata,
-    setLoadError,
-    setNewMenuOpen,
-    setPlacedSignature,
-    setSavedAt,
-    setSections,
-    setStatus,
-    setTemplateId,
-    setVersion,
+    flushPendingSave, loadIdentity, setAiMetadata, setDirty, setDocumentId,
+    setDocumentRevision, setDocumentTitle, setLoadError, setNewMenuOpen,
+    setPlacedSignature, setSavedAt, setSections, setStatus, setTemplateId, setVersion,
   ]);
+
+  const historyWorkspace = useDocumentHistory({
+    documentId,
+    documentUpdatedAtRef,
+    flushPendingSave,
+    openDocument,
+  });
+  const { setHistoryOpen } = historyWorkspace;
+
+  const reloadDocument = useCallback(async () => {
+    if (!documentId) return;
+    dirtyRef.current = false;
+    setDirty(false);
+    setSaveError(null);
+    await openDocument(documentId);
+  }, [documentId, openDocument]);
 
   const createDocument = useCallback(async (nextTemplateId: string) => {
     if (!(await flushPendingSave())) return;
@@ -187,30 +207,20 @@ export function useDocumentWorkspace() {
     }
     setStatus("Borrador");
     setDocumentId(null);
+    setDocumentRevision(null);
     setVersion(1);
     setSavedAt(null);
     setSaveError(null);
     dirtyRef.current = false;
     setDirty(false);
     setNewMenuOpen(false);
+    setHistoryOpen(false);
     window.history.replaceState({}, "", "/documentos");
   }, [
-    flushPendingSave,
-    setDirty,
-    setDocumentId,
-    setDocumentTitle,
-    setAiMetadata,
-    loadSignerProfile,
-    setNewMenuOpen,
-    resetIdentity,
-    setPlacedSignature,
-    setSavedAt,
-    setSaveError,
-    setSections,
-    setStatus,
-    setTemplateId,
-    setVersion,
-    signatures,
+    flushPendingSave, loadSignerProfile, resetIdentity, setAiMetadata, setDirty,
+    setDocumentId, setDocumentRevision, setDocumentTitle, setHistoryOpen,
+    setNewMenuOpen, setPlacedSignature, setSavedAt, setSaveError, setSections,
+    setStatus, setTemplateId, setVersion, signatures,
   ]);
 
   const deleteDocuments = useCallback(async (requestedIds: string[]) => {
@@ -302,45 +312,16 @@ export function useDocumentWorkspace() {
   }, [openDocument, refreshDocuments]);
 
   return {
-    template,
-    templateId,
-    documentTitle,
-    setDocumentTitle,
-    visibleTitle,
-    aiMetadata,
+    template, templateId, documentTitle, setDocumentTitle, visibleTitle, aiMetadata,
     ...identityWorkspace,
-    updateSigner,
-    sections,
-    status,
-    documentId,
-    version,
-    savedAt,
-    saving,
-    dirty,
-    storedDocuments,
-    filteredDocuments,
-    recentQuery,
-    setRecentQuery,
-    newMenuOpen,
-    setNewMenuOpen,
-    mobileView,
-    setMobileView,
-    loadError,
-    saveError,
+    updateSigner, sections, status, documentId, documentUpdatedAt, version, savedAt,
+    saving, dirty, storedDocuments, filteredDocuments, recentQuery, setRecentQuery,
+    newMenuOpen, setNewMenuOpen, mobileView, setMobileView, loadError, saveError,
     deletingDocumentIds,
+    ...historyWorkspace,
     ...signatureWorkspace,
-    markDirty,
-    markSignatureDirty,
-    persist,
-    openDocument,
-    createDocument,
-    deleteDocument,
-    deleteDocuments,
-    addSection,
-    removeSection,
-    updateSection,
-    moveSection,
-    downloadPdf,
+    markDirty, markSignatureDirty, persist, openDocument, reloadDocument, createDocument, deleteDocument,
+    deleteDocuments, addSection, removeSection, updateSection, moveSection, downloadPdf,
   };
 }
 

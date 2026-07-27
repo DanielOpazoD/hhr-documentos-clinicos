@@ -1,4 +1,4 @@
-import { Check, RotateCcw, Save } from "@/app/components/Icons";
+import { Check, Clock3, RotateCcw, Save } from "@/app/components/Icons";
 import type { DocumentWorkspace } from "./use-document-workspace";
 import { patientFullName } from "./identity";
 
@@ -14,7 +14,9 @@ type Props = Pick<
   | "setDocumentTitle"
   | "status"
   | "markDirty"
+  | "openDocumentHistory"
   | "persist"
+  | "reloadDocument"
 >;
 
 export function DocumentCommandBar({
@@ -28,7 +30,9 @@ export function DocumentCommandBar({
   setDocumentTitle,
   status,
   markDirty,
+  openDocumentHistory,
   persist,
+  reloadDocument,
 }: Props) {
   const saveLabel = saving
     ? "Guardando…"
@@ -53,6 +57,11 @@ export function DocumentCommandBar({
           <span><strong>{saveLabel}</strong>{savedAt ? <small>{savedAt}</small> : null}</span>
         </div>
         <div className="document-status-actions">
+          {documentId ? (
+            <button className="button secondary history-button" disabled={saving} onClick={() => void openDocumentHistory()}>
+              <Clock3 size={15} /> Historial
+            </button>
+          ) : null}
           {status === "Borrador" ? (
             <button className="button secondary" disabled={saving || !patientFullName(patient)} onClick={() => void persist("Revisado")}>
               <Check size={15} /> Revisar
@@ -77,7 +86,14 @@ export function DocumentCommandBar({
           </button>
         </div>
       </div>
-      {saveError ? <p className="form-error document-save-error">{saveError}</p> : null}
+      {saveError ? (
+        <div className="form-error document-save-error" role="alert">
+          <span>{saveError}</span>
+          {saveError.includes("otra pestaña") ? (
+            <button className="text-button" onClick={() => void reloadDocument()}>Descartar cambios y recargar</button>
+          ) : null}
+        </div>
+      ) : null}
     </>
   );
 }

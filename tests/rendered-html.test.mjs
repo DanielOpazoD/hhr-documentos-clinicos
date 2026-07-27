@@ -120,6 +120,7 @@ test("keeps the clinical studios usable from mobile through desktop", async () =
   const documentModules = [
     "../app/components/DocumentStudio.tsx",
     "../app/features/documents/DocumentCommandBar.tsx",
+    "../app/features/documents/DocumentHistoryDialog.tsx",
     "../app/features/documents/DocumentLibrary.tsx",
     "../app/features/documents/AiProvenance.tsx",
     "../app/features/documents/ai-metadata.ts",
@@ -136,10 +137,13 @@ test("keeps the clinical studios usable from mobile through desktop", async () =
     "../app/features/documents/use-document-keyboard.ts",
     "../app/features/documents/use-document-identity.ts",
     "../app/features/documents/use-document-workspace.ts",
+    "../app/features/documents/use-document-history.ts",
     "../app/features/documents/use-document-persistence.ts",
     "../app/features/documents/use-signature-workspace.ts",
     "../app/features/documents/api.ts",
+    "../app/features/documents/document-version.ts",
     "../app/api/documents/route.ts",
+    "../app/api/documents/[id]/versions/route.ts",
     "../app/lib/client-pdf.ts",
   ];
   const [moduleSources, styles] = await Promise.all([
@@ -187,6 +191,20 @@ test("keeps the clinical studios usable from mobile through desktop", async () =
   assert.match(documentStudio, /selectedIds/);
   assert.match(documentStudio, /Todos/);
   assert.match(documentStudio, /deletedIds/);
+  assert.match(documentStudio, /Historial del documento/);
+  assert.match(documentStudio, /Restaurar una versión no elimina el historial/);
+  assert.match(documentStudio, /restoreDocumentVersion/);
+  assert.match(documentStudio, /expectedUpdatedAt/);
+  assert.match(documentStudio, /otra pestaña/);
+  assert.match(documentStudio, /Descartar cambios y recargar/);
+  assert.match(documentStudio, /"restored"/);
+  assert.match(documentStudio, /snapshot_json IS NOT NULL/);
+  assert.match(documentStudio, /archivedVersion/);
+  assert.match(documentStudio, /historyRequest/);
+  assert.match(documentStudio, /restoreRequestActive/);
+  assert.match(documentStudio, /closeDocumentHistory/);
+  assert.match(documentStudio, /tabIndex=\{-1\}/);
+  assert.match(documentStudio, /MAX_DOCUMENT_VERSIONS/);
   assert.match(documentStudio, /api\/signatures/);
   assert.match(documentStudio, /aiMetadata/);
   assert.match(documentStudio, /Ver trazabilidad/);

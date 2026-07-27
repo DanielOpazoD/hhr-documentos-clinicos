@@ -78,8 +78,17 @@ export type StoredDocumentDetail = StoredDocument & {
   content?: StoredContent;
 };
 
+export type StoredDocumentVersion = {
+  version: number;
+  title: string;
+  patientName: string;
+  status: DocumentStatus;
+  createdAt: string;
+};
+
 export type SaveDocumentInput = {
   id?: string;
+  expectedUpdatedAt?: string;
   templateId: string;
   title: string;
   patientName: string;
