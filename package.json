@@ -11,9 +11,15 @@
     "start": "WRANGLER_LOG_PATH=.wrangler/wrangler.log vinext start",
     "ai:local:start": "lms server start --port 1234 --bind 127.0.0.1 && (lms ps --json | rg -q '\"identifier\":\"hhr-gemma-local\"' || lms load google/gemma-3-4b --identifier hhr-gemma-local --context-length 16384 --gpu max -y)",
     "ai:local:status": "lms server status && lms ps",
-    "test": "npm run build && node --test tests/rendered-html.test.mjs",
+    "test": "npm run build && npm run test:product && npm run test:contracts",
+    "test:product": "node --test tests/rendered-html.test.mjs",
+    "test:contracts": "node --experimental-strip-types --test tests/contracts/*.test.ts",
+    "typecheck": "tsc --noEmit",
     "lint": "eslint . --ignore-pattern dist --ignore-pattern .next",
-    "db:generate": "drizzle-kit generate"
+    "db:generate": "drizzle-kit generate",
+    "db:check": "node scripts/check-database-state.mjs",
+    "check:bundle": "node scripts/check-build-budget.mjs",
+    "verify": "npm run lint && npm run typecheck && npm test && npm run check:bundle && npm run db:check"
   },
   "dependencies": {
     "drizzle-orm": "0.45.2",

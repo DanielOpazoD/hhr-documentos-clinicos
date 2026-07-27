@@ -8,6 +8,7 @@ import type { AiImportResult, AiPatient, AiProgress, AiProviderId, AiProviderInf
 import type { AiPromptProfile } from "./prompt-types";
 
 const AI_SELECTION_STORAGE_KEY = "hhr.ai-selection.v1";
+type StoredAiSelection = { provider?: AiProviderId; model?: string };
 
 const emptyResult: AiImportResult = {
   sources: [],
@@ -50,9 +51,9 @@ export function useAiStudio() {
       .then((availableProviders) => {
         if (!active) return;
         setProviders(availableProviders);
-        let saved: { provider?: AiProviderId; model?: string } | null = null;
+        let saved: StoredAiSelection | null = null;
         try {
-          saved = JSON.parse(window.localStorage.getItem(AI_SELECTION_STORAGE_KEY) ?? "null") as typeof saved;
+          saved = JSON.parse(window.localStorage.getItem(AI_SELECTION_STORAGE_KEY) ?? "null") as StoredAiSelection | null;
         } catch {
           saved = null;
         }
