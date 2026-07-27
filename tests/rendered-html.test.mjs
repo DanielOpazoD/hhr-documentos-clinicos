@@ -428,4 +428,15 @@ test("fills the official Hospital del Salvador Word without changing its institu
   assert.match(headerXml.replace(/<[^>]+>/g, ""), /DEPARTAMENTO GESTION DE CAMAS 2026/);
   assert.ok(outputPackage["word/media/image1.png"]);
   assert.ok(outputPackage["word/media/image2.png"]);
+
+  const withoutIdentity = createHospitalSalvadorDocxBytes(
+    template,
+    sections,
+    { firstNames: "", lastNames: "", rut: "" },
+    { name: "Dr. Daniel Opazo", rut: "17.752.753-K", specialty: "Medicina Interna" },
+    new Date("2026-07-26T12:00:00Z"),
+  );
+  const withoutIdentityXml = strFromU8(unzipSync(withoutIdentity)["word/document.xml"]);
+  assert.doesNotMatch(withoutIdentityXml, /Contenido verificado [12]<\/w:t>/);
+  assert.ok((withoutIdentityXml.match(/No consignado/g) ?? []).length >= 2);
 });

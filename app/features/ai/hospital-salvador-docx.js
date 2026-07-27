@@ -147,8 +147,8 @@ export function createHospitalSalvadorDocxBytes(templateBytes, sections, patient
 
   const valuesByKey = new Map(sections.map((section) => [section.key ?? "", section.text]));
   const patientName = [patient.firstNames, patient.lastNames].map((value) => value?.trim()).filter(Boolean).join(" ");
-  if (patientName) valuesByKey.set("full_name", patientName);
-  if (patient.rut?.trim()) valuesByKey.set("rut", patient.rut.trim());
+  valuesByKey.set("full_name", patientName || "No consignado");
+  valuesByKey.set("rut", patient.rut?.trim() || "No consignado");
 
   const originalXml = strFromU8(packageParts["word/document.xml"]);
   const filledXml = fillOfficialFields(originalXml, valuesByKey);

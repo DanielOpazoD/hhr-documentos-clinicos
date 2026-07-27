@@ -22,7 +22,7 @@ export function HospitalSalvadorEditor({ controller }: { controller: AiStudioCon
               <label className={field.key === "support_network" ? "wide" : ""} key={field.key}>
                 <span>{field.label}</span>
                 <input
-                  value={canonicalValue || item.section.text}
+                  value={canonicalValue ?? item.section.text}
                   readOnly={canonicalValue !== null}
                   title={canonicalValue !== null ? "Se edita en Paciente identificado" : undefined}
                   onChange={(event) => controller.updateSection(item.index, event.target.value)}
