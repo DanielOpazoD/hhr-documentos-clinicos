@@ -1,5 +1,5 @@
 export const productIdentity = {
-  name: "HHR Documentos",
+  name: "HHR-documentos",
   description:
     "Centro privado para crear, revisar, imprimir, escanear y respaldar documentos clínicos.",
 } as const;
