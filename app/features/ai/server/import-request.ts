@@ -1,8 +1,8 @@
 import { safeFileName } from "@/app/lib/server/security";
 import type { AiSourceInput } from "../types";
-import { validateSourceBatch } from "./source-policy";
+import { validateSourceBatch, validateSourceContents } from "./source-policy";
 
-export function importSources(form: FormData): AiSourceInput[] {
+export async function importSources(form: FormData): Promise<AiSourceInput[]> {
   const multiFiles = form.getAll("files").filter((value): value is File => value instanceof File);
   const legacyFile = form.get("file");
   const files = multiFiles.length
@@ -10,6 +10,7 @@ export function importSources(form: FormData): AiSourceInput[] {
     : legacyFile instanceof File ? [legacyFile] : [];
 
   const mimeTypes = validateSourceBatch(files);
+  await validateSourceContents(files, mimeTypes);
 
   const usedNames = new Map<string, number>();
   return files.map((file, index) => {

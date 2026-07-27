@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { strToU8, zipSync } from "fflate";
 import {
   fallbackOpenAiModels,
   isOpenAiModel,
@@ -10,8 +11,11 @@ import {
   MAX_SOURCE_FILE_SIZE,
   MAX_SOURCE_FILES,
   validateSourceBatch,
+  validateSourceContents,
   type SourceDescriptor,
 } from "../../app/features/ai/server/source-policy.ts";
+
+const DOCX_MIME_TYPE = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
 
 function source(overrides: Partial<SourceDescriptor> = {}): SourceDescriptor {
   return { name: "informe.pdf", size: 1024, type: "application/pdf", ...overrides };
@@ -61,4 +65,33 @@ test("validates AI source formats and resolves safe extension fallbacks", () => 
     /conjunto de archivos supera 15 MB/,
   );
   assert.throws(() => validateSourceBatch([source({ name: "payload.exe", type: "" })]), /Formato no permitido/);
+});
+
+test("rejects spoofed source metadata and accepts authentic file signatures", async () => {
+  const pdf = new File(["%PDF-1.7\n%%EOF"], "informe.pdf", { type: "application/pdf" });
+  const png = new File([
+    new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),
+  ], "imagen.png", { type: "image/png" });
+  const jpeg = new File([new Uint8Array([0xff, 0xd8, 0xff, 0xd9])], "foto.jpg", { type: "image/jpeg" });
+  const docx = new File([zipSync({
+    "[Content_Types].xml": strToU8("<Types />"),
+    "word/document.xml": strToU8("<w:document />"),
+  })], "traslado.docx", { type: DOCX_MIME_TYPE });
+
+  const validFiles = [pdf, png, jpeg, docx];
+  await validateSourceContents(validFiles, validateSourceBatch(validFiles));
+
+  const executable = new File([
+    new Uint8Array([0x4d, 0x5a, 0x90, 0x00]),
+  ], "payload.exe", { type: "application/pdf" });
+  await assert.rejects(
+    validateSourceContents([executable], validateSourceBatch([executable])),
+    /no coincide con su formato/,
+  );
+
+  const malformedDocx = new File(["PK not really a DOCX"], "informe.docx", { type: DOCX_MIME_TYPE });
+  await assert.rejects(
+    validateSourceContents([malformedDocx], validateSourceBatch([malformedDocx])),
+    /no coincide con su formato/,
+  );
 });

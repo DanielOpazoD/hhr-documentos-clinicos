@@ -4,17 +4,21 @@
  * small makes type-checking independent from a generated deployment config.
  */
 interface D1Result<T = Record<string, unknown>> {
-  results: T[];
+  results: T[] | null;
   success: boolean;
   meta: Record<string, unknown>;
   error?: string;
 }
 
+type D1RowsResult<T = Record<string, unknown>> = Omit<D1Result<T>, "results"> & {
+  results: T[];
+};
+
 interface D1PreparedStatement {
   bind(...values: unknown[]): D1PreparedStatement;
   first<T = Record<string, unknown>>(columnName?: string): Promise<T | null>;
   run<T = Record<string, unknown>>(): Promise<D1Result<T>>;
-  all<T = Record<string, unknown>>(): Promise<D1Result<T>>;
+  all<T = Record<string, unknown>>(): Promise<D1RowsResult<T>>;
   raw<T = unknown[]>(options?: { columnNames?: boolean }): Promise<T[]>;
 }
 

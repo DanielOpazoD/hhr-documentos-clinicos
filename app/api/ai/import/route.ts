@@ -34,8 +34,8 @@ export async function POST(request: Request) {
     return jsonError(error instanceof Error ? error.message : "Prompt no disponible.");
   }
   const resolvedPromptVersion = promptVersion(prompt);
-  let sources: ReturnType<typeof importSources>;
-  try { sources = importSources(form); } catch (error) {
+  let sources: Awaited<ReturnType<typeof importSources>>;
+  try { sources = await importSources(form); } catch (error) {
     return jsonError(error instanceof Error ? error.message : "No se pudieron validar los archivos.");
   }
 
