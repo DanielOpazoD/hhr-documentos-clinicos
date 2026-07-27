@@ -2,6 +2,11 @@ import { audit } from "@/app/lib/server/audit";
 import { requestOwner } from "@/app/lib/server/auth";
 import { ensureDatabase } from "@/app/lib/server/database";
 import { jsonError, readJsonObject } from "@/app/lib/server/http";
+import {
+  nextDocumentVersion,
+  normalizeDocumentStatus,
+  requiresPatientIdentity,
+} from "@/app/features/documents/document-policy";
 
 // D1 admite hasta 100 parámetros enlazados; la consulta también enlaza al propietario.
 const MAX_DOCUMENTS_PER_REQUEST = 99;
@@ -31,9 +36,9 @@ export async function POST(request: Request) {
   const title = String(payload.title ?? "").trim();
   const patientName = String(payload.patientName ?? "").trim();
   const templateId = String(payload.templateId ?? "documento_libre");
-  const status = ["Borrador", "Revisado", "Finalizado"].includes(String(payload.status)) ? String(payload.status) : "Borrador";
+  const status = normalizeDocumentStatus(payload.status);
   if (!title) return jsonError("El título es obligatorio.");
-  if (status !== "Borrador" && !patientName) {
+  if (requiresPatientIdentity(status) && !patientName) {
     return jsonError("Identifique al paciente antes de revisar o finalizar.");
   }
 
@@ -41,8 +46,8 @@ export async function POST(request: Request) {
   const id = String(payload.id ?? crypto.randomUUID());
   const now = new Date().toISOString();
   const existing = await db.prepare(`SELECT version, status FROM documents WHERE id = ? AND owner_email = ?`).bind(id, owner).first<{ version: number; status: string }>();
-  const createsVersion = Boolean(existing && status !== "Borrador" && status !== existing.status);
-  const version = existing ? existing.version + (createsVersion ? 1 : 0) : 1;
+  const version = nextDocumentVersion(existing, status);
+  const createsVersion = Boolean(existing && version > existing.version);
   const contentJson = JSON.stringify(payload.content ?? {});
 
   if (existing) {

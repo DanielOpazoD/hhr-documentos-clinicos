@@ -4,10 +4,11 @@ export async function sha256(value: string): Promise<string> {
 }
 
 export function safeFileName(name: string): string {
-  return name
+  const normalized = name
     .normalize("NFKD")
     .replace(/[^a-zA-Z0-9._ -]/g, "")
     .replace(/\s+/g, " ")
     .trim()
-    .slice(0, 120) || "archivo";
+    .slice(0, 120);
+  return normalized && /[a-zA-Z0-9]/.test(normalized) ? normalized : "archivo";
 }

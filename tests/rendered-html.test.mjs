@@ -8,7 +8,7 @@ import { hospitalSalvadorFields } from "../app/features/ai/hospital-salvador-fie
 
 test("builds the clinical document workspace from a production product identity", async () => {
   await access(new URL("../dist/server/index.js", import.meta.url));
-  const [layout, dashboard, packageJson, nodeVersion, product, constitution, readiness] = await Promise.all([
+  const [layout, dashboard, packageJson, nodeVersion, product, constitution, readiness, qualityWorkflow, buildBudget, databaseCheck] = await Promise.all([
     readFile(new URL("../app/layout.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/components/Dashboard.tsx", import.meta.url), "utf8"),
     readFile(new URL("../package.json", import.meta.url), "utf8"),
@@ -16,6 +16,9 @@ test("builds the clinical document workspace from a production product identity"
     readFile(new URL("../app/lib/product.ts", import.meta.url), "utf8"),
     readFile(new URL("../docs/PRODUCT_CONSTITUTION.md", import.meta.url), "utf8"),
     readFile(new URL("../docs/PRODUCTION_READINESS.md", import.meta.url), "utf8"),
+    readFile(new URL("../.github/workflows/quality.yml", import.meta.url), "utf8"),
+    readFile(new URL("../scripts/check-build-budget.mjs", import.meta.url), "utf8"),
+    readFile(new URL("../scripts/check-database-state.mjs", import.meta.url), "utf8"),
   ]);
   assert.match(layout, /productIdentity\.name/);
   assert.match(product, /HHR-documentos/);
@@ -28,6 +31,13 @@ test("builds the clinical document workspace from a production product identity"
   assert.match(readiness, /## Controles pendientes antes de uso clínico institucional/);
   assert.match(packageJson, /lucide-react/);
   assert.match(packageJson, /"node": ">=22\.13"/);
+  assert.match(packageJson, /"typecheck": "tsc --noEmit"/);
+  assert.match(packageJson, /"verify":/);
+  assert.match(packageJson, /node scripts\/check-database-state\.mjs/);
+  assert.match(qualityWorkflow, /npm run verify/);
+  assert.match(buildBudget, /maxTotalBytes/);
+  assert.match(databaseCheck, /mkdtemp/);
+  assert.match(databaseCheck, /directorySnapshot/);
   assert.equal(nodeVersion.trim(), "22.13.0");
   assert.doesNotMatch(`${layout}${dashboard}${packageJson}`, /codex-preview|react-loading-skeleton|Your site is taking shape/i);
 });
@@ -276,6 +286,7 @@ test("offers isolated OpenAI and local Gemma providers", async () => {
     "../app/features/ai/server/local-lm-studio.ts",
     "../app/features/ai/server/source-extraction.ts",
     "../app/features/ai/server/import-request.ts",
+    "../app/features/ai/server/source-policy.ts",
     "../app/features/ai/server/progress-stream.ts",
     "../app/features/ai/AiImportForm.tsx",
     "../app/features/ai/AiModelPicker.tsx",
@@ -327,7 +338,7 @@ test("offers isolated OpenAI and local Gemma providers", async () => {
   assert.match(source, /Datos de identidad revisados/);
   assert.match(source, /LOCAL_CONTEXT_TOKENS/);
   assert.match(source, /LOCAL_IMAGE_TOKEN_RESERVE/);
-  assert.match(source, /MAX_BATCH_SIZE = 15 \* 1024 \* 1024/);
+  assert.match(source, /MAX_SOURCE_BATCH_SIZE = 15 \* 1024 \* 1024/);
   assert.match(source, /Puede analizar hasta 8 archivos por vez\. Quite uno antes de agregar más\./);
   assert.match(source, /Prompts de documentos/);
   assert.match(source, /Duplicar para editar/);

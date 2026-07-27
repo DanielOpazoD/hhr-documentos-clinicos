@@ -3,6 +3,7 @@ import { ensureDatabase } from "@/app/lib/server/database";
 import { appEnv } from "@/app/lib/server/environment";
 import { jsonError } from "@/app/lib/server/http";
 import { safeFileName, sha256 } from "@/app/lib/server/security";
+import { isActiveMobileSession } from "@/app/features/files/mobile-session-policy";
 
 async function resolveSession(token: string) {
   const db = await ensureDatabase();
@@ -13,14 +14,14 @@ async function resolveSession(token: string) {
 export async function GET(_request: Request, context: { params: Promise<{ token: string }> }) {
   const { token } = await context.params;
   const session = await resolveSession(token);
-  if (!session || session.status !== "activa" || Date.parse(session.expiresAt) <= Date.now()) return jsonError("Este enlace expiró o fue revocado.", 410);
+  if (!isActiveMobileSession(session)) return jsonError("Este enlace expiró o fue revocado.", 410);
   return Response.json({ session: { id: session.id, expiresAt: session.expiresAt } });
 }
 
 export async function POST(request: Request, context: { params: Promise<{ token: string }> }) {
   const { token } = await context.params;
   const session = await resolveSession(token);
-  if (!session || session.status !== "activa" || Date.parse(session.expiresAt) <= Date.now()) return jsonError("Este enlace expiró o fue revocado.", 410);
+  if (!isActiveMobileSession(session)) return jsonError("Este enlace expiró o fue revocado.", 410);
   const form = await request.formData();
   const file = form.get("file");
   if (!(file instanceof File) || file.size > 15 * 1024 * 1024 || !["application/pdf", "image/jpeg", "image/png", "image/heic", "image/heif"].includes(file.type)) return jsonError("Archivo no permitido o superior a 15 MB.");

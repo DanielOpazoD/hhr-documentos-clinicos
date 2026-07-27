@@ -51,7 +51,11 @@ export function isOpenAiModel(value: string): boolean {
   if (!value || value.length > 160 || !/^[a-z0-9._:-]+$/i.test(value)) return false;
   const normalized = value.toLowerCase();
   const base = baseModelId(normalized);
-  if (INCOMPATIBLE_VARIANTS.some((variant) => base.includes(variant)) || base.startsWith("o3-mini")) return false;
+  if (
+    INCOMPATIBLE_VARIANTS.some((variant) => base.includes(variant)) ||
+    /(?:^|-)pro(?:-|$)/.test(base) ||
+    base.startsWith("o3-mini")
+  ) return false;
   return /^(?:gpt-(?:5(?:\.\d+)?|4\.1|4o)(?:-|$)|o(?:3|4)(?:-|$))/.test(base);
 }
 
@@ -95,7 +99,7 @@ function modelOption(id: string): AiModelOption {
 
 function sortModels(models: AiModelOption[]): AiModelOption[] {
   const groups: AiModelGroup[] = ["Recomendados", "GPT-5.6", "GPT-5", "Razonamiento", "GPT-4.1", "GPT-4o", "Personalizados", "Otros", "Local"];
-  const priority = new Map(FALLBACK_MODELS.map((id, index) => [id, index]));
+  const priority = new Map<string, number>(FALLBACK_MODELS.map((id, index) => [id, index]));
   return models.toSorted((left, right) => {
     const groupOrder = groups.indexOf(left.group) - groups.indexOf(right.group);
     if (groupOrder) return groupOrder;

@@ -7,14 +7,24 @@ import { safeFileName } from "@/app/lib/server/security";
 
 const MAX_SIGNATURE_SIZE = 1024 * 1024;
 const ALLOWED_TYPES = new Set(["image/png", "image/jpeg"]);
+type SignatureListRow = {
+  id: string;
+  professionalName: string;
+  professionalRut: string;
+  specialty: string;
+  mimeType: string;
+  size: number;
+  isDefault: number;
+  createdAt: string;
+};
 
 export async function GET(request: Request) {
   const owner = requestOwner(request);
   if (!owner) return jsonError("Autenticación requerida.", 401);
   const db = await ensureDatabase();
   await db.prepare(`UPDATE signatures SET is_default = 1 WHERE id = (SELECT id FROM signatures WHERE owner_email = ? ORDER BY updated_at DESC LIMIT 1) AND NOT EXISTS (SELECT 1 FROM signatures WHERE owner_email = ? AND is_default = 1)`).bind(owner, owner).run();
-  const result = await db.prepare(`SELECT id, professional_name AS professionalName, professional_rut AS professionalRut, specialty, mime_type AS mimeType, size, is_default AS isDefault, created_at AS createdAt FROM signatures WHERE owner_email = ? ORDER BY is_default DESC, updated_at DESC`).bind(owner).all();
-  return Response.json({ signatures: result.results.map((item: { id: string; isDefault?: number }) => ({ ...item, isDefault: Boolean(item.isDefault), imageUrl: `/api/signatures/${item.id}` })) });
+  const result = await db.prepare(`SELECT id, professional_name AS professionalName, professional_rut AS professionalRut, specialty, mime_type AS mimeType, size, is_default AS isDefault, created_at AS createdAt FROM signatures WHERE owner_email = ? ORDER BY is_default DESC, updated_at DESC`).bind(owner).all<SignatureListRow>();
+  return Response.json({ signatures: result.results.map((item) => ({ ...item, isDefault: Boolean(item.isDefault), imageUrl: `/api/signatures/${item.id}` })) });
 }
 
 export async function POST(request: Request) {

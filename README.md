@@ -38,9 +38,12 @@ También puede conectarse a un servidor local compatible con la API de OpenAI me
 
 ```bash
 npm run lint
-npm run build
-node --test tests/rendered-html.test.mjs
+npm run typecheck
+npm test
+npm run check:bundle
 ```
+
+`npm run verify` ejecuta el gate completo usado por integración continua, incluida la comprobación de migraciones generadas.
 
 ## Arquitectura
 

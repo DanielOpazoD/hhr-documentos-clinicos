@@ -19,7 +19,9 @@ La aplicación está preparada como un entorno privado funcional, pero no se dec
 - Componentes de documentos e IA separados por dominio y responsabilidad.
 - Dependencia directa de Next.js actualizada a la versión corregida de su rama estable.
 - Overrides acotados de PostCSS y Sharp corrigen avisos transitivos; `npm audit --omit=dev` reporta cero vulnerabilidades productivas.
-- Build reproducible, lint sin errores y pruebas automatizadas del flujo principal.
+- Build reproducible, lint y TypeScript estricto sin errores.
+- Pruebas automatizadas estructurales y de contratos críticos para autenticación, estados documentales, sesiones móviles, fuentes y modelos de IA.
+- Gate de integración continua con verificación de build, migraciones y presupuesto de JavaScript/CSS.
 
 ## Controles pendientes antes de uso clínico institucional
 
