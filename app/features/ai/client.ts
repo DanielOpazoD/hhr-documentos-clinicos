@@ -1,4 +1,5 @@
 import type { AiImportResult, AiProgress, AiProviderId, AiProviderInfo, AiTargetId } from "./types";
+import { documentTemplateForAiTarget } from "./targets";
 
 async function responseData<T>(response: Response): Promise<T> {
   const data = await response.json().catch(() => ({
@@ -58,14 +59,14 @@ export async function fetchAiProviders(): Promise<AiProviderInfo[]> {
   return data.providers;
 }
 
-export async function saveAiDraft(result: AiImportResult, title: string, documentId?: string) {
+export async function saveAiDraft(result: AiImportResult, target: AiTargetId, title: string, documentId?: string) {
   const patientName = [result.patient.firstNames, result.patient.lastNames].filter(Boolean).join(" ");
   const response = await fetch("/api/documents", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       ...(documentId ? { id: documentId } : {}),
-      templateId: "documento_libre",
+      templateId: documentTemplateForAiTarget(target),
       title,
       patientName,
       patientRutMasked: result.patient.rut,
@@ -74,7 +75,7 @@ export async function saveAiDraft(result: AiImportResult, title: string, documen
         patient: result.patient,
         signer: result.signer,
         sections: result.sections.map((section, index) => ({
-          id: `ia-${index + 1}`,
+          id: section.key ?? `ia-${index + 1}`,
           title: section.title,
           body: section.text,
         })),
@@ -84,8 +85,8 @@ export async function saveAiDraft(result: AiImportResult, title: string, documen
           providerName: result.providerName,
           model: result.model,
           promptVersion: result.promptVersion,
-          evidence: Object.fromEntries(result.sections.map((section, index) => [`ia-${index + 1}`, section.evidence])),
-          editedSectionIds: result.sections.flatMap((section, index) => section.evidenceStale ? [`ia-${index + 1}`] : []),
+          evidence: Object.fromEntries(result.sections.map((section, index) => [section.key ?? `ia-${index + 1}`, section.evidence])),
+          editedSectionIds: result.sections.flatMap((section, index) => section.evidenceStale ? [section.key ?? `ia-${index + 1}`] : []),
           missingInformation: result.missingInformation,
           safetyNotice: result.safetyNotice,
         },

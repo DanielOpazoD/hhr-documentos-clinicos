@@ -12,9 +12,9 @@ const emptyDraft = (target: AiTargetId): AiPromptInput => ({ name: "", target, i
 export function PromptManager() {
   const [profiles, setProfiles] = useState<AiPromptProfile[]>([]);
   const [loading, setLoading] = useState(true);
-  const [target, setTarget] = useState<AiTargetId>("resumen");
+  const [target, setTarget] = useState<AiTargetId>("epicrisis");
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [draft, setDraft] = useState<AiPromptInput>(() => emptyDraft("resumen"));
+  const [draft, setDraft] = useState<AiPromptInput>(() => emptyDraft("epicrisis"));
   const [creating, setCreating] = useState(false);
   const [busy, setBusy] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
@@ -29,7 +29,7 @@ export function PromptManager() {
     void fetchPromptProfiles().then((items) => {
       if (!active) return;
       setProfiles(items);
-      const initial = items.find((item) => item.target === "resumen" && item.isDefault) ?? items.find((item) => item.target === "resumen");
+      const initial = items.find((item) => item.target === "epicrisis" && item.isDefault) ?? items.find((item) => item.target === "epicrisis");
       if (initial) selectProfile(initial);
     }).catch((cause) => active && setError(cause instanceof Error ? cause.message : "No se pudieron cargar los prompts."))
       .finally(() => active && setLoading(false));
@@ -117,7 +117,7 @@ export function PromptManager() {
       <form className="prompt-editor" onSubmit={(event) => { event.preventDefault(); void saveDraft(); }}>
         <header><div><span className="eyebrow">{creating ? "Nuevo perfil" : selected?.builtIn ? "Solo lectura" : "Perfil editable"}</span><h3>{creating ? `Nuevo · ${getTargetName(draft.target)}` : selected?.name ?? "Seleccione un prompt"}</h3></div>{selected?.builtIn ? <button type="button" className="button secondary" onClick={() => startNew(selected)}><Copy size={15} /> Duplicar para editar</button> : null}</header>
         <div className="prompt-fields"><label>Nombre<input value={draft.name} maxLength={80} disabled={selected?.builtIn || busy} onChange={(event) => setDraft((current) => ({ ...current, name: event.target.value }))} /></label><label>Tipo<select value={draft.target} disabled={selected?.builtIn || busy} onChange={(event) => setDraft((current) => ({ ...current, target: event.target.value as AiTargetId }))}>{aiTargets.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label></div>
-        <label className="prompt-instructions">Instrucciones<textarea value={draft.instructions} maxLength={8000} rows={9} readOnly={Boolean(selected?.builtIn)} disabled={busy} onChange={(event) => setDraft((current) => ({ ...current, instructions: event.target.value }))} /><small>{draft.instructions.length.toLocaleString("es-CL")} / 8.000</small></label>
+        <label className="prompt-instructions">Instrucciones<textarea value={draft.instructions} maxLength={16000} rows={14} readOnly={Boolean(selected?.builtIn)} disabled={busy} onChange={(event) => setDraft((current) => ({ ...current, instructions: event.target.value }))} /><small>{draft.instructions.length.toLocaleString("es-CL")} / 16.000</small></label>
         {!selected?.builtIn ? <label className="prompt-default"><input type="checkbox" checked={Boolean(draft.makeDefault)} disabled={busy} onChange={(event) => setDraft((current) => ({ ...current, makeDefault: event.target.checked }))} /><span><strong>Usar por defecto</strong><small>Se seleccionará al crear este tipo de documento.</small></span></label> : null}
         {error ? <p className="form-error" role="alert">{error}</p> : null}{status ? <p className="form-success"><Check size={15} /> {status}</p> : null}
         {!selected?.builtIn ? <footer><div>{!creating && !confirmDelete ? <button type="button" className="text-button danger" disabled={busy} onClick={() => setConfirmDelete(true)}><Trash2 size={14} /> Eliminar</button> : null}{confirmDelete ? <span className="inline-confirm"><small>¿Eliminar este prompt?</small><button type="button" onClick={() => void removeSelected()}>Sí</button><button type="button" onClick={() => setConfirmDelete(false)}>No</button></span> : null}</div><button className="button primary" disabled={busy || !draft.name.trim() || draft.instructions.trim().length < 20} aria-keyshortcuts="Control+S Meta+S"><Save size={15} /> {busy ? "Guardando…" : "Guardar"}</button></footer> : null}

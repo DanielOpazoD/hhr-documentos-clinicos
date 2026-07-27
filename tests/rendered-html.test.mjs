@@ -2,6 +2,9 @@ import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { access, readFile } from "node:fs/promises";
 import test from "node:test";
+import { strFromU8, unzipSync } from "fflate";
+import { createHospitalSalvadorDocxBytes } from "../app/features/ai/hospital-salvador-docx.js";
+import { hospitalSalvadorFields } from "../app/features/ai/hospital-salvador-fields.js";
 
 test("builds the clinical document workspace from a production product identity", async () => {
   await access(new URL("../dist/server/index.js", import.meta.url));
@@ -46,6 +49,7 @@ test("ships the clinical routes, storage bindings and source templates", async (
     "../public/templates/imagenologia.pdf",
     "../public/templates/encuesta-imagenologia.pdf",
     "../public/templates/consentimiento.pdf",
+    "../public/templates/formato-informe-traslado-hospital-salvador.docx",
     "../public/hhr-logo.svg",
     "../public/og.png",
   ];
@@ -307,7 +311,7 @@ test("offers isolated OpenAI and local Gemma providers", async () => {
   assert.match(source, /Prompts de documentos/);
   assert.match(source, /Duplicar para editar/);
   assert.match(source, /Usar por defecto/);
-  assert.match(source, /clinical-draft-v4/);
+  assert.match(source, /clinical-draft-v5/);
   assert.match(source, /promptId/);
   assert.match(source, /promptInstructions/);
   assert.match(source, /Los prompts base no se pueden eliminar/);
@@ -329,4 +333,83 @@ test("offers isolated OpenAI and local Gemma providers", async () => {
   assert.match(source, /Profesional firmante/);
   assert.match(source, /disabled=\{controller\.processing\}/);
   assert.doesNotMatch(source, /0\.0\.0\.0/);
+});
+
+test("ships the eight reviewed clinical prompts as configurable defaults", async () => {
+  const promptFiles = [
+    "epicrisis-prompt.ts",
+    "acute-transfer-prompt.ts",
+    "medical-report-prompt.ts",
+    "medical-certificate-prompt.ts",
+    "telegastro-prompt.ts",
+    "telenephrology-prompt.ts",
+    "telerheumatology-prompt.ts",
+    "hospital-salvador-transfer-prompt.ts",
+  ];
+  const [catalog, targets, importForm, promptSchema, prompts] = await Promise.all([
+    readFile(new URL("../app/features/ai/prompt-catalog.ts", import.meta.url), "utf8"),
+    readFile(new URL("../app/features/ai/targets.ts", import.meta.url), "utf8"),
+    readFile(new URL("../app/features/ai/AiImportForm.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/features/ai/server/prompt.ts", import.meta.url), "utf8"),
+    Promise.all(promptFiles.map((file) => readFile(new URL(`../app/features/ai/prompts/${file}`, import.meta.url), "utf8"))),
+  ]);
+
+  assert.equal((catalog.match(/id: "builtin-/g) ?? []).length, 8);
+  assert.match(catalog, /clinical-draft-v5/);
+  for (const target of ["epicrisis", "traslado_agudo", "informe_medico", "certificado", "tele_gastro", "tele_nefro", "tele_reumato", "traslado_salvador"]) {
+    assert.match(targets, new RegExp(`id: "${target}"`));
+  }
+  for (const prompt of prompts) assert.ok(prompt.length > 6_000, "reviewed prompt is present in full");
+  assert.match(prompts[0], /EPICRISIS MÉDICA/);
+  assert.match(prompts[4], /TELEGASTROENTEROLOGÍA/);
+  assert.match(prompts[7], /Hospital del Salvador/);
+  assert.match(importForm, /aiTargetGroups/);
+  assert.match(importForm, /Formulario oficial/);
+  assert.match(importForm, /La IA completa sus 18 campos/);
+  assert.match(promptSchema, /sectionSchema\(target/);
+  assert.match(promptSchema, /minItems: hospitalSalvador \? hospitalSalvadorFields\.length : 1/);
+  assert.match(promptSchema, /maxItems: hospitalSalvador \? hospitalSalvadorFields\.length : 12/);
+  assert.match(promptSchema, /No infieras AUGE/);
+  assert.match(promptSchema, /no construyas una tendencia entre fórmulas distintas/);
+  assert.match(promptSchema, /intervalo de referencia, unidad y método/);
+  assert.match(promptSchema, /No agregues controles, tamizajes, plazos ni planes de seguimiento/);
+  assert.match(await readFile(new URL("../app/features/ai/server/clinical-output.ts", import.meta.url), "utf8"), /los 18 campos únicos del formulario/);
+});
+
+test("fills the official Hospital del Salvador Word without changing its institutional parts", async () => {
+  const template = new Uint8Array(await readFile(new URL("../public/templates/formato-informe-traslado-hospital-salvador.docx", import.meta.url)));
+  assert.equal(createHash("sha256").update(template).digest("hex"), "c23e3517eb0626c2702c5404b4f5315d1adc4a260a3955a410395211d94f57b2");
+
+  const sections = hospitalSalvadorFields.map((field, index) => ({
+    key: field.key,
+    title: field.label,
+    text: `Contenido verificado ${index + 1}`,
+  }));
+  const output = createHospitalSalvadorDocxBytes(
+    template,
+    sections,
+    { firstNames: "Paciente", lastNames: "Control", rut: "11.111.111-1" },
+    { name: "Dr. Daniel Opazo", rut: "17.752.753-K", specialty: "Medicina Interna" },
+    new Date("2026-07-26T12:00:00Z"),
+  );
+  const sourcePackage = unzipSync(template);
+  const outputPackage = unzipSync(output);
+
+  assert.deepEqual(Object.keys(outputPackage).sort(), Object.keys(sourcePackage).sort());
+  for (const [path, bytes] of Object.entries(sourcePackage)) {
+    if (path === "word/document.xml") continue;
+    assert.deepEqual(outputPackage[path], bytes, path);
+  }
+
+  const documentXml = strFromU8(outputPackage["word/document.xml"]);
+  const headerXml = strFromU8(outputPackage["word/header1.xml"]);
+  assert.match(documentXml, /Paciente Control/);
+  assert.match(documentXml, /11\.111\.111-1/);
+  assert.match(documentXml, /Contenido verificado 18/);
+  assert.match(documentXml, /Dr\. Daniel Opazo/);
+  assert.match(documentXml, /Fecha: 26-07-2026/);
+  assert.match(documentXml, /w:pgSz w:w="12240" w:h="20160"/);
+  assert.match(headerXml.replace(/<[^>]+>/g, ""), /DEPARTAMENTO GESTION DE CAMAS 2026/);
+  assert.ok(outputPackage["word/media/image1.png"]);
+  assert.ok(outputPackage["word/media/image2.png"]);
 });

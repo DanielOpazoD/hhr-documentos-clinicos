@@ -1,4 +1,6 @@
 import type { OpenAiOutput } from "./openai-responses";
+import { hospitalSalvadorFields, isHospitalSalvadorFieldKey } from "../hospital-salvador-fields";
+import type { AiTargetId } from "../types";
 
 type RawClinicalOutput = {
   document_kind?: unknown;
@@ -6,6 +8,7 @@ type RawClinicalOutput = {
   signer?: { name?: unknown; rut?: unknown; specialty?: unknown };
   processing_summary?: unknown;
   sections?: Array<{
+    key?: unknown;
     title?: unknown;
     text?: unknown;
     evidence?: Array<{ source_index?: unknown; page?: unknown; excerpt?: unknown; status?: unknown }>;
@@ -46,9 +49,14 @@ function isoDate(value: unknown): string {
   return Number.isNaN(date.getTime()) || date.toISOString().slice(0, 10) !== text ? "" : text;
 }
 
+function declaredAbsence(value: string): boolean {
+  return /^(no consignad[oa]|no se dispone|no disponible|sin información|no aparece|no consta)/i.test(value.trim());
+}
+
 export function parseClinicalOutput(
   raw: string,
   options: {
+    target?: AiTargetId;
     sourceTexts?: Array<string | null>;
     sourceMimeTypes?: string[];
     sourcePageCounts?: Array<number | null>;
@@ -63,7 +71,8 @@ export function parseClinicalOutput(
   }
   if (!value || typeof value !== "object") throw new Error("El borrador recibido no es válido.");
   const candidate = value as RawClinicalOutput;
-  if (!Array.isArray(candidate.sections) || candidate.sections.length === 0 || candidate.sections.length > 8) {
+  const sectionLimit = options.target === "traslado_salvador" ? 24 : 12;
+  if (!Array.isArray(candidate.sections) || candidate.sections.length === 0 || candidate.sections.length > sectionLimit) {
     throw new Error("El borrador no contiene secciones revisables.");
   }
   const sourceTexts = options.sourceTexts ?? [];
@@ -73,11 +82,13 @@ export function parseClinicalOutput(
     if (!section || typeof section.title !== "string" || !section.title.trim() || typeof section.text !== "string" || !section.text.trim()) {
       throw new Error("El modelo devolvió una sección incompleta.");
     }
+    if (options.target === "traslado_salvador" && (typeof section.key !== "string" || !isHospitalSalvadorFieldKey(section.key))) {
+      throw new Error("El modelo no respetó los campos del formulario de traslado.");
+    }
     if (
       !Array.isArray(section.evidence) ||
-      !section.evidence.some((item) =>
-        typeof item?.excerpt === "string" && item.excerpt.trim() && item.status !== "no_encontrado"
-      )
+      (!section.evidence.some((item) => typeof item?.excerpt === "string" && item.excerpt.trim())
+        && !declaredAbsence(section.text))
     ) throw new Error("El modelo no respaldó una sección con evidencia de la fuente.");
     for (const evidence of section.evidence) {
       const sourceIndex = Number(evidence?.source_index);
@@ -102,6 +113,16 @@ export function parseClinicalOutput(
       }
     }
   }
+  if (options.target === "traslado_salvador") {
+    const keys = candidate.sections.map((section) => section.key);
+    if (
+      candidate.sections.length !== hospitalSalvadorFields.length ||
+      new Set(keys).size !== hospitalSalvadorFields.length ||
+      hospitalSalvadorFields.some((field) => !keys.includes(field.key))
+    ) {
+      throw new Error("El modelo no devolvió los 18 campos únicos del formulario de traslado.");
+    }
+  }
   if (!Array.isArray(candidate.missing_information) || !candidate.missing_information.every((item) => typeof item === "string")) {
     throw new Error("El modelo devolvió asuntos pendientes con un formato inválido.");
   }
@@ -115,6 +136,14 @@ export function parseClinicalOutput(
     throw new Error("El modelo devolvió metadatos incompletos.");
   }
   const normalizedSources = sourceTexts.map((sourceText) => sourceText ? normalizedEvidenceText(sourceText) : null);
+  const sourceSections = options.target === "traslado_salvador"
+    ? hospitalSalvadorFields.map((field) => candidate.sections!.find((section) => section.key === field.key) ?? {
+        key: field.key,
+        title: field.label,
+        text: "No consignado",
+        evidence: [],
+      })
+    : candidate.sections;
   return {
     documentKind: candidate.document_kind,
     patient: {
@@ -129,7 +158,8 @@ export function parseClinicalOutput(
       specialty: nullableText(candidate.signer.specialty),
     },
     processingSummary: candidate.processing_summary.trim(),
-    sections: candidate.sections.map((section) => ({
+    sections: sourceSections.map((section) => ({
+      ...(typeof section.key === "string" ? { key: section.key } : {}),
       title: String(section.title),
       text: String(section.text),
       evidence: (section.evidence ?? []).map((evidence) => {

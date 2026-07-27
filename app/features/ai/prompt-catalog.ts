@@ -1,32 +1,64 @@
 import type { AiPromptProfile } from "./prompt-types";
 import type { AiTargetId } from "./types";
+import { acuteTransferPrompt } from "./prompts/acute-transfer-prompt";
+import { epicrisisPrompt } from "./prompts/epicrisis-prompt";
+import { hospitalSalvadorTransferPrompt } from "./prompts/hospital-salvador-transfer-prompt";
+import { medicalCertificatePrompt } from "./prompts/medical-certificate-prompt";
+import { medicalReportPrompt } from "./prompts/medical-report-prompt";
+import { telegastroPrompt } from "./prompts/telegastro-prompt";
+import { telenephrologyPrompt } from "./prompts/telenephrology-prompt";
+import { telerheumatologyPrompt } from "./prompts/telerheumatology-prompt";
 
-export const PROMPT_ENGINE_VERSION = "clinical-draft-v4";
+export const PROMPT_ENGINE_VERSION = "clinical-draft-v5";
 
 const builtInDefinitions: Array<Pick<AiPromptProfile, "id" | "name" | "target" | "instructions">> = [
   {
-    id: "builtin-resumen",
-    name: "Resumen clínico",
-    target: "resumen",
-    instructions: "Redacta una síntesis clínica breve y cronológica. Prioriza motivo, antecedentes relevantes, hallazgos, resultados y asuntos pendientes. Evita repeticiones y conserva la terminología de las fuentes.",
+    id: "builtin-01-epicrisis",
+    name: "Epicrisis médica · HHR",
+    target: "epicrisis",
+    instructions: epicrisisPrompt,
   },
   {
-    id: "builtin-informe",
-    name: "Informe médico",
-    target: "informe",
-    instructions: "Organiza el borrador en antecedentes, hallazgos y asuntos pendientes. Mantén una redacción clínica sobria, explícita y verificable, sin convertir información incompleta en conclusiones.",
+    id: "builtin-02-traslado-agudo",
+    name: "Informe médico de traslado · HHR",
+    target: "traslado_agudo",
+    instructions: acuteTransferPrompt,
   },
   {
-    id: "builtin-certificado",
-    name: "Certificado clínico",
+    id: "builtin-03-informe-medico",
+    name: "Informe médico ambulatorio",
+    target: "informe_medico",
+    instructions: medicalReportPrompt,
+  },
+  {
+    id: "builtin-04-certificado-medico",
+    name: "Certificado médico",
     target: "certificado",
-    instructions: "Prepara un certificado breve que exponga solamente propósito y hechos verificables. Identifica con claridad los datos necesarios que no estén presentes en las fuentes.",
+    instructions: medicalCertificatePrompt,
   },
   {
-    id: "builtin-antecedentes",
-    name: "Antecedentes y fármacos",
-    target: "antecedentes",
-    instructions: "Extrae antecedentes y tratamientos en una estructura compacta. Conserva literalmente nombres de fármacos, dosis, vías y frecuencias, y separa los datos ambiguos de los explícitos.",
+    id: "builtin-05-telegastro",
+    name: "Resumen para telegastroenterología",
+    target: "tele_gastro",
+    instructions: telegastroPrompt,
+  },
+  {
+    id: "builtin-06-telenefrologia",
+    name: "Resumen para telenefrología",
+    target: "tele_nefro",
+    instructions: telenephrologyPrompt,
+  },
+  {
+    id: "builtin-07-telereumatologia",
+    name: "Resumen para telereumatología",
+    target: "tele_reumato",
+    instructions: telerheumatologyPrompt,
+  },
+  {
+    id: "builtin-08-traslado-salvador",
+    name: "Traslado Hospital del Salvador · oficial",
+    target: "traslado_salvador",
+    instructions: hospitalSalvadorTransferPrompt,
   },
 ];
 

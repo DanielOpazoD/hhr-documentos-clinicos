@@ -2,12 +2,13 @@ import { useRef } from "react";
 import Link from "next/link";
 import { ArrowRight, Check, FileText, FileUp, Sparkles, Trash2 } from "@/app/components/Icons";
 import { AiProcessingStatus } from "./AiProcessingStatus";
-import { aiTargets } from "./targets";
+import { aiTargetGroups, aiTargets, getTargetDefinition } from "./targets";
 import type { AiStudioController } from "./use-ai-studio";
 
 export function AiImportForm({ controller }: { controller: AiStudioController }) {
   const inputRef = useRef<HTMLInputElement>(null);
   const totalMegabytes = controller.files.reduce((total, file) => total + file.size, 0) / 1024 / 1024;
+  const selectedTarget = getTargetDefinition(controller.target);
   return (
     <div className="ai-layout">
       <section className="panel ai-upload">
@@ -81,18 +82,33 @@ export function AiImportForm({ controller }: { controller: AiStudioController })
             </label>
           ))}
         </fieldset>
-        <div className="ai-subheading"><span className="eyebrow">Resultado</span><h3>¿Qué desea crear?</h3></div>
-        <div className="target-options">
-          {aiTargets.map((item) => (
-            <label className={controller.target === item.id ? "selected" : ""} key={item.id}>
-              <input type="radio" name="target" checked={controller.target === item.id} disabled={controller.processing} onChange={() => controller.setTarget(item.id)} />
-              <span><strong>{item.name}</strong><small>{item.text}</small></span>
-              <Check size={16} />
-            </label>
+        <div className="ai-subheading"><span className="eyebrow">Documento</span><h3>¿Qué desea crear?</h3></div>
+        <div className="ai-target-catalog" role="listbox" aria-label="Tipo de documento clínico">
+          {aiTargetGroups.map((group) => (
+            <section key={group} role="group" aria-label={group}>
+              <h4>{group}</h4>
+              <div>
+                {aiTargets.filter((item) => item.group === group).map((item) => (
+                  <button
+                    type="button"
+                    role="option"
+                    aria-selected={controller.target === item.id}
+                    className={controller.target === item.id ? "selected" : ""}
+                    disabled={controller.processing}
+                    key={item.id}
+                    onClick={() => controller.setTarget(item.id)}
+                  >
+                    <span><strong>{item.name}</strong><small>{item.text}</small></span>
+                    {controller.target === item.id ? <Check size={15} /> : <em>{item.output}</em>}
+                  </button>
+                ))}
+              </div>
+            </section>
           ))}
         </div>
+        {controller.target === "traslado_salvador" ? <div className="official-template-note"><FileText size={16} /><span><strong>Formulario oficial</strong><small>La IA completa sus 18 campos y descarga una copia del Word original.</small></span></div> : null}
         <div className="prompt-picker">
-          <label htmlFor="ai-prompt">Prompt</label>
+          <label htmlFor="ai-prompt">Prompt · {selectedTarget.name}</label>
           <div><select id="ai-prompt" value={controller.selectedPromptId} disabled={controller.processing || controller.promptsLoading} onChange={(event) => controller.setSelectedPromptId(event.target.value)}>{controller.promptProfiles.filter((item) => item.target === controller.target).map((item) => <option key={item.id} value={item.id}>{item.name}{item.builtIn ? " · base" : ` · v${item.revision}`}</option>)}</select><Link href="/configuracion?tab=ia">Configurar</Link></div>
         </div>
         <button

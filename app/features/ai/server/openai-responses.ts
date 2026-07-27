@@ -11,6 +11,7 @@ export type OpenAiOutput = {
   processingSummary: string;
   reasoningSummary?: string;
   sections: Array<{
+    key?: string;
     title: string;
     text: string;
     evidence: AiEvidence[];
@@ -100,6 +101,7 @@ export async function generateClinicalDraft(input: {
   promptInstructions: string;
   onProgress?: AiProgressReporter;
 }): Promise<{ output: OpenAiOutput; usage: AiTokenUsage }> {
+  const schema = outputSchema(input.target);
   await input.onProgress?.({ stage: "reading", label: "Leyendo documentos", detail: `Preparando ${input.sources.length} fuente${input.sources.length === 1 ? "" : "s"}` });
   const sourceTexts = await Promise.all(input.sources.map((source) =>
     extractLocalSource(source.file, source.mimeType).catch(() => null),
@@ -134,7 +136,7 @@ export async function generateClinicalDraft(input: {
     body: JSON.stringify({
       model: input.model,
       store: false,
-      max_output_tokens: 4000,
+      max_output_tokens: input.target === "traslado_salvador" ? 9_000 : 6_500,
       reasoning: { effort: "low", summary: "auto" },
       input: [
         { role: "system", content: systemPrompt(input.target, input.promptInstructions) },
@@ -151,7 +153,7 @@ export async function generateClinicalDraft(input: {
           type: "json_schema",
           name: "clinical_document_draft",
           strict: true,
-          schema: outputSchema,
+          schema,
         },
       },
     }),
@@ -171,6 +173,7 @@ export async function generateClinicalDraft(input: {
   if (!outputText) throw new Error("OpenAI no devolvió un borrador utilizable.");
   await input.onProgress?.({ stage: "verifying", label: "Verificando el borrador", detail: "Comprobando identidad, citas y campos pendientes" });
   const output = parseClinicalOutput(outputText, {
+    target: input.target,
     sourceTexts,
     sourceMimeTypes: input.sources.map((source) => source.mimeType),
     sourcePageCounts,

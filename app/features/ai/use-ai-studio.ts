@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { fetchAiProviders, importWithAi, saveAiDraft } from "./client";
 import { fetchPromptProfiles } from "./prompt-client";
-import { getTargetName } from "./targets";
+import { defaultClinicalSigner, getTargetName } from "./targets";
 import type { AiImportResult, AiPatient, AiProgress, AiProviderId, AiProviderInfo, AiSection, AiSigner, AiTargetId } from "./types";
 import type { AiPromptProfile } from "./prompt-types";
 
@@ -23,7 +23,7 @@ const emptyResult: AiImportResult = {
 
 export function useAiStudio() {
   const [files, setFiles] = useState<File[]>([]);
-  const [target, setTarget] = useState<AiTargetId>("resumen");
+  const [target, setTarget] = useState<AiTargetId>("epicrisis");
   const [provider, setProvider] = useState<AiProviderId>("openai");
   const [providers, setProviders] = useState<AiProviderInfo[]>([]);
   const [providersLoading, setProvidersLoading] = useState(true);
@@ -108,7 +108,14 @@ export function useAiStudio() {
     setCreatedId(null);
     try {
       const nextResult = await importWithAi(files, target, provider, resolvedPromptId, processingAuthorized, setProgress);
-      setResult(nextResult);
+      setResult({
+        ...nextResult,
+        signer: target === "traslado_salvador" ? defaultClinicalSigner : {
+          name: nextResult.signer.name || defaultClinicalSigner.name,
+          rut: nextResult.signer.rut || defaultClinicalSigner.rut,
+          specialty: nextResult.signer.specialty || defaultClinicalSigner.specialty,
+        },
+      });
       setIdentityConfirmed(false);
       setDraftHasChanges(true);
     } catch (cause) {
@@ -126,7 +133,7 @@ export function useAiStudio() {
     setSaving(true);
     setError(null);
     try {
-      setCreatedId(await saveAiDraft(result, getTargetName(target), createdId ?? undefined));
+      setCreatedId(await saveAiDraft(result, target, getTargetName(target), createdId ?? undefined));
       setDraftHasChanges(false);
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "No se pudo guardar el borrador.");
@@ -140,6 +147,16 @@ export function useAiStudio() {
       ...current,
       sections: current.sections.map((section, itemIndex) =>
         itemIndex === index ? { ...section, text, evidenceStale: true } : section,
+      ),
+    }));
+    setDraftHasChanges(true);
+  }
+
+  function updateSectionTitle(index: number, title: string) {
+    setResult((current) => ({
+      ...current,
+      sections: current.sections.map((section, itemIndex) =>
+        itemIndex === index ? { ...section, title } : section,
       ),
     }));
     setDraftHasChanges(true);
@@ -215,6 +232,7 @@ export function useAiStudio() {
     analyze,
     createDraft,
     updateSection,
+    updateSectionTitle,
     updatePatient,
     updateSigner,
     reset,

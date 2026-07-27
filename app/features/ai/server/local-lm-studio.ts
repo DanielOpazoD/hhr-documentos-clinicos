@@ -11,8 +11,15 @@ const LOCAL_IMAGE_TOKEN_RESERVE = 1_600;
 const LOCAL_SAFETY_MARGIN_TOKENS = 768;
 const CONSERVATIVE_CHARACTERS_PER_TOKEN = 3.2;
 
+function localOutputTokens(target: AiTargetId): number {
+  return target === "traslado_salvador" ? 5_500 : LOCAL_OUTPUT_TOKENS;
+}
+
 function requestInstructions(target: AiTargetId) {
-  return `Prepara el borrador de tipo ${target} integrando todas las fuentes. Responde exclusivamente con el JSON solicitado. Los marcadores HHR_PAGE_N delimitan páginas; usa el índice indicado para source_index y no reproduzcas marcadores internos. Usa page null en DOCX e imágenes, y un número solamente cuando exista un marcador HHR_PAGE_N. No crees secciones para datos ausentes.`;
+  const absentFields = target === "traslado_salvador"
+    ? 'Incluye exactamente los 18 campos; cuando falte un dato, usa "No consignado" y evidence vacío.'
+    : "No crees secciones para datos ausentes.";
+  return `Prepara el borrador de tipo ${target} integrando todas las fuentes. Responde exclusivamente con el JSON solicitado. Los marcadores HHR_PAGE_N delimitan páginas; usa el índice indicado para source_index y no reproduzcas marcadores internos. Usa page null en DOCX e imágenes, y un número solamente cuando exista un marcador HHR_PAGE_N. ${absentFields}`;
 }
 
 function estimatedRequestTokens(
@@ -20,8 +27,9 @@ function estimatedRequestTokens(
   target: AiTargetId,
   promptInstructions: string,
 ) {
+  const schema = outputSchema(target);
   const textCharacters = systemPrompt(target, promptInstructions).length
-    + JSON.stringify(outputSchema).length
+    + JSON.stringify(schema).length
     + requestInstructions(target).length
     + sources.reduce((total, source, index) => total
       + `FUENTE ${index + 1} · source_index ${index}: ${source.sourceName}`.length
@@ -29,7 +37,7 @@ function estimatedRequestTokens(
   const imageCount = sources.filter((source) => source.extractedText === null).length;
   return Math.ceil(textCharacters / CONSERVATIVE_CHARACTERS_PER_TOKEN)
     + imageCount * LOCAL_IMAGE_TOKEN_RESERVE
-    + LOCAL_OUTPUT_TOKENS
+    + localOutputTokens(target)
     + LOCAL_SAFETY_MARGIN_TOKENS;
 }
 
@@ -82,6 +90,7 @@ export async function generateLocalClinicalDraft(input: {
     throw new Error("El conjunto de documentos supera el contexto seguro de Gemma local. Reduzca la cantidad o use OpenAI.");
   }
   const content = await messageContent(sources, input.target);
+  const schema = outputSchema(input.target);
   await input.onProgress?.({ stage: "analyzing", label: "Identificando datos clínicos", detail: "Contrastando identidad, fechas y hallazgos entre las fuentes" });
   await input.onProgress?.({ stage: "drafting", label: "Redactando el borrador", detail: "Organizando la información sin completar datos ausentes" });
   const response = await fetch(`${input.baseUrl}/chat/completions`, {
@@ -94,14 +103,14 @@ export async function generateLocalClinicalDraft(input: {
     body: JSON.stringify({
       model: input.model,
       temperature: 0.1,
-      max_tokens: LOCAL_OUTPUT_TOKENS,
+      max_tokens: localOutputTokens(input.target),
       messages: [
         { role: "system", content: systemPrompt(input.target, input.promptInstructions) },
         { role: "user", content },
       ],
       response_format: {
         type: "json_schema",
-        json_schema: { name: "clinical_document_draft", strict: true, schema: outputSchema },
+        json_schema: { name: "clinical_document_draft", strict: true, schema },
       },
     }),
   });
@@ -120,6 +129,7 @@ export async function generateLocalClinicalDraft(input: {
   const outputTokens = Math.max(0, Number(payload?.usage?.completion_tokens ?? 0));
   return {
     output: parseClinicalOutput(contentText, {
+      target: input.target,
       sourceTexts: sources.map((source) => source.extractedText),
       sourceMimeTypes: sources.map((source) => source.mimeType),
     }),

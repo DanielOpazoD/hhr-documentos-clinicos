@@ -36,6 +36,7 @@ export type AiSourceInput = {
 };
 
 export type AiSection = {
+  key?: string;
   title: string;
   text: string;
   evidence: AiEvidence[];
@@ -56,7 +57,15 @@ export type AiImportResult = {
   safetyNotice: string;
 };
 
-export type AiTargetId = "resumen" | "informe" | "certificado" | "antecedentes";
+export type AiTargetId =
+  | "epicrisis"
+  | "traslado_agudo"
+  | "informe_medico"
+  | "certificado"
+  | "tele_gastro"
+  | "tele_nefro"
+  | "tele_reumato"
+  | "traslado_salvador";
 
 export type AiProviderId = "openai" | "gemma_local";
 
