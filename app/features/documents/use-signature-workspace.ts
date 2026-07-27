@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import type { PointerEvent as ReactPointerEvent } from "react";
-import { createSignature, listSignatures, setDefaultSignature } from "./api";
+import { createSignature, deleteSignature, listSignatures, setDefaultSignature } from "./api";
 import {
   DEFAULT_SIGNATURE_IMAGE_SETTINGS,
   prepareSignatureUpload,
@@ -26,6 +26,7 @@ export function useSignatureWorkspace(markDirty: () => void) {
   const [signatureImageSettings, setSignatureImageSettings] = useState<SignatureImageSettings>({ ...DEFAULT_SIGNATURE_IMAGE_SETTINGS });
   const [signatureBusy, setSignatureBusy] = useState(false);
   const [signatureError, setSignatureError] = useState<string | null>(null);
+  const [signatureDeleteId, setSignatureDeleteId] = useState<string | null>(null);
 
   const refreshSignatures = useCallback(async (signal?: AbortSignal) => {
     try {
@@ -108,6 +109,33 @@ export function useSignatureWorkspace(markDirty: () => void) {
     }
   }, []);
 
+  const removeSignatureProfile = useCallback(async (id: string) => {
+    setSignatureBusy(true);
+    setSignatureError(null);
+    try {
+      await deleteSignature(id);
+      setSignatures((current) => {
+        const removedWasDefault = current.find((signature) => signature.id === id)?.isDefault;
+        const remaining = current.filter((signature) => signature.id !== id);
+        return removedWasDefault && remaining.length
+          ? remaining.map((signature, index) => ({ ...signature, isDefault: index === 0 }))
+          : remaining;
+      });
+      setPlacedSignature((current) => current?.id === id ? null : current);
+      setSignatureDeleteId(null);
+      markDirty();
+      try {
+        setSignatures(await listSignatures());
+      } catch {
+        // The DELETE already succeeded; keep the locally committed profile list.
+      }
+    } catch (error) {
+      setSignatureError(error instanceof Error ? error.message : "No se pudo eliminar el perfil.");
+    } finally {
+      setSignatureBusy(false);
+    }
+  }, [markDirty]);
+
   useEffect(() => {
     const controller = new AbortController();
     const timer = window.setTimeout(() => void refreshSignatures(controller.signal), 0);
@@ -129,9 +157,12 @@ export function useSignatureWorkspace(markDirty: () => void) {
     setSignatureImageSettings,
     signatureBusy,
     signatureError,
+    signatureDeleteId,
+    setSignatureDeleteId,
     attachSignature,
     moveSignature,
     saveSignature,
     makeDefaultSignature,
+    removeSignatureProfile,
   };
 }

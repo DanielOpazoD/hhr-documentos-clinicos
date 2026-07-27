@@ -10,17 +10,20 @@ type Props = Pick<
   | "attachSignature"
   | "markSignatureDirty"
   | "makeDefaultSignature"
+  | "removeSignatureProfile"
   | "placedSignature"
   | "saveSignature"
   | "setPlacedSignature"
   | "setSignatureForm"
   | "setSignatureFormOpen"
   | "signatureBusy"
+  | "signatureDeleteId"
   | "signatureError"
   | "signatureForm"
   | "signatureFormOpen"
   | "signatureImageSettings"
   | "signatures"
+  | "setSignatureDeleteId"
   | "setSignatureImageSettings"
   | "signer"
   | "updateSigner"
@@ -30,17 +33,20 @@ export function SignatureEditor({
   attachSignature,
   markSignatureDirty,
   makeDefaultSignature,
+  removeSignatureProfile,
   placedSignature,
   saveSignature,
   setPlacedSignature,
   setSignatureForm,
   setSignatureFormOpen,
   signatureBusy,
+  signatureDeleteId,
   signatureError,
   signatureForm,
   signatureFormOpen,
   signatureImageSettings,
   signatures,
+  setSignatureDeleteId,
   setSignatureImageSettings,
   signer,
   updateSigner,
@@ -72,9 +78,12 @@ export function SignatureEditor({
         <SignatureProfileSelector
           attachSignature={attachSignature}
           makeDefaultSignature={makeDefaultSignature}
+          removeSignatureProfile={removeSignatureProfile}
           placedSignature={placedSignature}
           signatureBusy={signatureBusy}
+          signatureDeleteId={signatureDeleteId}
           signatures={signatures}
+          setSignatureDeleteId={setSignatureDeleteId}
           updateSigner={updateSigner}
         />
       ) : signatureFormOpen ? null : (
@@ -111,9 +120,10 @@ export function SignatureEditor({
           <button className="button primary" disabled={signatureBusy || !signer.name.trim()} onClick={() => void saveSignature(signer)}>
             {signatureBusy ? "Guardando…" : "Guardar y usar"}
           </button>
-          {signatureError ? <p className="form-error">{signatureError}</p> : null}
         </div>
       ) : null}
+
+      {signatureError ? <p className="form-error">{signatureError}</p> : null}
 
       {placedSignature ? (
         <div className="signature-position-controls">

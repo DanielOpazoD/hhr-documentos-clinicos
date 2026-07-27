@@ -11,13 +11,14 @@ import { useDocumentKeyboard } from "@/app/features/documents/use-document-keybo
 
 export function DocumentStudio() {
   const workspace = useDocumentWorkspace();
-  const { persist, setNewMenuOpen, setSignatureFormOpen } = workspace;
+  const { persist, setNewMenuOpen, setSignatureDeleteId, setSignatureFormOpen } = workspace;
   const saveFromKeyboard = useCallback(() => void persist(), [persist]);
   const openNewDocumentMenu = useCallback(() => setNewMenuOpen(true), [setNewMenuOpen]);
   const closeTransientControls = useCallback(() => {
     setNewMenuOpen(false);
+    setSignatureDeleteId(null);
     setSignatureFormOpen(false);
-  }, [setNewMenuOpen, setSignatureFormOpen]);
+  }, [setNewMenuOpen, setSignatureDeleteId, setSignatureFormOpen]);
   useDocumentKeyboard({
     saving: workspace.saving,
     onSave: saveFromKeyboard,

@@ -44,7 +44,6 @@ export function DocumentPreview({
         <h2>{visibleTitle.toUpperCase()}</h2>
         <div className="paper-rule" />
         <section>
-          <h3>Paciente</h3>
           <div className="paper-patient-lines">
             <p><b>Nombre:</b> {patientFullName(patient) || "—"}</p>
             <p><b>RUT:</b> {patient.rut || "—"}</p>

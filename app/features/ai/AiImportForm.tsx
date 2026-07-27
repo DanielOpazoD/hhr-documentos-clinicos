@@ -82,6 +82,21 @@ export function AiImportForm({ controller }: { controller: AiStudioController })
             </label>
           ))}
         </fieldset>
+        {controller.selectedProvider ? (
+          <label className="ai-model-picker" htmlFor="ai-model">
+            <span>Modelo {controller.selectedProvider.name}</span>
+            <select
+              id="ai-model"
+              value={controller.model}
+              disabled={controller.processing || !controller.selectedProvider.available}
+              onChange={(event) => controller.setModel(event.target.value)}
+            >
+              {controller.selectedProvider.models.map((model) => (
+                <option key={model.id} value={model.id}>{model.name} · {model.detail}</option>
+              ))}
+            </select>
+          </label>
+        ) : null}
         <div className="ai-subheading"><span className="eyebrow">Documento</span><h3>¿Qué desea crear?</h3></div>
         <div className="ai-target-catalog" role="listbox" aria-label="Tipo de documento clínico">
           {aiTargetGroups.map((group) => (

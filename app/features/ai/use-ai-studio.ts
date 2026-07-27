@@ -25,6 +25,7 @@ export function useAiStudio() {
   const [files, setFiles] = useState<File[]>([]);
   const [target, setTarget] = useState<AiTargetId>("epicrisis");
   const [provider, setProvider] = useState<AiProviderId>("openai");
+  const [model, setModel] = useState("gpt-5-mini");
   const [providers, setProviders] = useState<AiProviderInfo[]>([]);
   const [providersLoading, setProvidersLoading] = useState(true);
   const [promptProfiles, setPromptProfiles] = useState<AiPromptProfile[]>([]);
@@ -47,12 +48,12 @@ export function useAiStudio() {
       .then((availableProviders) => {
         if (!active) return;
         setProviders(availableProviders);
-        setProvider((currentProvider) => {
-          const current = availableProviders.find((item) => item.id === currentProvider);
-          return current?.available
-            ? currentProvider
-            : availableProviders.find((item) => item.available)?.id ?? currentProvider;
-        });
+        const selected = availableProviders.find((item) => item.id === "openai" && item.available)
+          ?? availableProviders.find((item) => item.available);
+        if (selected) {
+          setProvider(selected.id);
+          setModel(selected.model);
+        }
       })
       .catch(() => {
         if (active) setError("No se pudo consultar la disponibilidad de los modelos.");
@@ -107,7 +108,7 @@ export function useAiStudio() {
     setError(null);
     setCreatedId(null);
     try {
-      const nextResult = await importWithAi(files, target, provider, resolvedPromptId, processingAuthorized, setProgress);
+      const nextResult = await importWithAi(files, target, provider, model, resolvedPromptId, processingAuthorized, setProgress);
       setResult({
         ...nextResult,
         signer: target === "traslado_salvador" ? defaultClinicalSigner : {
@@ -214,6 +215,12 @@ export function useAiStudio() {
     setIdentityConfirmed(false);
   }
 
+  function selectProvider(nextProvider: AiProviderId) {
+    setProvider(nextProvider);
+    const providerInfo = providers.find((item) => item.id === nextProvider);
+    if (providerInfo) setModel(providerInfo.model);
+  }
+
   return {
     files,
     addFiles,
@@ -221,7 +228,9 @@ export function useAiStudio() {
     target,
     setTarget,
     provider,
-    setProvider,
+    setProvider: selectProvider,
+    model,
+    setModel,
     providers,
     providersLoading,
     promptProfiles,

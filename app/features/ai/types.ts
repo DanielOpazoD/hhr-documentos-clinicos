@@ -69,10 +69,17 @@ export type AiTargetId =
 
 export type AiProviderId = "openai" | "gemma_local";
 
+export type AiModelOption = {
+  id: string;
+  name: string;
+  detail: string;
+};
+
 export type AiProviderInfo = {
   id: AiProviderId;
   name: string;
   model: string;
+  models: AiModelOption[];
   location: "Nube" | "Este Mac" | "Servidor externo";
   available: boolean;
   detail: string;

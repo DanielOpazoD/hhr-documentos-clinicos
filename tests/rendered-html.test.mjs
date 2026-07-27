@@ -149,6 +149,9 @@ test("keeps the clinical studios usable from mobile through desktop", async () =
   assert.match(documentStudio, /Perfil profesional/);
   assert.match(documentStudio, /Predeterminado/);
   assert.match(documentStudio, /makeDefaultSignature/);
+  assert.match(documentStudio, /removeSignatureProfile/);
+  assert.match(documentStudio, /deleteSignature/);
+  assert.match(documentStudio, /Eliminar perfil/);
   assert.match(documentStudio, /La firma se agrega después del contenido/);
   assert.match(documentStudio, /signature-placement-zone/);
   assert.match(documentStudio, /Fondo blanco automático/);
@@ -184,6 +187,9 @@ test("keeps the clinical studios usable from mobile through desktop", async () =
   assert.match(documentStudio, /professionalName: (?:snapshot\.)?placedSignature\.professionalName/);
   assert.match(documentStudio, /Servicio de Salud Metropolitano Oriente/);
   assert.match(documentStudio, /date: formatStoredDate\(input\.issueDate\)/);
+  assert.doesNotMatch(await readFile(new URL("../app/features/documents/DocumentPreview.tsx", import.meta.url), "utf8"), /<h3>Paciente<\/h3>/);
+  assert.doesNotMatch(await readFile(new URL("../app/features/documents/PatientEditor.tsx", import.meta.url), "utf8"), /<h2>Paciente<\/h2>/);
+  assert.match(await readFile(new URL("../app/features/documents/document-pdf.ts", import.meta.url), "utf8"), /title: "",\s*body: `Nombre:/);
   assert.match(documentStudio, /SIGNATURE_Y_MAX_PERCENT = 70/);
   assert.match(documentStudio, /defaultProfileApplied\.current = true/);
   assert.match(documentStudio, /markSignatureDirty/);
@@ -291,6 +297,12 @@ test("offers isolated OpenAI and local Gemma providers", async () => {
   assert.match(source, /hhr-gemma-local/);
   assert.match(source, /127\.0\.0\.1:1234/);
   assert.match(source, /provider-options/);
+  assert.match(source, /DEFAULT_OPENAI_MODEL = "gpt-5-mini"/);
+  assert.match(source, /gpt-5\.6-terra/);
+  assert.match(source, /gpt-5\.6-sol/);
+  assert.match(source, /ai-model-picker/);
+  assert.match(source, /form\.set\("model", model\)/);
+  assert.match(source, /Modelo de OpenAI no permitido/);
   assert.match(source, /Privado · sin salir del equipo/);
   assert.match(source, /getResolvedPDFJS/);
   assert.match(source, /loadingTask\.destroy/);
@@ -333,6 +345,35 @@ test("offers isolated OpenAI and local Gemma providers", async () => {
   assert.match(source, /Profesional firmante/);
   assert.match(source, /disabled=\{controller\.processing\}/);
   assert.doesNotMatch(source, /0\.0\.0\.0/);
+});
+
+test("organizes, archives and deletes stored files through owned server routes", async () => {
+  const modules = await Promise.all([
+    "../app/components/FilesLibrary.tsx",
+    "../app/features/files/FileCard.tsx",
+    "../app/features/files/FileDialogs.tsx",
+    "../app/features/files/FilesToolbar.tsx",
+    "../app/features/files/use-files-library.ts",
+    "../app/features/files/client.ts",
+    "../app/features/files/server/delete-files.ts",
+    "../app/api/files/route.ts",
+    "../app/api/files/[id]/route.ts",
+  ].map((path) => readFile(new URL(path, import.meta.url), "utf8")));
+  const source = modules.join("\n");
+  assert.match(source, /Más recientes/);
+  assert.match(source, /Todos visibles/);
+  assert.match(source, /Eliminar.*archivo/s);
+  assert.match(source, /method: "DELETE"/);
+  assert.match(source, /status = 'eliminado'/);
+  assert.match(source, /FILES\.delete/);
+  assert.match(source, /Promise\.allSettled/);
+  assert.match(source, /cleanupPendingFileDeletes/);
+  assert.match(source, /owner_email = \?/);
+  assert.match(source, /event\.key === "Escape"/);
+  assert.match(source, /onSubmit=/);
+  assert.match(source, /aria-keyshortcuts="Enter"/);
+  assert.match(source, /deleteOwnedFiles/);
+  assert.equal(modules.filter((module) => module.split("\n").length > 220).length, 0);
 });
 
 test("ships the eight reviewed clinical prompts as configurable defaults", async () => {

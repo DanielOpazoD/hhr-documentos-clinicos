@@ -20,8 +20,8 @@ export async function downloadDocumentPdf(input: DocumentPdfInput) {
     subtitle: ["Servicio de Salud Metropolitano Oriente", "Hospital Hanga Roa"],
     sections: [
       {
-        title: "Paciente",
-        body: `${patientFullName(input.patient) || "—"}\nRUT: ${input.patient.rut || "—"}\nFecha de nacimiento: ${formatStoredDate(input.patient.birthDate) || "—"}`,
+        title: "",
+        body: `Nombre: ${patientFullName(input.patient) || "—"}\nRUT: ${input.patient.rut || "—"}\nFecha de nacimiento: ${formatStoredDate(input.patient.birthDate) || "—"}`,
       },
       ...input.sections.map((section) => ({ title: section.title, body: section.body })),
       ...(!input.placedSignature && input.signer.name ? [{

@@ -76,3 +76,8 @@ export async function setDefaultSignature(id: string): Promise<void> {
   });
   await parseResponse<{ ok: true }>(response);
 }
+
+export async function deleteSignature(id: string): Promise<void> {
+  const response = await fetch(`/api/signatures/${encodeURIComponent(id)}`, { method: "DELETE" });
+  await parseResponse<{ ok: true }>(response);
+}

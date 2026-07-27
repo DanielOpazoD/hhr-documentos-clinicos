@@ -2,7 +2,7 @@
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
-type PdfSection = { title: string; body: string };
+type PdfSection = { title?: string; body: string };
 type PdfSignature = { imageUrl: string; professionalName: string; professionalRut: string; specialty: string; x: number; y: number; width: number };
 
 export async function downloadClinicalPdf(options: { fileName: string; title: string; subtitle?: string | string[]; sections: PdfSection[]; date?: string; footer?: string; signature?: PdfSignature }) {
@@ -30,11 +30,13 @@ export async function downloadClinicalPdf(options: { fileName: string; title: st
   y += 28;
   for (const section of options.sections) {
     if (y > 690) { pdf.addPage(); y = 72; }
-    pdf.setFont("helvetica", "bold");
-    pdf.setFontSize(10);
-    pdf.setTextColor(17, 52, 65);
-    pdf.text(section.title.toUpperCase(), left, y);
-    y += 18;
+    if (section.title) {
+      pdf.setFont("helvetica", "bold");
+      pdf.setFontSize(10);
+      pdf.setTextColor(17, 52, 65);
+      pdf.text(section.title.toUpperCase(), left, y);
+      y += 18;
+    }
     pdf.setFont("helvetica", "normal");
     pdf.setFontSize(10.5);
     pdf.setTextColor(31, 41, 45);

@@ -15,6 +15,7 @@ export async function importWithAi(
   files: File[],
   target: AiTargetId,
   provider: AiProviderId,
+  model: string,
   promptId: string,
   processingAuthorized: boolean,
   onProgress?: (progress: AiProgress) => void,
@@ -23,6 +24,7 @@ export async function importWithAi(
   files.forEach((file) => form.append("files", file));
   form.set("target", target);
   form.set("provider", provider);
+  form.set("model", model);
   form.set("promptId", promptId);
   form.set("processingAuthorized", String(processingAuthorized));
   const response = await fetch("/api/ai/import", { method: "POST", body: form });

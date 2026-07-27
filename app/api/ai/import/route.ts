@@ -22,6 +22,7 @@ export async function POST(request: Request) {
   const form = await request.formData();
   const target = String(form.get("target") ?? "resumen");
   const providerId = String(form.get("provider") ?? "openai");
+  const model = String(form.get("model") ?? "gpt-5-mini");
   const promptId = String(form.get("promptId") ?? "").trim();
   const processingAuthorized = form.get("processingAuthorized") === "true";
 
@@ -50,6 +51,7 @@ export async function POST(request: Request) {
     try {
       const { output: result, provider, usage } = await generateDraftWithProvider({
         providerId,
+        model,
         sources,
         target,
         promptInstructions: prompt.instructions,

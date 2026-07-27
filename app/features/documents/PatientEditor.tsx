@@ -13,7 +13,6 @@ export function PatientEditor({
 }: Props) {
   return (
     <div className="editor-section patient-editor">
-      <div className="editor-section-title"><h2>Paciente</h2></div>
       <div className="patient-manual-grid">
         <label>Nombres<input value={patient.firstNames} onChange={(event) => updatePatient("firstNames", event.target.value)} autoComplete="off" /></label>
         <label>Apellidos<input value={patient.lastNames} onChange={(event) => updatePatient("lastNames", event.target.value)} autoComplete="off" /></label>
