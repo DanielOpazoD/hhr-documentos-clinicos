@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Clock3, RotateCcw, X } from "@/app/components/Icons";
 import { formatUpdated } from "./formatters";
 import type { DocumentWorkspace } from "./use-document-workspace";
@@ -28,6 +28,18 @@ export function DocumentHistoryDialog({
   version,
 }: Props) {
   const [confirmVersion, setConfirmVersion] = useState<number | null>(null);
+  const dialogRef = useRef<HTMLElement>(null);
+  const previouslyFocusedRef = useRef<HTMLElement | null>(null);
+
+  useEffect(() => {
+    previouslyFocusedRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    dialogRef.current?.focus();
+    return () => {
+      const previouslyFocused = previouslyFocusedRef.current;
+      if (previouslyFocused?.isConnected) previouslyFocused.focus();
+    };
+  }, []);
+
   if (!historyOpen) return null;
 
   const close = () => {
@@ -36,15 +48,48 @@ export function DocumentHistoryDialog({
     closeDocumentHistory();
   };
 
+  const trapFocus = (event: React.KeyboardEvent<HTMLElement>) => {
+    if (event.key !== "Tab") return;
+    const dialog = dialogRef.current;
+    if (!dialog) return;
+    const focusable = [...dialog.querySelectorAll<HTMLElement>(
+      'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
+    )].filter((element) => !element.hidden && element.getAttribute("aria-hidden") !== "true");
+    if (!focusable.length) {
+      event.preventDefault();
+      dialog.focus();
+      return;
+    }
+    const first = focusable[0];
+    const last = focusable[focusable.length - 1];
+    const active = document.activeElement;
+    if (event.shiftKey && (active === first || !dialog.contains(active))) {
+      event.preventDefault();
+      last.focus();
+    } else if (!event.shiftKey && (active === last || !dialog.contains(active))) {
+      event.preventDefault();
+      first.focus();
+    }
+  };
+
   return (
     <div className="modal-backdrop document-history-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) close(); }}>
-      <section className="document-history-dialog" role="dialog" aria-modal="true" aria-labelledby="document-history-title">
+      <section
+        ref={dialogRef}
+        className="document-history-dialog"
+        role="dialog"
+        aria-busy={restoringVersion !== null}
+        aria-modal="true"
+        aria-labelledby="document-history-title"
+        tabIndex={-1}
+        onKeyDown={trapFocus}
+      >
         <header>
           <div>
             <span className="history-icon"><Clock3 size={17} /></span>
             <span><h2 id="document-history-title">Historial del documento</h2><small>Versiones clínicas preservadas</small></span>
           </div>
-          <button className="icon-button" onClick={close} aria-label="Cerrar historial"><X size={17} /></button>
+          <button className="icon-button" disabled={restoringVersion !== null} onClick={close} aria-label="Cerrar historial"><X size={17} /></button>
         </header>
         <div className="document-history-content">
           <p className="history-guidance">Restaurar una versión no elimina el historial: crea un borrador editable desde esa copia.</p>

@@ -23,6 +23,7 @@ type VersionRow = {
   createdAt: string;
 };
 
+const MAX_DOCUMENT_VERSIONS = 50;
 const currentDocumentQuery = `SELECT id, template_id AS templateId, title, patient_name AS patientName, patient_rut_masked AS patientRutMasked, status, content_json AS contentJson, version, updated_at AS updatedAt FROM documents WHERE id = ? AND owner_email = ?`;
 
 function changedRows(result: D1Result): number {
@@ -54,7 +55,7 @@ export async function GET(request: Request, context: { params: Promise<{ id: str
   const db = await ensureDatabase();
   const current = await db.prepare(currentDocumentQuery).bind(id, owner).first<CurrentDocument>();
   if (!current) return jsonError("Documento no encontrado.", 404);
-  const result = await db.prepare(`SELECT version, snapshot_json AS snapshotJson, created_at AS createdAt FROM document_versions WHERE document_id = ? AND owner_email = ? AND snapshot_json IS NOT NULL ORDER BY version DESC LIMIT 50`)
+  const result = await db.prepare(`SELECT version, snapshot_json AS snapshotJson, created_at AS createdAt FROM document_versions WHERE document_id = ? AND owner_email = ? AND snapshot_json IS NOT NULL ORDER BY version DESC LIMIT ${MAX_DOCUMENT_VERSIONS}`)
     .bind(id, owner)
     .all<VersionRow>();
   return Response.json({

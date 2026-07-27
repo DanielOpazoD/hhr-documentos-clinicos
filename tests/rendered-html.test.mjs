@@ -203,6 +203,8 @@ test("keeps the clinical studios usable from mobile through desktop", async () =
   assert.match(documentStudio, /historyRequest/);
   assert.match(documentStudio, /restoreRequestActive/);
   assert.match(documentStudio, /closeDocumentHistory/);
+  assert.match(documentStudio, /tabIndex=\{-1\}/);
+  assert.match(documentStudio, /MAX_DOCUMENT_VERSIONS/);
   assert.match(documentStudio, /api\/signatures/);
   assert.match(documentStudio, /aiMetadata/);
   assert.match(documentStudio, /Ver trazabilidad/);
