@@ -23,6 +23,8 @@ npm run db:verify -- ./backup.sql
 npm run db:verify -- ./database.sqlite
 ```
 
+Las exportaciones SQL se cargan completas en memoria para verificarlas. Si su tamaño deja de ser manejable, migre este paso a una base temporal en disco o a una importación incremental antes de incorporarlo al flujo de producción.
+
 Comprueba:
 
 - tablas, columnas, índices y migraciones contra el último snapshot de Drizzle;
@@ -40,7 +42,7 @@ Esta opción selecciona el snapshot correspondiente a la última migración apli
 
 ## Despliegue
 
-Los comandos remotos requieren una configuración operativa de Wrangler fuera del repositorio, con el identificador de la D1 real. No guarde ese identificador ni credenciales en Git.
+Los comandos remotos requieren una configuración operativa de Wrangler fuera del repositorio, con el identificador de la D1 real y `migrations_dir` apuntando al directorio `drizzle/` de este checkout. No guarde ese identificador ni credenciales en Git.
 
 1. Valide el artefacto: `npm run verify`.
 2. Registre un punto de recuperación inmediatamente anterior:
@@ -49,32 +51,50 @@ Los comandos remotos requieren una configuración operativa de Wrangler fuera de
    wrangler d1 time-travel info <database> --config <operator-config> --json
    ```
 
-3. Exporte el respaldo anterior a cualquier cambio:
+3. Cree fuera del checkout un directorio privado para los respaldos:
 
    ```bash
-   wrangler d1 export <database> --remote --config <operator-config> --output ./backup-previo.sql -y
+   BACKUP_DIR="$(mktemp -d "${TMPDIR:-/tmp}/hhr-d1-backup.XXXXXX")"
+   chmod 700 "$BACKUP_DIR"
    ```
 
-4. Ejecute el puente preparatorio idempotente para instalaciones que registraron el antiguo `0001` sin recibir su reparación HTTP:
+   Los dumps contienen datos clínicos sensibles. Manténgalos en almacenamiento cifrado, limite su retención a esta operación y elimínelos mediante el procedimiento seguro del sistema al terminar. Nunca los copie al repositorio; `.gitignore` también excluye sus tres nombres operativos como defensa adicional.
+
+4. Exporte el respaldo anterior a cualquier cambio:
+
+   ```bash
+   wrangler d1 export <database> --remote --config <operator-config> --output "$BACKUP_DIR/backup-previo.sql" -y
+   ```
+
+5. Ejecute el puente preparatorio idempotente para instalaciones que registraron el antiguo `0001` sin recibir su reparación HTTP:
 
    ```bash
    npm run db:prepare -- --database <database> --config <operator-config>
-   wrangler d1 export <database> --remote --config <operator-config> --output ./backup-preparado.sql -y
-   npm run db:verify -- --allow-pending-migrations ./backup-preparado.sql
+   wrangler d1 export <database> --remote --config <operator-config> --output "$BACKUP_DIR/backup-preparado.sql" -y
+   npm run db:verify -- --allow-pending-migrations "$BACKUP_DIR/backup-preparado.sql"
    ```
 
    El comando consulta únicamente `PRAGMA table_info(signatures)`. Si falta `is_default`, añade la columna con valor inicial `0`; en ambos casos asegura el índice parcial correcto. No lee ni imprime filas de firmas.
 
-5. Despliegue mediante Sites reutilizando `.openai/hosting.json`. Sites debe aplicar `drizzle/` antes de dirigir solicitudes al Worker nuevo.
-6. Confirme el historial y verifique una exportación posterior sin permitir pendientes:
+6. Aplique explícitamente las migraciones antes de desplegar el Worker y confirme que no quedan pendientes:
+
+   ```bash
+   wrangler d1 migrations apply <database> --remote --config <operator-config>
+   wrangler d1 migrations list <database> --remote --config <operator-config>
+   ```
+
+   Detenga aquí la promoción si `0005_schema_authority.sql` no aparece aplicada. El despliegue de Sites no sustituye este bloqueo operativo.
+
+7. Despliegue mediante Sites reutilizando `.openai/hosting.json`.
+8. Verifique una exportación posterior sin permitir pendientes:
 
    ```bash
    wrangler d1 migrations list <database> --remote --config <operator-config>
-   wrangler d1 export <database> --remote --config <operator-config> --output ./backup-posterior.sql -y
-   npm run db:verify -- ./backup-posterior.sql
+   wrangler d1 export <database> --remote --config <operator-config> --output "$BACKUP_DIR/backup-posterior.sql" -y
+   npm run db:verify -- "$BACKUP_DIR/backup-posterior.sql"
    ```
 
-No promueva la versión si la migración más reciente no aparece aplicada o si el verificador informa hallazgos.
+No promueva la versión si la migración más reciente no aparece aplicada o si el verificador informa hallazgos. Cuando finalice la ventana de recuperación, elimine los tres dumps y el directorio temporal con el procedimiento seguro definido para el equipo.
 
 ## Rollback y recuperación
 

@@ -25,6 +25,8 @@ export async function startLocalApp() {
   const stateRoot = join(integrationRoot, "state");
   const integrationConfig = join(integrationRoot, "wrangler.json");
   const config = JSON.parse(await readFile(wranglerConfig, "utf8"));
+  const databaseBinding = config.d1_databases[0]?.binding;
+  if (!databaseBinding) throw new Error("La configuración de integración no define un binding D1.");
   config.main = workerEntrypoint;
   config.assets.directory = join(repositoryRoot, "dist", "client");
   config.d1_databases = config.d1_databases.map((database) => ({
@@ -39,7 +41,7 @@ export async function startLocalApp() {
       "d1",
       "migrations",
       "apply",
-      "DB",
+      databaseBinding,
       "--local",
       "--config",
       integrationConfig,

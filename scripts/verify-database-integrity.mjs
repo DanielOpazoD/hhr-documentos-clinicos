@@ -168,8 +168,16 @@ export async function verifyDatabase(db, { allowPendingMigrations = false } = {}
   const expectedTables = await snapshotTables(selectedEntry);
   const actualColumns = new Map();
   const expectedTableNames = new Set(Object.keys(expectedTables));
-  const allowedLegacyIndexes = new Set(["sessions_token_idx"]);
-
+  const allowedPendingCompatibilityIndexes = allowPendingMigrations
+    && !applied.includes("0005_schema_authority.sql")
+    ? new Set([
+      "ai_prompts_owner_target_idx",
+      "documents_owner_updated_idx",
+      "files_owner_created_idx",
+      "sessions_token_idx",
+      "signatures_owner_updated_idx",
+    ])
+    : new Set();
   function columnsFor(tableName) {
     if (!actualColumns.has(tableName)) {
       actualColumns.set(
@@ -217,9 +225,11 @@ export async function verifyDatabase(db, { allowPendingMigrations = false } = {}
         typeof column === "string" ? column : column.expression
       ));
       const actualIndexColumns = actual
-        ? db.prepare(`PRAGMA index_info(${quoteIdentifier(expectedIndex.name)})`).all()
-          .map((column) => column.name)
+        ? db.prepare(`PRAGMA index_xinfo(${quoteIdentifier(expectedIndex.name)})`).all()
+          .filter((column) => column.key === 1)
+          .map((column) => ({ name: column.name, descending: Boolean(column.desc) }))
         : [];
+      const expectedIndexColumns = expectedColumns.map((name) => ({ name, descending: false }));
       const indexSql = actual
         ? db.prepare("SELECT sql FROM sqlite_schema WHERE type = 'index' AND name = ?")
           .get(expectedIndex.name)?.sql
@@ -230,7 +240,7 @@ export async function verifyDatabase(db, { allowPendingMigrations = false } = {}
       const valid = actual
         && Boolean(actual.unique) === Boolean(expectedIndex.isUnique)
         && Boolean(actual.partial) === Boolean(expectedIndex.where)
-        && JSON.stringify(actualIndexColumns) === JSON.stringify(expectedColumns)
+        && JSON.stringify(actualIndexColumns) === JSON.stringify(expectedIndexColumns)
         && normalizePredicate(actualPredicate) === normalizePredicate(expectedIndex.where);
       if (!valid) findings.push({ check: `schema.index.${expectedIndex.name}`, count: 1 });
     }
@@ -238,7 +248,7 @@ export async function verifyDatabase(db, { allowPendingMigrations = false } = {}
       if (
         actualIndex.origin === "c"
         && !expectedIndexNames.has(actualIndex.name)
-        && !allowedLegacyIndexes.has(actualIndex.name)
+        && !allowedPendingCompatibilityIndexes.has(actualIndex.name)
       ) {
         findings.push({ check: `schema.unexpected.index.${actualIndex.name}`, count: 1 });
       }
@@ -275,8 +285,12 @@ export async function verifyDatabase(db, { allowPendingMigrations = false } = {}
     try {
       const count = queryCount(db, sql);
       if (count) findings.push({ check, count });
-    } catch {
-      findings.push({ check, count: 1 });
+    } catch (error) {
+      findings.push({
+        check,
+        count: 1,
+        detail: error instanceof Error ? error.message : String(error),
+      });
     }
   }
 
@@ -312,7 +326,9 @@ async function main() {
   try {
     const result = await verifyDatabase(db, { allowPendingMigrations });
     if (!result.ok) {
-      const detail = result.findings.map((finding) => `- ${finding.check}: ${finding.count}`).join("\n");
+      const detail = result.findings.map((finding) => (
+        `- ${finding.check}: ${finding.count}${finding.detail ? ` (${finding.detail})` : ""}`
+      )).join("\n");
       throw new Error(`La base no supera la verificación de integridad:\n${detail}`);
     }
     console.log(

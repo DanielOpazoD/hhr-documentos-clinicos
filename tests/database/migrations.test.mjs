@@ -56,9 +56,14 @@ async function applyPendingMigrations(db) {
 }
 
 function legacySignatureMigration(sql) {
-  return sql
-    .replace("\n\t`is_default` integer DEFAULT false NOT NULL,", "")
-    .replace(/\n--> statement-breakpoint\nCREATE UNIQUE INDEX `signatures_owner_default_idx`[^;]+;\s*$/, "");
+  const withoutColumn = sql.replace("\n\t`is_default` integer DEFAULT false NOT NULL,", "");
+  assert.notEqual(withoutColumn, sql, "No se encontró la columna histórica en 0001.");
+  const withoutIndex = withoutColumn.replace(
+    /\n--> statement-breakpoint\nCREATE UNIQUE INDEX `signatures_owner_default_idx`[^;]+;\s*$/,
+    "",
+  );
+  assert.notEqual(withoutIndex, withoutColumn, "No se encontró el índice histórico en 0001.");
+  return withoutIndex;
 }
 
 function emulateLegacyRequestSchema(db) {
@@ -147,10 +152,13 @@ function seedData(db, { legacy }) {
   }
 
   if (db.prepare("SELECT COUNT(*) AS count FROM sqlite_schema WHERE type = 'table' AND name = 'ai_prompts'").get().count) {
-    db.prepare(`INSERT INTO ai_prompts
+    const insertPrompt = db.prepare(`INSERT INTO ai_prompts
       (id, owner_email, name, target_type, instructions, revision, is_default, created_at, updated_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`)
-      .run("prompt-1", "owner@hhr.test", "Prompt conservado", legacy ? "resumen" : "informe_medico", "Instrucciones conservadas", 3, legacy ? 1 : 0, createdAt, updatedAt);
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`);
+    insertPrompt.run("prompt-1", "owner@hhr.test", "Prompt conservado", legacy ? "resumen" : "informe_medico", "Instrucciones conservadas", 3, legacy ? 1 : 0, createdAt, updatedAt);
+    if (legacy) {
+      insertPrompt.run("prompt-2", "owner@hhr.test", "Prompt más reciente", "informe", "Otras instrucciones", 2, 1, createdAt, updatedAt);
+    }
   }
 }
 
@@ -174,11 +182,23 @@ function expectedUpgradeSnapshot(before) {
   for (const row of expected.files ?? []) {
     if (!("mobile_session_id" in row)) row.mobile_session_id = null;
   }
-  for (const row of expected.ai_prompts ?? []) {
+  const migratedPrompts = expected.ai_prompts ?? [];
+  for (const row of migratedPrompts) {
     if (["resumen", "informe", "antecedentes"].includes(row.target_type)) {
       row.target_type = "informe_medico";
-      row.is_default = 0;
     }
+    if (row.target_type === "informe_medico") row.is_default = 0;
+  }
+  const promptOwners = new Set(migratedPrompts
+    .filter((row) => row.target_type === "informe_medico")
+    .map((row) => row.owner_email));
+  for (const owner of promptOwners) {
+    const newest = migratedPrompts
+      .filter((row) => row.owner_email === owner && row.target_type === "informe_medico")
+      .sort((left, right) => (
+        right.updated_at.localeCompare(left.updated_at) || right.id.localeCompare(left.id)
+      ))[0];
+    newest.is_default = 1;
   }
   const signatureHadDefaultColumn = (expected.signatures ?? []).every((row) => "is_default" in row);
   for (const row of expected.signatures ?? []) {
@@ -242,6 +262,25 @@ for (const version of [1, 2, 3, 4]) {
   });
 }
 
+test("accepts request-time compatibility indexes only while 0005 is pending", async () => {
+  const path = join(temporaryRoot, "pending-repaired.sqlite");
+  const db = await createLegacyDatabase(4, path);
+  try {
+    seedData(db, { legacy: true });
+    const pending = await verifyDatabase(db, { allowPendingMigrations: true });
+    assert.equal(pending.ok, true, JSON.stringify(pending.findings));
+    await applyPendingMigrations(db);
+    assert.equal(
+      db.prepare("SELECT COUNT(*) AS count FROM sqlite_schema WHERE name = 'sessions_token_idx'").get().count,
+      0,
+    );
+    const migrated = await verifyDatabase(db);
+    assert.equal(migrated.ok, true, JSON.stringify(migrated.findings));
+  } finally {
+    db.close();
+  }
+});
+
 for (const version of [1, 2, 3, 4]) {
   test(`prepares and upgrades unrepaired legacy migration 000${version}`, async () => {
     const path = join(temporaryRoot, `unrepaired-${version}.sqlite`);
@@ -275,6 +314,7 @@ test("the integrity verifier detects schema and relational drift using counts on
     seedData(db, { legacy: false });
     db.exec(`
       DROP INDEX files_owner_created_idx;
+      CREATE INDEX files_owner_created_idx ON files(owner_email, created_at DESC);
       DROP INDEX signatures_owner_default_idx;
       CREATE UNIQUE INDEX signatures_owner_default_idx
         ON signatures(owner_email) WHERE is_default = 0;
@@ -333,8 +373,11 @@ test("restores the exact pre-migration database from a disposable backup", async
 
   await cp(path, backupPath);
   db = new DatabaseSync(path);
-  await applyPendingMigrations(db);
-  db.close();
+  try {
+    await applyPendingMigrations(db);
+  } finally {
+    db.close();
+  }
 
   await cp(backupPath, path);
   db = new DatabaseSync(path);

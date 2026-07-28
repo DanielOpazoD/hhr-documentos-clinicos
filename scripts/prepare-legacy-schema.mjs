@@ -12,6 +12,7 @@ const wranglerCli = resolve(
   "wrangler.js",
 );
 const execFileAsync = promisify(execFile);
+const wranglerTimeoutMs = 120_000;
 
 const addDefaultColumnSql =
   "ALTER TABLE signatures ADD COLUMN is_default INTEGER NOT NULL DEFAULT 0";
@@ -33,6 +34,20 @@ function schemaRows(output) {
   if (start < 0) throw new Error("Wrangler no devolvió una respuesta JSON.");
   const response = JSON.parse(output.slice(start));
   return response.flatMap((entry) => entry.results ?? entry.result?.results ?? []);
+}
+
+async function runWrangler(args, environment) {
+  try {
+    return await execFileAsync(process.execPath, [wranglerCli, ...args], {
+      cwd: projectRoot,
+      env: environment,
+      timeout: wranglerTimeoutMs,
+    });
+  } catch (error) {
+    const stderr = typeof error?.stderr === "string" ? error.stderr.trim() : "";
+    const reason = stderr || (error instanceof Error ? error.message : String(error));
+    throw new Error(`Wrangler no pudo preparar el esquema: ${reason}`, { cause: error });
+  }
 }
 
 async function main() {
@@ -65,28 +80,28 @@ async function main() {
     ...(values["persist-to"] ? ["--persist-to", resolve(values["persist-to"])] : []),
   ];
   const environment = { ...process.env, CI: "1" };
-  const query = await execFileAsync(process.execPath, [wranglerCli,
+  const query = await runWrangler([
     ...common,
     "--command",
     "PRAGMA table_info(signatures)",
     "--json",
-  ], { cwd: projectRoot, env: environment });
+  ], environment);
   const columns = schemaRows(query.stdout);
   if (!columns.length) throw new Error("La tabla signatures aún no existe; aplique primero 0001.");
   const columnAdded = !columns.some((column) => column.name === "is_default");
 
   if (columnAdded) {
-    await execFileAsync(process.execPath, [wranglerCli,
+    await runWrangler([
       ...common,
       "--command",
       addDefaultColumnSql,
-    ], { cwd: projectRoot, env: environment });
+    ], environment);
   }
-  await execFileAsync(process.execPath, [wranglerCli,
+  await runWrangler([
     ...common,
     "--command",
     ensureDefaultIndexSql,
-  ], { cwd: projectRoot, env: environment });
+  ], environment);
 
   console.log(
     columnAdded

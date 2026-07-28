@@ -22,7 +22,7 @@
     "db:check": "node scripts/check-database-state.mjs",
     "db:prepare": "node scripts/prepare-legacy-schema.mjs",
     "db:verify": "node scripts/verify-database-integrity.mjs",
-    "test:database": "node --test tests/database/*.test.mjs",
+    "test:database": "node --test \"tests/database/*.test.mjs\"",
     "check:bundle": "node scripts/check-build-budget.mjs",
     "verify": "npm run lint && npm run typecheck && npm test && npm run test:database && npm run check:bundle && npm run db:check"
   },

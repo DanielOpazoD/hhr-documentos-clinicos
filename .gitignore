@@ -43,3 +43,8 @@ next-env.d.ts
 /outputs/
 /work/
 /tmp/
+
+# D1 clinical-data exports (operational backups must live outside the checkout)
+/backup-previo.sql
+/backup-preparado.sql
+/backup-posterior.sql
