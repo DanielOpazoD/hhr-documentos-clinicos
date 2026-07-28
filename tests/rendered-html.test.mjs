@@ -454,7 +454,7 @@ test("integrates connections and measured AI usage into tabbed settings", async 
   assert.match(usageStore, /gpt-5\.6-sol/);
   assert.match(usageStore, /gpt-5-mini/);
   assert.match(usageStore, /estimated_cost_microusd/);
-  assert.match(database, /CREATE TABLE IF NOT EXISTS ai_usage_events/);
+  assert.doesNotMatch(database, /\b(?:CREATE|ALTER|DROP)\s+(?:TABLE|INDEX)\b/i);
   assert.match(schema, /aiUsageEvents/);
   assert.match(migration, /CREATE TABLE IF NOT EXISTS `ai_usage_events`/);
   assert.doesNotMatch(migration, /ALTER TABLE `signatures`/);
@@ -627,9 +627,12 @@ test("ships the eight reviewed clinical prompts as configurable defaults", async
   const aiController = await readFile(new URL("../app/features/ai/use-ai-studio.ts", import.meta.url), "utf8");
   assert.match(aiController, /title, evidenceStale: true/);
   assert.match(aiController, /section\.key === "full_name"/);
-  const database = await readFile(new URL("../app/lib/server/database.ts", import.meta.url), "utf8");
-  assert.match(database, /migrateLegacyAiPromptTargets/);
-  assert.match(database, /target_type = 'informe_medico'/);
+  const [database, schemaAuthorityMigration] = await Promise.all([
+    readFile(new URL("../app/lib/server/database.ts", import.meta.url), "utf8"),
+    readFile(new URL("../drizzle/0005_schema_authority.sql", import.meta.url), "utf8"),
+  ]);
+  assert.doesNotMatch(database, /migrateLegacyAiPromptTargets|target_type = 'informe_medico'/);
+  assert.match(schemaAuthorityMigration, /target_type` = 'informe_medico'/);
 });
 
 test("fills the official Hospital del Salvador Word without changing its institutional parts", async () => {
