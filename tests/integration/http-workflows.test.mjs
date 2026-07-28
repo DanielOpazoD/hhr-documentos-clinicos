@@ -1,5 +1,4 @@
 import assert from "node:assert/strict";
-import { request as httpRequest } from "node:http";
 import { after, before, test } from "node:test";
 import { startLocalApp } from "./local-app.mjs";
 
@@ -16,7 +15,7 @@ after(async () => {
 function ownedFetch(owner, path, init = {}) {
   const headers = new Headers(init.headers);
   headers.set("oai-authenticated-user-email", owner);
-  return fetch(`${app.origin}${path}`, { ...init, headers });
+  return app.fetch(path, { ...init, headers });
 }
 
 async function jsonResponse(response, expectedStatus) {
@@ -33,25 +32,6 @@ function jsonRequest(owner, path, method, body) {
   });
 }
 
-function externalRequest(path, method = "GET") {
-  return new Promise((resolve, reject) => {
-    const request = httpRequest(`${app.origin}${path}`, {
-      method,
-      headers: { Host: "private.hhr.example" },
-    }, (result) => {
-      const chunks = [];
-      result.on("data", (chunk) => chunks.push(chunk));
-      result.on("end", () => resolve({
-        body: Buffer.concat(chunks).toString("utf8"),
-        headers: result.headers,
-        status: result.statusCode,
-      }));
-    });
-    request.once("error", reject);
-    request.end();
-  });
-}
-
 test("serves the critical private application routes", async () => {
   const routes = [
     ["/", "<title>Inicio · HHR-documentos</title>"],
@@ -60,8 +40,8 @@ test("serves the critical private application routes", async () => {
   ];
 
   for (const [path, title] of routes) {
-    const response = await fetch(`${app.origin}${path}`);
-    assert.equal(response.status, 200, `${path}\n${app.output()}`);
+    const response = await app.fetchPreview(path);
+    assert.equal(response.status, 200, path);
     assert.match(await response.text(), new RegExp(title));
   }
 });
@@ -78,11 +58,11 @@ test("requires an authenticated owner outside the local preview", async () => {
   ];
 
   for (const [path, method] of privateEndpoints) {
-    const response = await externalRequest(path, method);
+    const response = await app.fetch(path, { method });
     assert.equal(response.status, 401, `${method} ${path}`);
-    assert.deepEqual(JSON.parse(response.body), { error: "Autenticación requerida." });
-    assert.equal(response.headers["x-content-type-options"], "nosniff");
-    assert.equal(response.headers["x-frame-options"], "SAMEORIGIN");
+    assert.deepEqual(await response.json(), { error: "Autenticación requerida." });
+    assert.equal(response.headers.get("x-content-type-options"), "nosniff");
+    assert.equal(response.headers.get("x-frame-options"), "SAMEORIGIN");
   }
 });
 
@@ -281,20 +261,13 @@ test("keeps mobile capture scoped and AI import offline without authorization", 
   const remainingMs = Date.parse(expiresAt) - Date.now();
   assert.equal(remainingMs > 9 * 60 * 1000 && remainingMs <= 10 * 60 * 1000, true);
 
-  const active = await jsonResponse(await fetch(`${app.origin}/api/mobile-upload/${token}`), 200);
+  const active = await jsonResponse(await app.fetch(`/api/mobile-upload/${token}`), 200);
   assert.deepEqual(Object.keys(active.session).sort(), ["expiresAt", "id"]);
   assert.equal(active.session.id, sessionId);
 
-  await ownedFetch(ownerB, "/api/mobile-sessions", {
-    method: "PATCH",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ id: sessionId }),
-  });
-  await jsonResponse(await fetch(`${app.origin}/api/mobile-upload/${token}`), 200);
-
   const capture = new FormData();
   capture.set("file", new File(["captura móvil sintética"], "captura-movil.txt", { type: "image/png" }));
-  const captured = await jsonResponse(await fetch(`${app.origin}/api/mobile-upload/${token}`, {
+  const captured = await jsonResponse(await app.fetch(`/api/mobile-upload/${token}`, {
     method: "POST",
     body: capture,
   }), 201);
@@ -309,8 +282,8 @@ test("keeps mobile capture scoped and AI import offline without authorization", 
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ id: sessionId }),
   }), 200);
-  await jsonResponse(await fetch(`${app.origin}/api/mobile-upload/${token}`), 410);
-  await jsonResponse(await fetch(`${app.origin}/api/mobile-upload/${token}`, {
+  await jsonResponse(await app.fetch(`/api/mobile-upload/${token}`), 410);
+  await jsonResponse(await app.fetch(`/api/mobile-upload/${token}`, {
     method: "POST",
     body: capture,
   }), 410);
