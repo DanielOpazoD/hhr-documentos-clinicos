@@ -10,7 +10,7 @@ export async function GET(request: Request, context: { params: Promise<{ id: str
   if (!owner) return jsonError("Autenticación requerida.", 401);
   const { id } = await context.params;
   const db = await ensureDatabase();
-  const row = await db.prepare(`SELECT object_key AS objectKey, name, mime_type AS mimeType FROM files WHERE id = ? AND owner_email = ? AND status != 'eliminado'`).bind(id, owner).first<{ objectKey: string; name: string; mimeType: string }>();
+  const row = await db.prepare(`SELECT object_key AS objectKey, name, mime_type AS mimeType FROM files WHERE id = ? AND owner_email = ? AND status IN ('activo', 'archivado')`).bind(id, owner).first<{ objectKey: string; name: string; mimeType: string }>();
   if (!row) return jsonError("Archivo no encontrado.", 404);
   const object = await appEnv().FILES.get(row.objectKey);
   if (!object) return jsonError("Contenido no disponible.", 404);
