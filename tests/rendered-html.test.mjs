@@ -292,6 +292,7 @@ test("keeps the clinical studios usable from mobile through desktop", async () =
     "../app/features/documents/use-document-workspace.ts",
     "../app/features/documents/use-document-history.ts",
     "../app/features/documents/use-document-persistence.ts",
+    "../app/features/documents/use-document-typography.ts",
     "../app/features/documents/use-signature-workspace.ts",
     "../app/features/documents/api.ts",
     "../app/features/documents/document-version.ts",
@@ -314,16 +315,16 @@ test("keeps the clinical studios usable from mobile through desktop", async () =
   assert.match(documentStudio, /aria-controls="document-preview"/);
   assert.match(documentStudio, /patient-manual-grid/);
   assert.match(documentStudio, /Fecha de nacimiento/);
-  assert.match(documentStudio, /Profesional firmante/);
-  assert.match(documentStudio, /Especialidad/);
+  assert.match(documentStudio, /Firma profesional/);
+  assert.match(documentStudio, /Cargo o especialidad/);
   assert.doesNotMatch(documentStudio, /Previsión/);
-  assert.match(documentStudio, /Perfil profesional/);
-  assert.match(documentStudio, /Predeterminado/);
+  assert.match(documentStudio, /Administrar imágenes guardadas/);
+  assert.match(documentStudio, /Predeterminada/);
   assert.match(documentStudio, /makeDefaultSignature/);
   assert.match(documentStudio, /removeSignatureProfile/);
   assert.match(documentStudio, /deleteSignature/);
-  assert.match(documentStudio, /Eliminar perfil/);
-  assert.match(documentStudio, /La firma se agrega después del contenido/);
+  assert.match(documentStudio, /Eliminar esta imagen/);
+  assert.match(documentStudio, /firma y timbre se administran por separado/);
   assert.match(documentStudio, /signature-placement-zone/);
   assert.match(documentStudio, /Fondo blanco automático/);
   assert.match(documentStudio, /renderSignatureImage/);
@@ -372,23 +373,34 @@ test("keeps the clinical studios usable from mobile through desktop", async () =
   assert.match(documentStudio, /Object\.fromEntries/);
   assert.match(documentStudio, /editedSectionIds/);
   assert.match(documentStudio, /legacyInsurance/);
-  assert.match(documentStudio, /if \(placedSignature\) setPlacedSignature\(null\)/);
-  assert.match(documentStudio, /professionalName: (?:snapshot\.)?placedSignature\.professionalName/);
+  assert.match(documentStudio, /placedStamp/);
+  assert.match(documentStudio, /storedPlacement\(snapshot\.placedSignature\)/);
+  assert.match(documentStudio, /storedPlacement\(snapshot\.placedStamp\)/);
+  assert.match(documentStudio, /asset\.kind === removed\.kind/);
+  assert.match(documentStudio, /kind === "signature"\) workspace\.loadSignerProfile/);
   assert.match(documentStudio, /Servicio de Salud Metropolitano Oriente/);
   assert.match(documentStudio, /date: formatStoredDate\(input\.issueDate\)/);
   assert.doesNotMatch(await readFile(new URL("../app/features/documents/DocumentPreview.tsx", import.meta.url), "utf8"), /<h3>Paciente<\/h3>/);
   assert.doesNotMatch(await readFile(new URL("../app/features/documents/PatientEditor.tsx", import.meta.url), "utf8"), /<h2>Paciente<\/h2>/);
   assert.match(await readFile(new URL("../app/features/documents/document-pdf.ts", import.meta.url), "utf8"), /title: "",\s*body: `Nombre:/);
-  assert.match(documentStudio, /SIGNATURE_Y_MAX_PERCENT = 70/);
+  assert.match(documentStudio, /SIGNATURE_Y_MAX_PERCENT = 68/);
   assert.match(documentStudio, /defaultProfileApplied\.current = true/);
+  assert.match(documentStudio, /Boolean\(defaultProfile \|\| defaultStamp\)/);
   assert.match(documentStudio, /markSignatureDirty/);
   assert.match(documentStudio, /workspaceEpoch/);
   assert.match(documentStudio, /flushPendingSave/);
   assert.match(documentStudio, /savePromise/);
   assert.match(documentStudio, /dirtyRef/);
-  assert.match(documentStudio, /Math\.max\(width \/ 2, Math\.min\(100 - width \/ 2, current\.x\)\)/);
+  assert.match(documentStudio, /Math\.min\(100 - half, Math\.max\(half/);
+  assert.match(documentStudio, /dragOffsets/);
   assert.match(documentStudio, /event\.currentTarget\.value = ""/);
   assert.match(documentStudio, /signatureBlockHeight/);
+  assert.match(documentStudio, /availableLines/);
+  assert.match(documentStudio, /Tamaño global de letra/);
+  assert.match(documentStudio, /hhr-document-font-size-v1/);
+  assert.match(documentStudio, /browser storage is blocked or full/);
+  assert.match(documentStudio, /signatureAssets/);
+  assert.match(documentStudio, /normalizeStoredSignatureY/);
   assert.equal(moduleSources.filter((source) => source.split("\n").length > 350).length, 0);
   assert.match(styles, /@media \(max-width: 1240px\)/);
   assert.match(styles, /\.simplified-studio \.document-editor-layout \{ grid-template-columns: 1fr; \}/);
