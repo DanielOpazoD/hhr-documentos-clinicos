@@ -272,6 +272,8 @@ test("uses byte-identical PDFs from origin/main/Formularios", async () => {
 test("keeps the clinical studios usable from mobile through desktop", async () => {
   const documentModules = [
     "../app/components/DocumentStudio.tsx",
+    "../app/components/AiStudio.tsx",
+    "../app/features/ai/AiDraftResult.tsx",
     "../app/features/documents/DocumentCommandBar.tsx",
     "../app/features/documents/DocumentHistoryDialog.tsx",
     "../app/features/documents/DocumentLibrary.tsx",
@@ -342,6 +344,11 @@ test("keeps the clinical studios usable from mobile through desktop", async () =
   assert.match(documentStudio, /aria-controls="document-library-content"/);
   assert.match(documentStudio, /aria-expanded=\{libraryExpanded\}/);
   assert.match(documentStudio, /hidden=\{!libraryExpanded\}/);
+  assert.match(documentStudio, /aria-controls="document-ai-assistant"/);
+  assert.match(documentStudio, /Redacte manualmente o genere un borrador con IA/);
+  assert.match(documentStudio, /<AiStudio active=\{assistantOpen\} embedded/);
+  assert.match(documentStudio, /Continuar en el editor/);
+  assert.match(documentStudio, /url\.searchParams\.set\("document", id\)/);
   assert.match(documentStudio, />Guardar<\/span>/);
   assert.match(documentStudio, /event\.key === "Escape"/);
   assert.match(documentStudio, /event\.key === "Enter"/);
@@ -418,6 +425,7 @@ test("keeps the clinical studios usable from mobile through desktop", async () =
   assert.match(styles, /\.page-header > \*, \.hero-row > \*.*min-width: 0;/);
   assert.match(layout, /styles\/responsive-focus\.css/);
   assert.match(dashboard, /card-link-label/);
+  assert.match(dashboard, /\/documentos\?assistant=1/);
   assert.match(responsiveStyles, /\.dashboard-page \.action-card/);
   assert.match(responsiveStyles, /\.document-library-content\[hidden\]/);
   assert.match(responsiveStyles, /padding-bottom: calc\(78px \+ env\(safe-area-inset-bottom\)\)/);

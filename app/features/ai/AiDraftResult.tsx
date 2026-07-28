@@ -10,7 +10,13 @@ import { downloadHospitalSalvadorDocx } from "./hospital-salvador-docx.js";
 import { getTargetName } from "./targets";
 import type { AiStudioController } from "./use-ai-studio";
 
-export function AiDraftResult({ controller }: { controller: AiStudioController }) {
+export function AiDraftResult({
+  controller,
+  onOpenDocument,
+}: {
+  controller: AiStudioController;
+  onOpenDocument?: (id: string) => void | Promise<void>;
+}) {
   const [downloading, setDownloading] = useState(false);
   const [downloadError, setDownloadError] = useState<string | null>(null);
 
@@ -65,7 +71,11 @@ export function AiDraftResult({ controller }: { controller: AiStudioController }
             </button>
           ) : null}
           {controller.createdId && !controller.draftHasChanges ? (
-            <Link className="button primary" href={`/documentos?document=${encodeURIComponent(controller.createdId)}`}><FileSearch size={16} /> Abrir en Documentos</Link>
+            onOpenDocument ? (
+              <button className="button primary" onClick={() => void onOpenDocument(controller.createdId!)}><FileSearch size={16} /> Continuar en el editor</button>
+            ) : (
+              <Link className="button primary" href={`/documentos?document=${encodeURIComponent(controller.createdId)}`}><FileSearch size={16} /> Abrir en Documentos</Link>
+            )
           ) : (
             <button className="button primary" disabled={controller.saving || !controller.identityConfirmed} onClick={() => void controller.createDraft()}>
               <FileSearch size={16} /> {controller.saving ? "Guardando…" : controller.createdId ? "Actualizar borrador" : "Guardar borrador"}

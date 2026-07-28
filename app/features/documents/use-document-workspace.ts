@@ -30,7 +30,6 @@ import {
 import { useDocumentPersistence } from "./use-document-persistence";
 import { useDocumentHistory } from "./use-document-history";
 import { useDocumentTypography } from "./use-document-typography";
-
 export function useDocumentWorkspace() {
   const defaultTemplate = getTemplate(DEFAULT_TEMPLATE_ID);
   const [templateId, setTemplateId] = useState<string>(defaultTemplate.id);
@@ -137,14 +136,14 @@ export function useDocumentWorkspace() {
   });
 
   const openDocument = useCallback(async (id: string) => {
-    if (!(await flushPendingSave())) return;
+    if (!(await flushPendingSave())) return false;
     const requestEpoch = workspaceEpoch.current + 1;
     workspaceEpoch.current = requestEpoch;
     defaultProfileApplied.current = true;
     setLoadError(null);
     try {
       const stored = await getDocument(id);
-      if (workspaceEpoch.current !== requestEpoch) return;
+      if (workspaceEpoch.current !== requestEpoch) return false;
       const nextTemplateId = normalizeTemplateId(stored.templateId);
       const storedSections = (stored.content?.sections ?? []).map((section, index) => ({
         id: section.id ?? `section-${index + 1}`,
@@ -177,17 +176,18 @@ export function useDocumentWorkspace() {
       setDirty(false);
       setNewMenuOpen(false);
       window.history.replaceState({}, "", `/documentos?document=${encodeURIComponent(stored.id)}`);
+      return true;
     } catch (error) {
       if (workspaceEpoch.current === requestEpoch) {
         setLoadError(error instanceof Error ? error.message : "No se pudo abrir el documento.");
       }
+      return false;
     }
   }, [
     flushPendingSave, loadIdentity, setAiMetadata, setDirty, setDocumentId,
     setDocumentRevision, setDocumentTitle, setLoadError, setNewMenuOpen,
     setPlacedSignature, setPlacedStamp, setSavedAt, setSections, setStatus, setTemplateId, setVersion,
   ]);
-
   const historyWorkspace = useDocumentHistory({
     documentId,
     documentUpdatedAtRef,

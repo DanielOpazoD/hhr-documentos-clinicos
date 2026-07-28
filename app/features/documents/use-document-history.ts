@@ -13,7 +13,7 @@ export function useDocumentHistory({
   documentId: string | null;
   documentUpdatedAtRef: { current: string | null };
   flushPendingSave: () => Promise<boolean>;
-  openDocument: (id: string) => Promise<void>;
+  openDocument: (id: string) => Promise<boolean>;
 }) {
   const [historyOpen, setHistoryOpen] = useState(false);
   const [historyLoading, setHistoryLoading] = useState(false);

@@ -11,7 +11,7 @@ type RecentFile = { id: string; name: string; mimeType: string; size: number; or
 const actions = [
   { href: "/formularios", icon: FilePlus2, eyebrow: "Imprimir", title: "Nuevo formulario", text: "Laboratorio, imágenes y consentimientos", tone: "blue" },
   { href: "/documentos", icon: Stethoscope, eyebrow: "Redactar", title: "Nuevo documento", text: "Certificados, informes y receta externa", tone: "navy" },
-  { href: "/ia", icon: Sparkles, eyebrow: "Asistir", title: "Analizar con IA", text: "Importa un archivo y revisa el borrador", tone: "yellow" },
+  { href: "/documentos?assistant=1", icon: Sparkles, eyebrow: "Asistir", title: "Crear con IA", text: "Importe fuentes y continúe en el mismo editor", tone: "yellow" },
   { href: "/escaner", icon: ScanLine, eyebrow: "Capturar", title: "Escanear desde celular", text: "Crea un QR temporal y recibe páginas", tone: "green" },
 ];
 

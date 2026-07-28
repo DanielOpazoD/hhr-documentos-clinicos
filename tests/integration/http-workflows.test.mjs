@@ -54,7 +54,7 @@ test("serves the critical private application routes", async () => {
   const routes = [
     ["/", "<title>Inicio · HHR-documentos</title>"],
     ["/documentos", "<title>Documentos · HHR-documentos</title>"],
-    ["/ia", "<title>Asistente IA · HHR-documentos</title>"],
+    ["/ia", "<title>Documentos · HHR-documentos</title>"],
   ];
 
   for (const [path, title] of routes) {
@@ -62,6 +62,13 @@ test("serves the critical private application routes", async () => {
     assert.equal(response.status, 200, path);
     assert.match(await response.text(), new RegExp(title));
   }
+});
+
+test("redirects the legacy AI entry into the unified document workspace", async () => {
+  const response = await app.fetchPreview("/ia", { redirect: "manual" });
+  assert.equal(response.status, 307);
+  const location = new URL(response.headers.get("location"));
+  assert.equal(`${location.pathname}${location.search}`, "/documentos?assistant=1");
 });
 
 test("requires an authenticated owner outside the local preview", async () => {

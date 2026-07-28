@@ -1,6 +1,6 @@
 import Link from "next/link";
 import Image from "next/image";
-import { FileText, FolderArchive, House, ScanLine, Settings, Sparkles, Stethoscope } from "@/app/components/Icons";
+import { FileText, FolderArchive, House, ScanLine, Settings, Stethoscope } from "@/app/components/Icons";
 import { requireSiteUser } from "@/app/lib/page-auth";
 import { productIdentity } from "@/app/lib/product";
 
@@ -9,7 +9,6 @@ const nav = [
   { href: "/formularios", label: "Formularios", icon: FileText },
   { href: "/documentos", label: "Documentos", icon: Stethoscope },
   { href: "/archivos", label: "Archivos", icon: FolderArchive },
-  { href: "/ia", label: "Asistente IA", icon: Sparkles },
   { href: "/escaner", label: "Escáner móvil", icon: ScanLine },
   { href: "/configuracion", label: "Configuración", icon: Settings },
 ];
@@ -39,7 +38,7 @@ export async function AppFrame({ active, children }: { active: string; children:
         </header>
         {children}
         <nav className="mobile-nav print-hide" aria-label="Navegación móvil">
-          {nav.slice(0, 5).map(item => { const Icon = item.icon; return <Link key={item.href} href={item.href} aria-label={item.label} className={item.label === active ? "active" : ""}><Icon size={19} /><small>{item.label === "Asistente IA" ? "IA" : item.label}</small></Link>; })}
+          {nav.slice(0, 5).map(item => { const Icon = item.icon; return <Link key={item.href} href={item.href} aria-label={item.label} className={item.label === active ? "active" : ""}><Icon size={19} /><small>{item.label}</small></Link>; })}
         </nav>
       </main>
     </div>
