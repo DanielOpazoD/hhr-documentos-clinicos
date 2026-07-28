@@ -113,7 +113,7 @@ export function MobileCapture({ token }: { token: string }) {
   const [sentPageCount, setSentPageCount] = useState(0);
   const sentPagesRef = useRef(0);
   const pageLimit = output === "images"
-    ? Math.min(MOBILE_CAPTURE_MAX_FILES, remainingFiles)
+    ? Math.min(MOBILE_CAPTURE_MAX_FILES, sentPageCount + remainingFiles)
     : MOBILE_CAPTURE_MAX_FILES;
   const controlsLocked = busy || uploadLocked;
   const sentPrefixLocked = sentPageCount > 0;
@@ -176,8 +176,8 @@ export function MobileCapture({ token }: { token: string }) {
     setTorchOn(next);
   }
 
-  async function addFiles(files: File[]) {
-    if (!files.length || controlsLocked) return;
+  async function addFiles(files: File[]): Promise<boolean> {
+    if (!files.length || controlsLocked) return false;
     setProcessing(true);
     setError(null);
     try {
@@ -193,14 +193,23 @@ export function MobileCapture({ token }: { token: string }) {
       }
       setPages(value => [...value, ...added]);
       if (added[0]) setReview({ pageId: added[0].id, corners: cloneCorners(added[0].corners), filter: added[0].filter, adjustments: { ...added[0].adjustments } });
-    } catch { setError("Una imagen no pudo procesarse. Pruebe con JPG, PNG o una foto nueva."); }
+      return true;
+    } catch {
+      setError("Una imagen no pudo procesarse. Pruebe con JPG, PNG o una foto nueva.");
+      return false;
+    }
     finally { setProcessing(false); }
   }
 
   async function addFileList(list: FileList | null) {
     if (!list) return;
     const available = Math.max(0, pageLimit - pages.length);
-    await addFiles(Array.from(list).slice(0, available));
+    const selected = Array.from(list);
+    const accepted = selected.slice(0, available);
+    const processed = accepted.length ? await addFiles(accepted) : true;
+    if (processed && selected.length > available) {
+      setError(`Esta sesión permite agregar ${available} ${available === 1 ? "página más" : "páginas más"}.`);
+    }
   }
 
   async function capturePage() {
@@ -330,9 +339,9 @@ export function MobileCapture({ token }: { token: string }) {
   if (access === "error") return <main className="capture-shell"><div className="capture-status error"><h1>No se pudo verificar la sesión</h1><p>{accessError ?? "Revise su conexión e intente nuevamente."}</p><button className="button secondary" onClick={() => { setAccess("checking"); setAccessError(null); setValidationAttempt(value => value + 1); }}>Reintentar</button></div></main>;
   if (deletedUpload) return <main className="capture-shell"><div className="capture-status error"><h1>La carga anterior fue eliminada</h1><p>Para respetar esa eliminación, este intento no se volverá a crear automáticamente.</p><button className="button secondary" onClick={restartAfterDeletedUpload}>Iniciar un escaneo nuevo</button></div></main>;
   if (done) return <main className="capture-shell"><div className="capture-success"><span><Check size={32} /></span><h1>Documento guardado</h1><p>{pages.length} {pages.length === 1 ? "página quedó disponible" : "páginas quedaron disponibles"} en la biblioteca.</p>{remainingFiles > 0 ? <button className="button secondary" onClick={() => { pages.forEach(page => { URL.revokeObjectURL(page.url); URL.revokeObjectURL(page.sourceUrl); }); sentPagesRef.current = 0; setSentPageCount(0); setDocumentUploadId(crypto.randomUUID()); setUploadLocked(false); setPages([]); setDone(false); }}>Escanear otro</button> : <p>La sesión alcanzó su límite. Genere un QR nuevo desde el escritorio para continuar.</p>}</div></main>;
-  if (remainingFiles === 0) return <main className="capture-shell"><div className="capture-status"><h1>Sesión completa</h1><p>Este QR ya recibió ocho archivos. Genere uno nuevo desde el escritorio para continuar.</p></div></main>;
+  if (remainingFiles === 0) return <main className="capture-shell"><div className="capture-status"><h1>Sesión completa</h1><p>Este QR ya recibió {MOBILE_CAPTURE_MAX_FILES} archivos. Genere uno nuevo desde el escritorio para continuar.</p></div></main>;
 
-  return <main className="capture-shell"><header className="capture-header"><img src="/hhr-logo.svg" alt="Hospital Hanga Roa" /><div><strong>Escáner HHR</strong><small>Sesión temporal · {expiresAt && `hasta ${new Date(expiresAt).toLocaleTimeString("es-CL", { hour: "2-digit", minute: "2-digit" })}`}</small></div><span className="capture-page-count">{pages.length}/{MOBILE_CAPTURE_MAX_FILES}</span></header>
+  return <main className="capture-shell"><header className="capture-header"><img src="/hhr-logo.svg" alt="Hospital Hanga Roa" /><div><strong>Escáner HHR</strong><small>Sesión temporal · {expiresAt && `hasta ${new Date(expiresAt).toLocaleTimeString("es-CL", { hour: "2-digit", minute: "2-digit" })}`}</small></div><span className="capture-page-count">{pages.length}/{pageLimit}</span></header>
     <section className="capture-content"><div className="capture-intro"><span className="eyebrow">Documento multipágina</span><h1>Escanee con la cámara</h1><p>Capture, ajuste los bordes y elija el estilo de cada página.</p></div>
       <input ref={cameraInputRef} type="file" hidden accept="image/*" capture="environment" onChange={event => { void addFileList(event.target.files); event.target.value = ""; }} />
       <input ref={galleryInputRef} type="file" hidden accept="image/*" multiple onChange={event => { void addFileList(event.target.files); event.target.value = ""; }} />

@@ -103,6 +103,8 @@ test("ships the clinical routes, storage bindings and source templates", async (
   assert.match(mobileCapture, /cause\.code === "capacity_exhausted"/);
   assert.match(mobileCapture, /setRemainingFiles\(0\)/);
   assert.match(mobileCapture, /restartAfterDeletedUpload/);
+  assert.match(mobileCapture, /sentPageCount \+ remainingFiles/);
+  assert.match(mobileCapture, /selected\.length > available/);
   assert.match(scanner, /\/captura#\$\{created\.token\}/);
   assert.doesNotMatch(scanner, /\/captura\/\$\{/);
   assert.match(captureEntry, /sessionStorage/);
