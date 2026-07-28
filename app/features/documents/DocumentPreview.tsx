@@ -69,10 +69,12 @@ export function DocumentPreview({
               : <p className={`paper-empty ${section.id === "prescripcion" ? "prescription-empty" : ""}`}>{section.id === "prescripcion" ? " " : "—"}</p>}
           </section>
         ))}
-        {(placedSignature || placedStamp || signer.name) ? (
-          <div className="signature-placement-zone">
+        <div className="signature-placement-zone">
+          <div className="signing-assets-canvas">
             {placedSignature ? <PlacedImage asset={placedSignature} kind="signature" moveSignature={moveSignature} startSignatureMove={startSignatureMove} /> : null}
             {placedStamp ? <PlacedImage asset={placedStamp} kind="stamp" moveSignature={moveSignature} startSignatureMove={startSignatureMove} /> : null}
+          </div>
+          <div className="document-signoff">
             {signer.name ? (
               <div className="document-signer">
                 <strong>{signer.name}</strong>
@@ -80,10 +82,10 @@ export function DocumentPreview({
                 {signer.rut ? <span>RUT: {signer.rut}</span> : null}
               </div>
             ) : null}
+            <p className="paper-date">Fecha: {formatStoredDate(issueDate)}</p>
           </div>
-        ) : null}
+        </div>
         {templateId === "receta_externa" ? <div className="prescription-warning">RECETA MÉDICA EXTERNA</div> : null}
-        <p className="paper-date">Fecha: {formatStoredDate(issueDate)}</p>
       </article>
     </section>
   );

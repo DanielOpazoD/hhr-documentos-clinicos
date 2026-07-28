@@ -21,7 +21,12 @@ import { useDocumentIdentity } from "./use-document-identity";
 import { normalizeAiMetadata } from "./ai-metadata";
 import { downloadDocumentPdf } from "./document-pdf";
 import { applySignatureProfile } from "./signature-profile";
-import { clampSignatureY, defaultImagePlacement, normalizeStoredSignatureY } from "@/app/lib/document-layout";
+import {
+  clampSignatureY,
+  clampSigningImageWidth,
+  defaultImagePlacement,
+  normalizeStoredSignatureY,
+} from "@/app/lib/document-layout";
 import { useDocumentPersistence } from "./use-document-persistence";
 import { useDocumentHistory } from "./use-document-history";
 import { useDocumentTypography } from "./use-document-typography";
@@ -158,10 +163,10 @@ export function useDocumentWorkspace() {
       loadIdentity(stored.content, stored.patientName, stored.patientRutMasked);
       setAiMetadata(normalizeAiMetadata(stored.content?.ai, nextSections));
       setPlacedSignature(storedSignature
-        ? { ...storedSignature, kind: "signature", y: signatureY, isDefault: false, imageUrl: `/api/signatures/${storedSignature.id}` }
+        ? { ...storedSignature, kind: "signature", y: signatureY, width: clampSigningImageWidth(storedSignature.width), isDefault: false, imageUrl: `/api/signatures/${storedSignature.id}` }
         : null);
       setPlacedStamp(storedStamp
-        ? { ...storedStamp, kind: "stamp", y: clampSignatureY(storedStamp.y), isDefault: false, imageUrl: `/api/signatures/${storedStamp.id}` }
+        ? { ...storedStamp, kind: "stamp", y: clampSignatureY(storedStamp.y), width: clampSigningImageWidth(storedStamp.width), isDefault: false, imageUrl: `/api/signatures/${storedStamp.id}` }
         : null);
       setStatus(stored.status);
       setDocumentId(stored.id);

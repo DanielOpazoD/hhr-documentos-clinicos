@@ -9,7 +9,7 @@ import {
   type SignatureImageSettings,
 } from "./prepare-signature";
 import type { PlacedSignature, SignatureAssetKind, SignatureForm, SignatureRecord, SignerData } from "./types";
-import { clampSignatureY, defaultImagePlacement } from "@/app/lib/document-layout";
+import { clampSignatureY, clampSigningImageWidth, defaultImagePlacement } from "@/app/lib/document-layout";
 
 const emptySignatureForm: SignatureForm = {
   file: null,
@@ -55,7 +55,7 @@ export function useSignatureWorkspace(markDirty: () => void) {
     const setter = kind === "stamp" ? setPlacedStamp : setPlacedSignature;
     setter((current) => {
       if (!current) return current;
-      const width = patch.width ?? current.width;
+      const width = clampSigningImageWidth(patch.width ?? current.width);
       const half = width / 2;
       return {
         ...current,
@@ -86,7 +86,7 @@ export function useSignatureWorkspace(markDirty: () => void) {
 
   const moveSignature = useCallback((kind: SignatureAssetKind, event: ReactPointerEvent<HTMLButtonElement>) => {
     if (!event.currentTarget.hasPointerCapture(event.pointerId)) return;
-    const placementZone = event.currentTarget.closest(".signature-placement-zone")?.getBoundingClientRect();
+    const placementZone = event.currentTarget.closest(".signing-assets-canvas")?.getBoundingClientRect();
     if (!placementZone) return;
     const setter = kind === "stamp" ? setPlacedStamp : setPlacedSignature;
     const offset = dragOffsets.current[kind];

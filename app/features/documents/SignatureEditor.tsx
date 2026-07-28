@@ -1,5 +1,10 @@
 import { useRef } from "react";
-import { FileImage, Pencil, UploadCloud, X } from "@/app/components/Icons";
+import { FileImage, Minus, Pencil, Plus, UploadCloud, X } from "@/app/components/Icons";
+import {
+  SIGNING_IMAGE_WIDTH_MAX_PERCENT,
+  SIGNING_IMAGE_WIDTH_MIN_PERCENT,
+  SIGNING_IMAGE_WIDTH_STEP_PERCENT,
+} from "@/app/lib/document-layout";
 import { SignatureImageEditor } from "./SignatureImageEditor";
 import { SignatureProfileSelector } from "./SignatureProfileSelector";
 import { DEFAULT_SIGNATURE_IMAGE_SETTINGS } from "./prepare-signature";
@@ -94,6 +99,7 @@ export function SignatureEditor(workspace: DocumentWorkspace) {
 
 function AssetControl({ kind, placed, workspace }: { kind: SignatureAssetKind; placed: PlacedSignature | null; workspace: DocumentWorkspace }) {
   const label = kind === "stamp" ? "Timbre" : "Firma";
+  const assetLabel = label.toLowerCase();
   const assets = workspace.signatures.filter((asset) => asset.kind === kind);
   return (
     <section className="signing-asset-control">
@@ -120,7 +126,30 @@ function AssetControl({ kind, placed, workspace }: { kind: SignatureAssetKind; p
       </select>
       {placed ? (
         <div className="signature-size-control">
-          <label>Tamaño<input type="range" min="16" max="42" value={placed.width} onChange={(event) => workspace.updatePlacedImage(kind, { width: Number(event.target.value) })} /></label>
+          <div className="signature-size-heading"><span>Tamaño</span><output>{placed.width}%</output></div>
+          <div className="signature-size-adjuster">
+            <button
+              type="button"
+              aria-label={`Reducir tamaño de ${assetLabel}`}
+              disabled={placed.width <= SIGNING_IMAGE_WIDTH_MIN_PERCENT}
+              onClick={() => workspace.updatePlacedImage(kind, { width: placed.width - SIGNING_IMAGE_WIDTH_STEP_PERCENT })}
+            ><Minus size={14} /></button>
+            <input
+              aria-label={`Tamaño de ${assetLabel}`}
+              type="range"
+              min={SIGNING_IMAGE_WIDTH_MIN_PERCENT}
+              max={SIGNING_IMAGE_WIDTH_MAX_PERCENT}
+              step="2"
+              value={placed.width}
+              onChange={(event) => workspace.updatePlacedImage(kind, { width: Number(event.target.value) })}
+            />
+            <button
+              type="button"
+              aria-label={`Aumentar tamaño de ${assetLabel}`}
+              disabled={placed.width >= SIGNING_IMAGE_WIDTH_MAX_PERCENT}
+              onClick={() => workspace.updatePlacedImage(kind, { width: placed.width + SIGNING_IMAGE_WIDTH_STEP_PERCENT })}
+            ><Plus size={14} /></button>
+          </div>
           <button className="text-button danger" onClick={() => workspace.removePlacedImage(kind)}>Quitar</button>
         </div>
       ) : null}

@@ -2,6 +2,8 @@
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
+import { SIGNATURE_Y_MAX_PERCENT, SIGNATURE_Y_MIN_PERCENT } from "./document-layout";
+
 type PdfSection = { title?: string; body: string };
 type PdfSignature = { imageUrl: string; professionalName: string; professionalRut: string; specialty: string; x: number; y: number; width: number };
 type PdfSigner = { name: string; rut: string; specialty: string };
@@ -59,20 +61,23 @@ export async function downloadClinicalPdf(options: { fileName: string; title: st
     y += 22;
   }
   const signatureAssets = options.signatureAssets ?? [];
-  if (signatureAssets.length || options.signer?.name) {
-    const signatureBlockHeight = 150;
+  if (signatureAssets.length || options.signer?.name || options.date) {
+    const signatureBlockHeight = 280;
     if (y + signatureBlockHeight > 680) { pdf.addPage(); y = 82; }
     const images = await Promise.all(signatureAssets.map(async (asset) => ({ asset, image: await imageData(asset.imageUrl) })));
     for (const { asset, image } of images) {
-      const imageWidth = Math.max(72, Math.min(190, 612 * asset.width / 100));
-      const imageHeight = Math.min(72, imageWidth / image.ratio);
-      const imageX = Math.max(24, Math.min(612 - imageWidth - 24, 612 * asset.x / 100 - imageWidth / 2));
-      const imageY = y + Math.max(0, Math.min(70, asset.y - 12)) / 56 * 62;
+      const imageWidth = Math.max(58, Math.min(width * .72, width * asset.width / 100));
+      const imageHeight = Math.min(140, imageWidth / image.ratio);
+      const imageX = Math.max(left, Math.min(left + width - imageWidth, left + width * asset.x / 100 - imageWidth / 2));
+      const clampedY = Math.min(SIGNATURE_Y_MAX_PERCENT, Math.max(SIGNATURE_Y_MIN_PERCENT, asset.y));
+      const assetCanvasHeight = 212;
+      const imageCenterY = y + assetCanvasHeight * clampedY / 100;
+      const imageY = Math.max(y, Math.min(y + assetCanvasHeight - imageHeight, imageCenterY - imageHeight / 2));
       pdf.addImage(image.dataUrl, image.format, imageX, imageY, imageWidth, imageHeight, undefined, "FAST");
     }
+    const signerX = left + width - 105;
+    const signerY = y + 230;
     if (options.signer?.name) {
-      const signerX = 306;
-      const signerY = y + 112;
       pdf.setDrawColor(70, 78, 80);
       pdf.line(signerX - 105, signerY - 10, signerX + 105, signerY - 10);
       pdf.setFont("helvetica", "bold");
@@ -84,6 +89,12 @@ export async function downloadClinicalPdf(options: { fileName: string; title: st
       const detail = [options.signer.specialty, options.signer.rut ? `RUT: ${options.signer.rut}` : ""].filter(Boolean).join(" · ");
       if (detail) pdf.text(detail, signerX, signerY + 11, { align: "center" });
     }
+    if (options.date) {
+      pdf.setFont("helvetica", "normal");
+      pdf.setFontSize(8.5);
+      pdf.setTextColor(82, 92, 96);
+      pdf.text(`Fecha: ${options.date}`, left + width, signerY + 30, { align: "right" });
+    }
     y += signatureBlockHeight;
   }
   pdf.setDrawColor(207, 216, 218);
@@ -91,12 +102,6 @@ export async function downloadClinicalPdf(options: { fileName: string; title: st
   pdf.setFontSize(8.5);
   pdf.setTextColor(90, 102, 108);
   pdf.text(options.footer ?? "Hospital Hanga Roa", 306, 722, { align: "center" });
-  if (options.date) {
-    pdf.setFont("helvetica", "normal");
-    pdf.setFontSize(9);
-    pdf.setTextColor(31, 41, 45);
-    pdf.text(`Fecha: ${options.date}`, left + width, 746, { align: "right" });
-  }
   pdf.save(options.fileName);
 }
 

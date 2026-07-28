@@ -326,6 +326,8 @@ test("keeps the clinical studios usable from mobile through desktop", async () =
   assert.match(documentStudio, /Eliminar esta imagen/);
   assert.match(documentStudio, /firma y timbre se administran por separado/);
   assert.match(documentStudio, /signature-placement-zone/);
+  assert.match(documentStudio, /signing-assets-canvas/);
+  assert.match(documentStudio, /document-signoff/);
   assert.match(documentStudio, /Fondo blanco automático/);
   assert.match(documentStudio, /renderSignatureImage/);
   assert.match(documentStudio, /brightness/);
@@ -383,7 +385,7 @@ test("keeps the clinical studios usable from mobile through desktop", async () =
   assert.doesNotMatch(await readFile(new URL("../app/features/documents/DocumentPreview.tsx", import.meta.url), "utf8"), /<h3>Paciente<\/h3>/);
   assert.doesNotMatch(await readFile(new URL("../app/features/documents/PatientEditor.tsx", import.meta.url), "utf8"), /<h2>Paciente<\/h2>/);
   assert.match(await readFile(new URL("../app/features/documents/document-pdf.ts", import.meta.url), "utf8"), /title: "",\s*body: `Nombre:/);
-  assert.match(documentStudio, /SIGNATURE_Y_MAX_PERCENT = 68/);
+  assert.match(documentStudio, /SIGNATURE_Y_MAX_PERCENT = 67/);
   assert.match(documentStudio, /defaultProfileApplied\.current = true/);
   assert.match(documentStudio, /Boolean\(defaultProfile \|\| defaultStamp\)/);
   assert.match(documentStudio, /markSignatureDirty/);
@@ -395,6 +397,11 @@ test("keeps the clinical studios usable from mobile through desktop", async () =
   assert.match(documentStudio, /dragOffsets/);
   assert.match(documentStudio, /event\.currentTarget\.value = ""/);
   assert.match(documentStudio, /signatureBlockHeight/);
+  assert.match(documentStudio, /SIGNING_IMAGE_WIDTH_MAX_PERCENT = 72/);
+  assert.match(documentStudio, /Aumentar tamaño de/);
+  assert.match(documentStudio, /signerY \+ 30/);
+  assert.match(documentStudio, /imageCenterY - imageHeight \/ 2/);
+  assert.doesNotMatch(documentStudio, /left \+ width, 746/);
   assert.match(documentStudio, /availableLines/);
   assert.match(documentStudio, /Tamaño global de letra/);
   assert.match(documentStudio, /hhr-document-font-size-v1/);
