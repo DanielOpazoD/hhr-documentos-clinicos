@@ -7,6 +7,7 @@ import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } f
 import { createScannedPdf } from "@/app/lib/client-pdf";
 import { DEFAULT_SCAN_ADJUSTMENTS, DEFAULT_SCAN_CORNERS, prepareScanSource, renderScannedPage, type ScanAdjustments, type ScanCorners, type ScanFilter, type ScanQuality } from "@/app/lib/scan-processing";
 import { detectDocumentCorners } from "@/app/features/scanner/document-detection";
+import { forgetStoredCaptureToken, getCaptureSession, MobileSessionClientError, uploadCapturedFile } from "@/app/features/files/mobile-session-client";
 
 type PageFile = {
   id: string;
@@ -87,7 +88,9 @@ export function MobileCapture({ token }: { token: string }) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const [pages, setPages] = useState<PageFile[]>([]);
-  const [valid, setValid] = useState<boolean | null>(null);
+  const [access, setAccess] = useState<"checking" | "active" | "unavailable" | "error">("checking");
+  const [accessError, setAccessError] = useState<string | null>(null);
+  const [validationAttempt, setValidationAttempt] = useState(0);
   const [expiresAt, setExpiresAt] = useState("");
   const [name, setName] = useState("Documento escaneado");
   const [output, setOutput] = useState<"images" | "pdf">("pdf");
@@ -103,7 +106,23 @@ export function MobileCapture({ token }: { token: string }) {
   const [flash, setFlash] = useState(false);
   const [review, setReview] = useState<ReviewState | null>(null);
 
-  useEffect(() => { void fetch(`/api/mobile-upload/${token}`).then(async response => { const data = await response.json(); setValid(response.ok); setExpiresAt(data.session?.expiresAt ?? ""); }); }, [token]);
+  useEffect(() => {
+    const controller = new AbortController();
+    void getCaptureSession(token, controller.signal).then(session => {
+      setExpiresAt(session.expiresAt);
+      setAccess("active");
+    }).catch(cause => {
+      if (controller.signal.aborted) return;
+      if (cause instanceof MobileSessionClientError && (cause.status === 404 || cause.status === 410)) {
+        forgetStoredCaptureToken();
+        setAccess("unavailable");
+        return;
+      }
+      setAccessError(cause instanceof Error ? cause.message : "No se pudo verificar la sesión.");
+      setAccess("error");
+    });
+    return () => controller.abort();
+  }, [token, validationAttempt]);
   const pagesRef = useRef<PageFile[]>([]);
   useEffect(() => { pagesRef.current = pages; }, [pages]);
   useEffect(() => () => { pagesRef.current.forEach(page => { URL.revokeObjectURL(page.url); URL.revokeObjectURL(page.sourceUrl); }); streamRef.current?.getTracks().forEach(track => track.stop()); }, []);
@@ -225,12 +244,13 @@ export function MobileCapture({ token }: { token: string }) {
   function update(id: string, change: Partial<PageFile>) { setPages(value => value.map(page => page.id === id ? { ...page, ...change } : page)); }
   function remove(id: string) { setPages(value => value.filter(page => { if (page.id === id) { URL.revokeObjectURL(page.url); URL.revokeObjectURL(page.sourceUrl); } return page.id !== id; })); }
   function move(index: number, direction: -1 | 1) { const next = [...pages]; const target = index + direction; if (target < 0 || target >= next.length) return; [next[index], next[target]] = [next[target], next[index]]; setPages(next); }
-  async function sendFile(file: File, fileName: string) { const form = new FormData(); form.set("file", file, fileName); const response = await fetch(`/api/mobile-upload/${token}`, { method: "POST", body: form }); if (!response.ok) { const data = await response.json(); throw new Error(data.error ?? "No se pudo subir el archivo."); } }
-  async function upload() { setBusy(true); setError(null); try { if (output === "pdf") { const blob = await createScannedPdf(pages); await sendFile(new File([blob], `${name}.pdf`, { type: "application/pdf" }), `${name}.pdf`); } else { for (let index = 0; index < pages.length; index++) await sendFile(pages[index].file, `${name} - página ${index + 1}.jpg`); } setDone(true); } catch (cause) { setError(cause instanceof Error ? cause.message : "No se pudo enviar el documento."); } finally { setBusy(false); } }
+  async function sendFile(file: File, fileName: string) { await uploadCapturedFile(token, file, fileName); }
+  async function upload() { setBusy(true); setError(null); try { if (output === "pdf") { const blob = await createScannedPdf(pages); await sendFile(new File([blob], `${name}.pdf`, { type: "application/pdf" }), `${name}.pdf`); } else { for (let index = 0; index < pages.length; index++) await sendFile(pages[index].file, `${name} - página ${index + 1}.jpg`); } setDone(true); } catch (cause) { if (cause instanceof MobileSessionClientError && (cause.status === 404 || cause.status === 410)) { forgetStoredCaptureToken(); setAccess("unavailable"); } setError(cause instanceof Error ? cause.message : "No se pudo enviar el documento."); } finally { setBusy(false); } }
   const reviewPage = review ? pages.find(page => page.id === review.pageId) ?? null : null;
 
-  if (valid === null) return <main className="capture-shell"><div className="capture-status"><Loader2 className="spin" /><p>Abriendo escáner…</p></div></main>;
-  if (!valid) return <main className="capture-shell"><div className="capture-status error"><h1>Enlace no disponible</h1><p>La sesión expiró o fue revocada. Genere un QR nuevo en el escritorio.</p></div></main>;
+  if (access === "checking") return <main className="capture-shell"><div className="capture-status"><Loader2 className="spin" /><p>Abriendo escáner…</p></div></main>;
+  if (access === "unavailable") return <main className="capture-shell"><div className="capture-status error"><h1>Enlace no disponible</h1><p>La sesión expiró o fue revocada. Genere un QR nuevo en el escritorio.</p></div></main>;
+  if (access === "error") return <main className="capture-shell"><div className="capture-status error"><h1>No se pudo verificar la sesión</h1><p>{accessError ?? "Revise su conexión e intente nuevamente."}</p><button className="button secondary" onClick={() => { setAccess("checking"); setAccessError(null); setValidationAttempt(value => value + 1); }}>Reintentar</button></div></main>;
   if (done) return <main className="capture-shell"><div className="capture-success"><span><Check size={32} /></span><h1>Documento guardado</h1><p>{pages.length} {pages.length === 1 ? "página quedó disponible" : "páginas quedaron disponibles"} en la biblioteca.</p><button className="button secondary" onClick={() => { pages.forEach(page => { URL.revokeObjectURL(page.url); URL.revokeObjectURL(page.sourceUrl); }); setPages([]); setDone(false); }}>Escanear otro</button></div></main>;
 
   return <main className="capture-shell"><header className="capture-header"><img src="/hhr-logo.svg" alt="Hospital Hanga Roa" /><div><strong>Escáner HHR</strong><small>Sesión temporal · {expiresAt && `hasta ${new Date(expiresAt).toLocaleTimeString("es-CL", { hour: "2-digit", minute: "2-digit" })}`}</small></div><span className="capture-page-count">{pages.length}/8</span></header>
