@@ -49,6 +49,8 @@ npm run check:bundle
 
 `npm run verify` ejecuta el gate completo usado por integración continua, incluida la comprobación de migraciones generadas y los recorridos privados de documentos, archivos, firmas y captura móvil. En el flujo móvil comprueba reemplazo concurrente de QR, revocación, aislamiento por propietario y atribución exacta de archivos. Las pruebas utilizan identidades y contenido sintéticos; nunca llaman a proveedores de IA externos.
 
+El esquema D1 solo cambia mediante migraciones versionadas. La guía de [despliegue, verificación y recuperación](./docs/DATABASE_MIGRATIONS.md) describe el respaldo previo, el control privado de integridad y el rollback ensayado en una base desechable.
+
 ## Arquitectura
 
 - Next.js/React sobre Vinext y Cloudflare Workers.

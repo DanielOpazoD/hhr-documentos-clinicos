@@ -28,12 +28,15 @@ La aplicación está preparada como un entorno privado funcional, pero no se dec
 - Pruebas automatizadas estructurales, de políticas puras y de integración HTTP contra el Worker construido con D1/R2 locales desechables.
 - Recorridos de integración para autenticación, aislamiento por propietario, concurrencia y restauración documental, archivos, firmas, ciclo de vida y procedencia de sesiones móviles, y autorización de IA sin proveedores externos.
 - Gate de integración continua con verificación de build, migraciones, presupuesto de JavaScript/CSS e integración del runtime privado.
+- Esquema D1 administrado exclusivamente por migraciones versionadas; ninguna solicitud crea tablas, altera columnas o aplica compatibilidades históricas.
+- Pruebas de instalación vacía y actualización desde las cuatro versiones anteriores, con conservación de registros y rollback sobre una copia desechable.
+- Verificador privado de migraciones, índices, versiones documentales, relaciones huérfanas y firmas predeterminadas que solo emite conteos.
 
 ## Controles pendientes antes de uso clínico institucional
 
 1. Aprobación institucional del tratamiento de datos y del proveedor de IA.
 2. Política documentada de retención, eliminación, exportación y derecho de acceso.
-3. Estrategia de respaldo de D1/R2 y simulacro de restauración verificado.
+3. Automatización institucional de respaldos D1/R2 y simulacro remoto periódico; el procedimiento D1 y su ensayo local ya están documentados.
 4. Monitoreo operativo, alertas, trazas y procedimiento de respuesta a incidentes.
 5. Límites de consumo por usuario y protección contra abuso de APIs costosas.
 6. Revisión de amenazas, pruebas de penetración y validación de dependencias transitivas.
