@@ -14,6 +14,7 @@
     "test": "npm run build && npm run test:product && npm run test:contracts",
     "test:product": "node --test tests/rendered-html.test.mjs",
     "test:contracts": "node --experimental-strip-types --test tests/contracts/*.test.ts",
+    "test:integration": "node --test tests/integration/*.test.mjs",
     "typecheck": "tsc --noEmit",
     "lint": "eslint . --ignore-pattern dist --ignore-pattern .next",
     "db:generate": "drizzle-kit generate",
