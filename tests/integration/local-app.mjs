@@ -38,6 +38,29 @@ async function waitUntilReady(origin, child, output) {
   throw new Error(`El Worker no respondió dentro de 30 segundos.\n${output()}`);
 }
 
+function waitForExit(child, timeoutMs) {
+  if (child.exitCode !== null || child.signalCode !== null) return Promise.resolve(true);
+  return new Promise((resolve) => {
+    const onExit = () => {
+      clearTimeout(timer);
+      resolve(true);
+    };
+    const timer = setTimeout(() => {
+      child.off("exit", onExit);
+      resolve(false);
+    }, timeoutMs);
+    child.once("exit", onExit);
+  });
+}
+
+async function stopChild(child) {
+  if (child.exitCode !== null || child.signalCode !== null) return;
+  child.kill("SIGTERM");
+  if (await waitForExit(child, 3_000)) return;
+  child.kill("SIGKILL");
+  await waitForExit(child, 1_000);
+}
+
 export async function startLocalApp() {
   const stateDirectory = await mkdtemp(join(tmpdir(), "hhr-integration-"));
   const environmentFile = join(stateDirectory, "test.env");
@@ -84,7 +107,7 @@ export async function startLocalApp() {
   try {
     await waitUntilReady(origin, child, () => processOutput);
   } catch (error) {
-    child.kill("SIGTERM");
+    await stopChild(child);
     await rm(stateDirectory, { recursive: true, force: true });
     throw error;
   }
@@ -93,14 +116,7 @@ export async function startLocalApp() {
     origin,
     output: () => processOutput,
     async close() {
-      if (child.exitCode === null && child.signalCode === null) {
-        child.kill("SIGTERM");
-        await Promise.race([
-          new Promise((resolve) => child.once("exit", resolve)),
-          new Promise((resolve) => setTimeout(resolve, 3_000)),
-        ]);
-        if (child.exitCode === null && child.signalCode === null) child.kill("SIGKILL");
-      }
+      await stopChild(child);
       await rm(stateDirectory, { recursive: true, force: true });
     },
   };
