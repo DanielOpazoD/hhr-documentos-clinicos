@@ -44,7 +44,9 @@ npm test
 npm run check:bundle
 ```
 
-`npm run verify` ejecuta el gate completo usado por integración continua, incluida la comprobación de migraciones generadas.
+`npm test` construye el mismo Worker que se despliega y ejecuta pruebas de producto, contratos puros e integración HTTP sobre D1 y R2 locales desechables. Para ejecutar solo la integración desde un checkout sin build previo, use `npm run test:integration:full`.
+
+`npm run verify` ejecuta el gate completo usado por integración continua, incluida la comprobación de migraciones generadas y los recorridos privados de documentos, archivos, firmas y captura móvil. Las pruebas utilizan identidades y contenido sintéticos; nunca llaman a proveedores de IA externos.
 
 ## Arquitectura
 
