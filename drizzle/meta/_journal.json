@@ -43,6 +43,13 @@
       "when": 1785221122534,
       "tag": "0005_schema_authority",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "6",
+      "when": 1785256583680,
+      "tag": "0006_signing_assets",
+      "breakpoints": true
     }
   ]
 }

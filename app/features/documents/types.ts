@@ -20,6 +20,8 @@ export type SignerData = {
   specialty: string;
 };
 
+export type SignatureAssetKind = "signature" | "stamp";
+
 export type StoredDocument = {
   id: string;
   templateId: string;
@@ -33,6 +35,7 @@ export type StoredDocument = {
 
 export type SignatureRecord = {
   id: string;
+  kind: SignatureAssetKind;
   professionalName: string;
   professionalRut: string;
   specialty: string;
@@ -71,6 +74,7 @@ export type StoredContent = {
   signer?: Partial<SignerData>;
   issueDate?: string;
   signature?: Omit<PlacedSignature, "imageUrl" | "isDefault"> & { imageUrl?: string };
+  stamp?: Omit<PlacedSignature, "imageUrl" | "isDefault"> & { imageUrl?: string };
   ai?: StoredAiMetadata;
 };
 
