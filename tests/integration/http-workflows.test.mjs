@@ -32,6 +32,22 @@ function jsonRequest(owner, path, method, body) {
   });
 }
 
+async function createMobileSession(owner) {
+  return jsonResponse(await ownedFetch(owner, "/api/mobile-sessions", { method: "POST" }), 201);
+}
+
+function mobileUploadFetch(token, init = {}) {
+  const headers = new Headers(init.headers);
+  headers.set("x-hhr-capture-token", token);
+  return app.fetch("/api/mobile-upload", { ...init, headers });
+}
+
+function mobileCapture(name, content = `captura sintética ${name}`) {
+  const form = new FormData();
+  form.set("file", new File([content], name, { type: "image/png" }));
+  return form;
+}
+
 test("serves the critical private application routes", async () => {
   const routes = [
     ["/", "<title>Inicio · HHR-documentos</title>"],
@@ -252,42 +268,122 @@ test("keeps files and signatures private across D1 and R2", async () => {
   await jsonResponse(await ownedFetch(ownerA, `/api/signatures/${firstSignature.id}`, { method: "DELETE" }), 200);
 });
 
-test("keeps mobile capture scoped and AI import offline without authorization", async () => {
+test("keeps exactly one mobile capture session active per owner", async () => {
   const ownerA = `mobile-a-${crypto.randomUUID()}@hhr.test`;
   const ownerB = `mobile-b-${crypto.randomUUID()}@hhr.test`;
-  const sessionBody = await jsonResponse(await ownedFetch(ownerA, "/api/mobile-sessions", { method: "POST" }), 201);
-  const { id: sessionId, token, expiresAt } = sessionBody.session;
-  assert.match(token, /^[a-f0-9]{48}$/);
-  const remainingMs = Date.parse(expiresAt) - Date.now();
+  const first = (await createMobileSession(ownerA)).session;
+  const second = (await createMobileSession(ownerA)).session;
+  assert.notEqual(first.id, second.id);
+  assert.notEqual(first.token, second.token);
+  const remainingMs = Date.parse(second.expiresAt) - Date.now();
   assert.equal(remainingMs > 9 * 60 * 1000 && remainingMs <= 10 * 60 * 1000, true);
+  await jsonResponse(await mobileUploadFetch(first.token), 410);
+  const secondActive = await jsonResponse(await mobileUploadFetch(second.token), 200);
+  assert.equal(secondActive.session.id, second.id);
 
-  const active = await jsonResponse(await app.fetch(`/api/mobile-upload/${token}`), 200);
-  assert.deepEqual(Object.keys(active.session).sort(), ["expiresAt", "id"]);
-  assert.equal(active.session.id, sessionId);
+  const foreignRead = await ownedFetch(ownerB, `/api/mobile-sessions?id=${second.id}`);
+  await jsonResponse(foreignRead, 404);
+  await jsonResponse(await jsonRequest(ownerB, "/api/mobile-sessions", "PATCH", { id: second.id }), 404);
+  await jsonResponse(await mobileUploadFetch(second.token), 200);
 
-  const capture = new FormData();
-  capture.set("file", new File(["captura móvil sintética"], "captura-movil.txt", { type: "image/png" }));
-  const captured = await jsonResponse(await app.fetch(`/api/mobile-upload/${token}`, {
-    method: "POST",
-    body: capture,
-  }), 201);
-  const capturedId = captured.file.id;
-  const filesA = await jsonResponse(await ownedFetch(ownerA, "/api/files"), 200);
-  const filesB = await jsonResponse(await ownedFetch(ownerB, "/api/files"), 200);
-  assert.equal(filesA.files.some((file) => file.id === capturedId && file.origin === "QR móvil"), true);
-  assert.equal(filesB.files.some((file) => file.id === capturedId), false);
-
-  await jsonResponse(await ownedFetch(ownerA, "/api/mobile-sessions", {
+  const invalidJson = await ownedFetch(ownerA, "/api/mobile-sessions", {
     method: "PATCH",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ id: sessionId }),
-  }), 200);
-  await jsonResponse(await app.fetch(`/api/mobile-upload/${token}`), 410);
-  await jsonResponse(await app.fetch(`/api/mobile-upload/${token}`, {
+    body: "{",
+  });
+  await jsonResponse(invalidJson, 400);
+
+  await jsonResponse(await jsonRequest(ownerA, "/api/mobile-sessions", "PATCH", { id: second.id }), 200);
+  await jsonResponse(await jsonRequest(ownerA, "/api/mobile-sessions", "PATCH", { id: second.id }), 200);
+  await jsonResponse(await mobileUploadFetch(second.token), 410);
+  await jsonResponse(await mobileUploadFetch(second.token, {
     method: "POST",
-    body: capture,
+    body: mobileCapture("captura-revocada.png"),
   }), 410);
-  await jsonResponse(await ownedFetch(ownerA, `/api/files/${capturedId}`, { method: "DELETE" }), 200);
+
+  const concurrent = await Promise.all([createMobileSession(ownerA), createMobileSession(ownerA)]);
+  const concurrentStatuses = await Promise.all(concurrent.map(({ session }) => mobileUploadFetch(session.token).then(response => response.status)));
+  assert.deepEqual([...concurrentStatuses].sort((a, b) => a - b), [200, 410]);
+  const activeIndex = concurrentStatuses.findIndex(status => status === 200);
+  await jsonResponse(await jsonRequest(ownerA, "/api/mobile-sessions", "PATCH", { id: concurrent[activeIndex].session.id }), 200);
+});
+
+test("attributes mobile files to their exact session without origin spoofing", async () => {
+  const ownerA = `mobile-files-a-${crypto.randomUUID()}@hhr.test`;
+  const ownerB = `mobile-files-b-${crypto.randomUUID()}@hhr.test`;
+  const first = (await createMobileSession(ownerA)).session;
+  const firstCapture = await jsonResponse(await mobileUploadFetch(first.token, {
+    method: "POST",
+    body: mobileCapture("sesion-uno.png"),
+  }), 201);
+
+  const second = (await createMobileSession(ownerA)).session;
+  const secondCapture = await jsonResponse(await mobileUploadFetch(second.token, {
+    method: "POST",
+    body: mobileCapture("sesion-dos.png"),
+  }), 201);
+
+  const spoofedUpload = new FormData();
+  spoofedUpload.set("file", new File(["archivo de escritorio"], "escritorio.png", { type: "image/png" }));
+  spoofedUpload.set("origin", "QR móvil");
+  const desktopFile = await jsonResponse(await ownedFetch(ownerA, "/api/files", {
+    method: "POST",
+    body: spoofedUpload,
+  }), 201);
+  assert.equal(desktopFile.file.origin, "Escritorio");
+
+  const firstView = await jsonResponse(await ownedFetch(ownerA, `/api/mobile-sessions?id=${first.id}`), 200);
+  const secondView = await jsonResponse(await ownedFetch(ownerA, `/api/mobile-sessions?id=${second.id}`), 200);
+  assert.equal(firstView.session.id, first.id);
+  assert.equal(secondView.session.id, second.id);
+  assert.deepEqual(firstView.files.map(file => file.id), [firstCapture.file.id]);
+  assert.deepEqual(secondView.files.map(file => file.id), [secondCapture.file.id]);
+  assert.equal(firstView.files[0].status, "activo");
+  assert.equal(secondView.files[0].status, "activo");
+  assert.equal(firstView.files.some(file => file.id === desktopFile.file.id), false);
+  assert.equal(secondView.files.some(file => file.id === desktopFile.file.id), false);
+
+  const ownerFiles = await jsonResponse(await ownedFetch(ownerA, "/api/files"), 200);
+  const foreignFiles = await jsonResponse(await ownedFetch(ownerB, "/api/files"), 200);
+  assert.equal(ownerFiles.files.some(file => file.id === firstCapture.file.id && file.origin === "QR móvil"), true);
+  assert.equal(ownerFiles.files.some(file => file.id === secondCapture.file.id && file.origin === "QR móvil"), true);
+  assert.equal(ownerFiles.files.every(file => file.status === "activo" || file.status === "archivado"), true);
+  assert.equal(foreignFiles.files.some(file => file.id === firstCapture.file.id || file.id === secondCapture.file.id), false);
+
+  await jsonResponse(await jsonRequest(ownerA, "/api/mobile-sessions", "PATCH", { id: second.id }), 200);
+  await jsonResponse(await mobileUploadFetch(second.token), 410);
+  await jsonResponse(await mobileUploadFetch(second.token, {
+    method: "POST",
+    body: mobileCapture("posterior-a-revocacion.png"),
+  }), 410);
+  await jsonResponse(await jsonRequest(ownerA, "/api/files", "DELETE", {
+    ids: [firstCapture.file.id, secondCapture.file.id, desktopFile.file.id],
+  }), 200);
+});
+
+test("keeps the mobile capability out of HTTP paths and rendered HTML", async () => {
+  const owner = `mobile-route-${crypto.randomUUID()}@hhr.test`;
+  const session = (await createMobileSession(owner)).session;
+  const page = await app.fetch("/captura");
+  assert.equal(page.status, 200);
+  assert.match(page.headers.get("cache-control") ?? "", /no-store/);
+  assert.equal(page.headers.get("referrer-policy"), "no-referrer");
+  assert.match(page.headers.get("x-robots-tag") ?? "", /noindex/);
+  const html = await page.text();
+  assert.equal(html.includes(session.token), false);
+  assert.equal(html.includes(`/api/mobile-upload/${session.token}`), false);
+  assert.equal((await app.fetch(`/captura/${session.token}`)).status, 404);
+  assert.equal((await app.fetch(`/api/mobile-upload/${session.token}`)).status, 404);
+  const capabilityResponse = await mobileUploadFetch(session.token);
+  assert.equal(capabilityResponse.headers.get("cache-control"), "no-store");
+  assert.equal(capabilityResponse.headers.get("referrer-policy"), "no-referrer");
+  assert.match(capabilityResponse.headers.get("x-robots-tag") ?? "", /noindex/);
+  await jsonResponse(capabilityResponse, 200);
+  await jsonResponse(await jsonRequest(owner, "/api/mobile-sessions", "PATCH", { id: session.id }), 200);
+});
+
+test("keeps AI import offline without authorization", async () => {
+  const ownerA = `ai-import-${crypto.randomUUID()}@hhr.test`;
 
   const unauthorizedImport = new FormData();
   unauthorizedImport.set("target", "epicrisis");

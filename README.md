@@ -10,6 +10,7 @@ Espacio web privado para crear, revisar, imprimir, escanear y respaldar document
 - Importación de múltiples PDF e imágenes mediante OpenAI o un modelo local compatible.
 - Catálogo versionado de prompts por tipo de documento.
 - Escáner móvil multipágina con detección y edición de bordes, corrección de perspectiva y acabados en color, grises o blanco y negro.
+- Un único QR móvil activo por usuario, con capacidad fuera de la ruta HTTP, archivos atribuidos a su sesión exacta y recuperación de cargas interrumpidas.
 - Biblioteca privada de documentos y archivos con almacenamiento D1/R2 en Sites.
 - Historial clínico restaurable y protección contra sobrescrituras accidentales entre pestañas.
 
@@ -46,7 +47,7 @@ npm run check:bundle
 
 `npm test` construye el mismo Worker que se despliega y ejecuta pruebas de producto, contratos puros e integración HTTP sobre D1 y R2 locales desechables. Para ejecutar solo la integración desde un checkout sin build previo, use `npm run test:integration:full`.
 
-`npm run verify` ejecuta el gate completo usado por integración continua, incluida la comprobación de migraciones generadas y los recorridos privados de documentos, archivos, firmas y captura móvil. Las pruebas utilizan identidades y contenido sintéticos; nunca llaman a proveedores de IA externos.
+`npm run verify` ejecuta el gate completo usado por integración continua, incluida la comprobación de migraciones generadas y los recorridos privados de documentos, archivos, firmas y captura móvil. En el flujo móvil comprueba reemplazo concurrente de QR, revocación, aislamiento por propietario y atribución exacta de archivos. Las pruebas utilizan identidades y contenido sintéticos; nunca llaman a proveedores de IA externos.
 
 ## Arquitectura
 
