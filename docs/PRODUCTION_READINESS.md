@@ -17,12 +17,16 @@ La aplicación está preparada como un entorno privado funcional, pero no se dec
 - Formularios institucionales originales preservados para impresión.
 - Sin pacientes, resultados, conexiones ni documentos de muestra en la aplicación.
 - Encabezados de seguridad para tipo de contenido, marcos, referencia y permisos del navegador.
+- Una sola sesión de captura móvil activa por usuario, incluso ante creaciones concurrentes; un QR nuevo invalida el anterior.
+- Capacidad de captura fuera de rutas HTTP y HTML renderizado, con revocación efectiva y rechazo de cargas posteriores.
+- Archivos móviles atribuidos a su sesión exacta; una carga de escritorio no puede simular ese origen.
+- Reserva D1 previa a cada escritura móvil en R2, publicación atómica y limpieza recuperable de cargas interrumpidas.
 - Componentes de documentos e IA separados por dominio y responsabilidad.
 - Dependencia directa de Next.js actualizada a la versión corregida de su rama estable.
 - Overrides acotados de PostCSS y Sharp corrigen avisos transitivos; `npm audit --omit=dev` reporta cero vulnerabilidades productivas.
 - Build reproducible, lint y TypeScript estricto sin errores.
 - Pruebas automatizadas estructurales, de políticas puras y de integración HTTP contra el Worker construido con D1/R2 locales desechables.
-- Recorridos de integración para autenticación, aislamiento por propietario, concurrencia y restauración documental, archivos, firmas, sesiones móviles y autorización de IA sin proveedores externos.
+- Recorridos de integración para autenticación, aislamiento por propietario, concurrencia y restauración documental, archivos, firmas, ciclo de vida y procedencia de sesiones móviles, y autorización de IA sin proveedores externos.
 - Gate de integración continua con verificación de build, migraciones, presupuesto de JavaScript/CSS e integración del runtime privado.
 
 ## Controles pendientes antes de uso clínico institucional

@@ -60,6 +60,7 @@ export const documentVersions = sqliteTable("document_versions", {
 export const files = sqliteTable("files", {
   id: text("id").primaryKey(),
   ownerEmail: text("owner_email").notNull(),
+  mobileSessionId: text("mobile_session_id"),
   objectKey: text("object_key").notNull(),
   name: text("name").notNull(),
   mimeType: text("mime_type").notNull(),
@@ -68,7 +69,13 @@ export const files = sqliteTable("files", {
   status: text("status").notNull(),
   patientId: text("patient_id"),
   ...timestamps,
-});
+}, (table) => [
+  index("files_owner_mobile_session_created_idx").on(
+    table.ownerEmail,
+    table.mobileSessionId,
+    table.createdAt,
+  ),
+]);
 
 export const documentFiles = sqliteTable("document_files", {
   id: text("id").primaryKey(),

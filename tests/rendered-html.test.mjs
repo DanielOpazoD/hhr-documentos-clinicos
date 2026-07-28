@@ -6,6 +6,14 @@ import { strFromU8, unzipSync } from "fflate";
 import { createHospitalSalvadorDocxBytes } from "../app/features/ai/hospital-salvador-docx.js";
 import { hospitalSalvadorFields } from "../app/features/ai/hospital-salvador-fields.js";
 
+function sourceSection(source, startMarker, endMarker) {
+  const start = source.indexOf(startMarker);
+  const end = source.indexOf(endMarker, start + startMarker.length);
+  assert.notEqual(start, -1, `No se encontró ${startMarker}`);
+  assert.notEqual(end, -1, `No se encontró ${endMarker}`);
+  return source.slice(start, end);
+}
+
 test("builds the clinical document workspace from a production product identity", async () => {
   await access(new URL("../dist/server/index.js", import.meta.url));
   const [layout, dashboard, packageJson, nodeVersion, product, constitution, readiness, qualityWorkflow, buildBudget, databaseCheck] = await Promise.all([
@@ -65,24 +73,52 @@ test("ships the clinical routes, storage bindings and source templates", async (
   ];
   await Promise.all(required.map(path => access(new URL(path, import.meta.url))));
 
-  const [hosting, scanner, mobileCapture, scanProcessing, documentDetection, scanEnhancement, mobileUpload] = await Promise.all([
+  const [hosting, scanner, mobileCapture, captureEntry, mobileSessionClient, mobileSessionPolicy, mobilePage, scanProcessing, documentDetection, scanEnhancement, mobileUpload] = await Promise.all([
     readFile(new URL("../.openai/hosting.json", import.meta.url), "utf8"),
     readFile(new URL("../app/components/ScannerDesk.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/components/MobileCapture.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/captura/CaptureEntry.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/features/files/mobile-session-client.ts", import.meta.url), "utf8"),
+    readFile(new URL("../app/features/files/mobile-session-policy.ts", import.meta.url), "utf8"),
+    readFile(new URL("../app/captura/page.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/lib/scan-processing.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/features/scanner/document-detection.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/features/scanner/scan-enhancement.ts", import.meta.url), "utf8"),
-    readFile(new URL("../app/api/mobile-upload/[token]/route.ts", import.meta.url), "utf8"),
+    readFile(new URL("../app/api/mobile-upload/route.ts", import.meta.url), "utf8"),
   ]);
   assert.match(hosting, /"d1"\s*:\s*"DB"/);
   assert.match(hosting, /"r2"\s*:\s*"FILES"/);
-  assert.match(scanner, /10 \* 60 \* 1000/);
+  assert.match(mobileSessionPolicy, /10 \* 60 \* 1000/);
   assert.match(mobileCapture, /getUserMedia/);
   assert.match(mobileCapture, /Editar bordes y estilo/);
   assert.match(mobileCapture, /Esquina \$\{index \+ 1\}/);
   assert.match(mobileCapture, /Detectar de nuevo/);
   assert.match(mobileCapture, /Blancura del papel/);
   assert.match(mobileCapture, /ImageCapture/);
+  assert.match(mobileCapture, /sentPagesRef\.current = index \+ 1/);
+  assert.match(mobileCapture, /for \(let index = sentPagesRef\.current/);
+  assert.match(mobileCapture, /const controlsLocked = busy \|\| uploadLocked/);
+  assert.match(mobileCapture, /setRemainingFiles\(uploaded\.remainingFiles\)/);
+  assert.match(mobileSessionClient, /remainingFiles: number/);
+  assert.match(mobileCapture, /cause\.code === "capacity_exhausted"/);
+  assert.match(mobileCapture, /setRemainingFiles\(0\)/);
+  assert.match(mobileCapture, /restartAfterDeletedUpload/);
+  assert.match(mobileCapture, /sentPageCount \+ remainingFiles/);
+  assert.match(mobileCapture, /selected\.length > available/);
+  assert.match(scanner, /\/captura#\$\{created\.token\}/);
+  assert.doesNotMatch(scanner, /\/captura\/\$\{/);
+  assert.match(captureEntry, /sessionStorage/);
+  assert.match(captureEntry, /window\.location\.hash/);
+  assert.match(captureEntry, /history\.replaceState/);
+  assert.match(captureEntry, /addEventListener\("hashchange"/);
+  assert.match(captureEntry, /<MobileCapture key=\{entry\.token\}/);
+  assert.match(scanner, /currentSessionIdRef\.current === sessionId/);
+  assert.match(scanner, /terminalSnapshotCompletedRef/);
+  assert.match(mobileSessionClient, /x-hhr-capture-token/);
+  assert.match(mobileSessionClient, /x-hhr-upload-id/);
+  assert.match(mobileSessionClient, /fetch\("\/api\/mobile-upload"/);
+  assert.doesNotMatch(`${mobileCapture}${mobileSessionClient}`, /\/api\/mobile-upload\/\$\{/);
+  assert.doesNotMatch(mobilePage, /params|token/);
   assert.match(scanProcessing, /renderScannedPage/);
   assert.match(scanProcessing, /uniform int u_filter/);
   assert.match(scanProcessing, /DEFAULT_SCAN_CORNERS/);
@@ -93,7 +129,124 @@ test("ships the clinical routes, storage bindings and source templates", async (
   assert.match(scanEnhancement, /enhanceScan/);
   assert.match(scanEnhancement, /high - low < 24/);
   assert.match(mobileUpload, /15 \* 1024 \* 1024/);
-  assert.match(mobileUpload, /FILES\.put/);
+  assert.match(mobileUpload, /appEnv\(\)\.FILES/);
+  assert.match(mobileUpload, /bucket\.put/);
+  assert.match(mobileUpload, /x-hhr-capture-token/);
+  const pendingIndex = mobileUpload.indexOf("'pendiente'");
+  const putIndex = mobileUpload.indexOf("await bucket.put");
+  const finalizedIndex = mobileUpload.indexOf("const finalizedAt");
+  assert.equal(pendingIndex >= 0 && pendingIndex < putIndex && putIndex < finalizedIndex, true);
+  assert.match(mobileUpload, /discardPendingFile/);
+});
+
+test("serializes terminal mobile snapshots and keeps scanner polling server-authoritative", async () => {
+  const [mobileSessions, mobileUpload, scanner] = await Promise.all([
+    readFile(new URL("../app/api/mobile-sessions/route.ts", import.meta.url), "utf8"),
+    readFile(new URL("../app/api/mobile-upload/route.ts", import.meta.url), "utf8"),
+    readFile(new URL("../app/components/ScannerDesk.tsx", import.meta.url), "utf8"),
+  ]);
+
+  const expirationFence = sourceSection(
+    mobileSessions,
+    "async function fenceExpiredSession(",
+    "export async function GET",
+  );
+  const batchStart = expirationFence.indexOf("await db.batch");
+  const expireWrite = expirationFence.indexOf("SET status = 'expirada'", batchStart);
+  const fencedSessionRead = expirationFence.indexOf("db.prepare(storedSessionQuery)", expireWrite);
+  const fencedFilesRead = expirationFence.indexOf("db.prepare(storedSessionFilesQuery)", fencedSessionRead);
+  const batchEnd = expirationFence.indexOf("]);", fencedFilesRead);
+  assert.equal(
+    batchStart >= 0
+      && batchStart < expireWrite
+      && expireWrite < fencedSessionRead
+      && fencedSessionRead < fencedFilesRead
+      && fencedFilesRead < batchEnd,
+    true,
+    "La expiración y ambas lecturas deben compartir un único batch D1 ordenado.",
+  );
+  assert.match(expirationFence, /status = 'activa'/);
+  assert.match(expirationFence, /expires_at = \? AND expires_at <= \?/);
+  assert.match(expirationFence, /const files = results\[2\]\.results/);
+  assert.match(expirationFence, /return \{ session: fencedSession, files \}/);
+
+  const sessionGet = sourceSection(
+    mobileSessions,
+    "export async function GET",
+    "export async function POST",
+  );
+  assert.match(sessionGet, /const snapshotAt = new Date\(\)\.toISOString\(\)/);
+  assert.match(sessionGet, /session\.status === "activa" && snapshotStatus === "expirada"/);
+  assert.match(sessionGet, /await fenceExpiredSession\(db, owner, session, snapshotAt\)/);
+  assert.match(sessionGet, /files: snapshot\.files/);
+  assert.match(sessionGet, /sessionResponse\(session, snapshotStatus\)/);
+
+  const uploadFinalization = sourceSection(
+    mobileUpload,
+    "const finalizedAt = new Date().toISOString()",
+    "if (changedRows(results[0]) === 0)",
+  );
+  assert.match(uploadFinalization, /await resolved\.db\.batch/);
+  assert.match(uploadFinalization, /status = 'pendiente'/);
+  assert.match(uploadFinalization, /session\.status = 'activa'/);
+  assert.match(uploadFinalization, /session\.expires_at > \?/);
+  assert.match(uploadFinalization, /resolved\.tokenHash,[\s\S]*?finalizedAt/);
+
+  const activeExpression = scanner.match(/const active = ([^;]+);/);
+  assert.ok(activeExpression, "El escáner debe declarar el estado activo.");
+  assert.match(activeExpression[1], /session\?\.status === "activa"/);
+  assert.doesNotMatch(activeExpression[1], /seconds|remainingSeconds/);
+
+  const polling = sourceSection(scanner, "const poll = async", "\n    if (active)");
+  assert.match(scanner, /const sessionLifecycleRef = useRef\(0\)/);
+  assert.match(scanner, /const lifecycle = sessionLifecycleRef\.current/);
+  assert.match(scanner, /sessionLifecycleRef\.current === lifecycle/);
+  const responseRead = polling.indexOf("await getMobileSession");
+  const responseFence = polling.indexOf("controller.signal.aborted || !isCurrentSession()", responseRead);
+  const receivedUpdate = polling.indexOf("setReceived(data.files)", responseFence);
+  const terminalCompletion = polling.indexOf("terminalSnapshotCompletedRef.current = sessionId", receivedUpdate);
+  const catchStart = polling.indexOf("} catch", terminalCompletion);
+  assert.equal(
+    responseRead >= 0
+      && responseRead < responseFence
+      && responseFence < receivedUpdate
+      && receivedUpdate < terminalCompletion
+      && terminalCompletion < catchStart,
+    true,
+    "La lectura terminal sólo se completa tras una respuesta exitosa, vigente y aplicada.",
+  );
+  assert.equal(
+    scanner.split("terminalSnapshotCompletedRef.current = sessionId").length - 1,
+    1,
+    "Un fallo terminal no debe marcar el snapshot como completado.",
+  );
+
+  const activeResponse = sourceSection(
+    polling,
+    'if (data.session.status === "activa")',
+    "} else {",
+  );
+  assert.match(activeResponse, /poll\("active"\)/);
+
+  const retryDeclaration = scanner.match(/TERMINAL_RETRY_DELAYS_MS = \[([^\]]+)\]/);
+  assert.ok(retryDeclaration, "Debe existir un backoff terminal explícito.");
+  const terminalDelays = retryDeclaration[1].match(/\d+/g)?.map(Number) ?? [];
+  assert.equal(terminalDelays.length, 2, "Dos demoras limitan el flujo a tres intentos terminales.");
+  assert.equal(terminalDelays.every((delay, index) => delay > 0 && (index === 0 || delay > terminalDelays[index - 1])), true);
+  assert.match(polling, /TERMINAL_RETRY_DELAYS_MS\[terminalFailureCount\]/);
+  assert.match(polling, /if \(retryDelay !== undefined\)/);
+  assert.match(polling, /poll\(mode, terminalFailureCount \+ 1\)/);
+  assert.match(scanner, /terminalSnapshotCompletedRef\.current !== sessionId[\s\S]*?poll\("terminal"\)/);
+
+  const revokeFlow = sourceSection(scanner, "async function revoke()", "async function copy()");
+  const revokeResponse = revokeFlow.indexOf("await revokeMobileSession(sessionId)");
+  const lifecycleFence = revokeFlow.indexOf("sessionLifecycleRef.current += 1", revokeResponse);
+  const terminalUpdate = revokeFlow.indexOf("setSession(", lifecycleFence);
+  assert.equal(
+    revokeResponse >= 0 && revokeResponse < lifecycleFence && lifecycleFence < terminalUpdate,
+    true,
+    "La revocación debe invalidar respuestas activas anteriores antes de publicar el estado terminal.",
+  );
 });
 
 test("uses byte-identical PDFs from origin/main/Formularios", async () => {
@@ -419,6 +572,9 @@ test("organizes, archives and deletes stored files through owned server routes",
   assert.match(source, /FILES\.delete/);
   assert.match(source, /Promise\.allSettled/);
   assert.match(source, /cleanupPendingFileDeletes/);
+  assert.match(source, /status IN \('activo', 'archivado'\)/);
+  assert.match(source, /status = 'pendiente'/);
+  assert.match(source, /MOBILE_CAPTURE_STALE_MS/);
   assert.match(source, /owner_email = \?/);
   assert.match(source, /event\.key === "Escape"/);
   assert.match(source, /onSubmit=/);

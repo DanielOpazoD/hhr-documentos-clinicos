@@ -1,4 +1,5 @@
 import { audit } from "@/app/lib/server/audit";
+import { MOBILE_CAPTURE_STALE_MS } from "@/app/features/files/mobile-session-policy";
 import { ensureDatabase } from "@/app/lib/server/database";
 import { appEnv } from "@/app/lib/server/environment";
 
@@ -11,13 +12,46 @@ async function cleanupFileObjects(files: StoredFileObject[]): Promise<void> {
   if (!cleanedIds.length) return;
   const db = await ensureDatabase();
   const placeholders = cleanedIds.map(() => "?").join(",");
-  await db.prepare(`DELETE FROM files WHERE status = 'eliminado' AND id IN (${placeholders})`).bind(...cleanedIds).run();
+  await db.prepare(
+    `DELETE FROM files WHERE status = 'eliminado' AND id IN (${placeholders})`,
+  ).bind(...cleanedIds).run();
+}
+
+export async function discardPendingFile(owner: string, id: string): Promise<void> {
+  const db = await ensureDatabase();
+  await db.prepare(
+    `UPDATE files
+     SET status = 'eliminado', updated_at = ?
+     WHERE id = ? AND owner_email = ? AND status = 'pendiente'`,
+  ).bind(new Date().toISOString(), id, owner).run();
+  const file = await db.prepare(
+    `SELECT id, object_key AS objectKey, name
+     FROM files
+     WHERE id = ? AND owner_email = ? AND status = 'eliminado'`,
+  ).bind(id, owner).first<StoredFileObject>();
+  if (file) await cleanupFileObjects([file]);
 }
 
 export async function cleanupPendingFileDeletes(owner: string): Promise<void> {
   const db = await ensureDatabase();
+  const claimedAt = new Date().toISOString();
+  const stalePendingBefore = new Date(Date.now() - MOBILE_CAPTURE_STALE_MS).toISOString();
+  await db.prepare(
+    `UPDATE files
+     SET status = 'eliminado', updated_at = ?
+     WHERE owner_email = ? AND status = 'pendiente' AND id IN (
+       SELECT id
+       FROM files
+       WHERE owner_email = ? AND status = 'pendiente' AND updated_at < ?
+       ORDER BY updated_at
+       LIMIT 20
+     )`,
+  ).bind(claimedAt, owner, owner, stalePendingBefore).run();
   const result = await db.prepare(
-    "SELECT id, object_key AS objectKey, name FROM files WHERE owner_email = ? AND status = 'eliminado' LIMIT 20",
+    `SELECT id, object_key AS objectKey, name
+     FROM files
+     WHERE owner_email = ? AND status = 'eliminado'
+     LIMIT 20`,
   ).bind(owner).all<StoredFileObject>();
   await cleanupFileObjects(result.results);
 }
@@ -29,7 +63,9 @@ export async function deleteOwnedFiles(owner: string, requestedIds: string[]): P
   const db = await ensureDatabase();
   const placeholders = ids.map(() => "?").join(",");
   const result = await db.prepare(
-    `SELECT id, object_key AS objectKey, name FROM files WHERE owner_email = ? AND status != 'eliminado' AND id IN (${placeholders})`,
+    `SELECT id, object_key AS objectKey, name
+     FROM files
+     WHERE owner_email = ? AND status IN ('activo', 'archivado') AND id IN (${placeholders})`,
   ).bind(owner, ...ids).all<StoredFileObject>();
   const ownedFiles = result.results;
   if (!ownedFiles.length) return [];

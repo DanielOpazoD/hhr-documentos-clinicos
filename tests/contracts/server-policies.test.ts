@@ -13,7 +13,13 @@ import {
   parseDocumentVersionSnapshot,
   serializeDocumentVersionSnapshot,
 } from "../../app/features/documents/document-version.ts";
-import { isActiveMobileSession } from "../../app/features/files/mobile-session-policy.ts";
+import {
+  deriveMobileSessionStatus,
+  isActiveMobileSession,
+  MOBILE_CAPTURE_MAX_FILES,
+  MOBILE_CAPTURE_STALE_MS,
+  MOBILE_SESSION_TTL_MS,
+} from "../../app/features/files/mobile-session-policy.ts";
 
 test("requires an authenticated owner outside the local preview", () => {
   assert.equal(requestOwner(new Request("https://hhr.example/documentos")), null);
@@ -68,10 +74,17 @@ test("detects stale document writes and preserves complete version snapshots", (
 });
 
 test("accepts only active, unexpired mobile upload sessions", () => {
+  assert.equal(MOBILE_CAPTURE_MAX_FILES, 8);
+  assert.equal(MOBILE_SESSION_TTL_MS, 10 * 60 * 1000);
+  assert.equal(MOBILE_CAPTURE_STALE_MS > MOBILE_SESSION_TTL_MS, true);
   const now = Date.parse("2026-07-27T12:00:00.000Z");
   assert.equal(isActiveMobileSession(null, now), false);
   assert.equal(isActiveMobileSession({ status: "revocada", expiresAt: "2026-07-27T12:10:00.000Z" }, now), false);
   assert.equal(isActiveMobileSession({ status: "activa", expiresAt: "invalid" }, now), false);
   assert.equal(isActiveMobileSession({ status: "activa", expiresAt: "2026-07-27T12:00:00.000Z" }, now), false);
   assert.equal(isActiveMobileSession({ status: "activa", expiresAt: "2026-07-27T12:10:00.000Z" }, now), true);
+  assert.equal(
+    deriveMobileSessionStatus({ status: "expirada", expiresAt: "2026-07-27T12:10:00.000Z" }, now),
+    "expirada",
+  );
 });
