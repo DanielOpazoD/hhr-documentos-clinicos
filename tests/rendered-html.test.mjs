@@ -399,11 +399,13 @@ test("keeps the clinical studios usable from mobile through desktop", async () =
   assert.match(documentStudio, /signatureBlockHeight/);
   assert.match(documentStudio, /SIGNING_IMAGE_WIDTH_MAX_PERCENT = 72/);
   assert.match(documentStudio, /Aumentar tamaño de/);
-  assert.match(documentStudio, /signerY \+ 30/);
+  assert.match(documentStudio, /splitTextToSize\(options\.signer\.name, signoffWidth\)/);
+  assert.match(documentStudio, /signoffCursorY/);
   assert.match(documentStudio, /imageCenterY - imageHeight \/ 2/);
   assert.doesNotMatch(documentStudio, /left \+ width, 746/);
   assert.match(documentStudio, /availableLines/);
   assert.match(documentStudio, /Tamaño global de letra/);
+  assert.match(documentStudio, /DOCUMENT_FONT_SIZE_DEFAULT = 16/);
   assert.match(documentStudio, /hhr-document-font-size-v1/);
   assert.match(documentStudio, /browser storage is blocked or full/);
   assert.match(documentStudio, /signatureAssets/);
@@ -411,6 +413,7 @@ test("keeps the clinical studios usable from mobile through desktop", async () =
   assert.equal(moduleSources.filter((source) => source.split("\n").length > 350).length, 0);
   assert.match(styles, /@media \(max-width: 1240px\)/);
   assert.match(styles, /\.simplified-studio \.document-editor-layout \{ grid-template-columns: 1fr; \}/);
+  assert.match(styles, /\.clinical-paper \.paper-date/);
   assert.match(styles, /\.document-editor-layout > \.mobile-hidden \{ display: none; \}/);
   assert.match(styles, /\.page-header > \*, \.hero-row > \*.*min-width: 0;/);
   assert.match(layout, /styles\/responsive-focus\.css/);

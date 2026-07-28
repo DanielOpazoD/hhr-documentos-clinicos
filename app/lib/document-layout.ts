@@ -8,7 +8,7 @@ export const SIGNING_IMAGE_WIDTH_STEP_PERCENT = 6;
 
 export const DOCUMENT_FONT_SIZE_MIN = 11;
 export const DOCUMENT_FONT_SIZE_MAX = 16;
-export const DOCUMENT_FONT_SIZE_DEFAULT = 13;
+export const DOCUMENT_FONT_SIZE_DEFAULT = 16;
 
 export function clampSignatureY(value: number) {
   return Math.min(SIGNATURE_Y_MAX_PERCENT, Math.max(SIGNATURE_Y_MIN_PERCENT, value));

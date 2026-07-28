@@ -2,9 +2,14 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   clampSigningImageWidth,
+  DOCUMENT_FONT_SIZE_DEFAULT,
   defaultImagePlacement,
   normalizeStoredSignatureY,
 } from "../../app/lib/document-layout.ts";
+
+test("uses a legible 16 px document default", () => {
+  assert.equal(DOCUMENT_FONT_SIZE_DEFAULT, 16);
+});
 
 test("translates the previously ignored legacy signature y coordinate", () => {
   assert.equal(normalizeStoredSignatureY(undefined, 68), 40);

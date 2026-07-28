@@ -2,7 +2,11 @@
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
-import { SIGNATURE_Y_MAX_PERCENT, SIGNATURE_Y_MIN_PERCENT } from "./document-layout";
+import {
+  DOCUMENT_FONT_SIZE_DEFAULT,
+  SIGNATURE_Y_MAX_PERCENT,
+  SIGNATURE_Y_MIN_PERCENT,
+} from "./document-layout";
 
 type PdfSection = { title?: string; body: string };
 type PdfSignature = { imageUrl: string; professionalName: string; professionalRut: string; specialty: string; x: number; y: number; width: number };
@@ -13,7 +17,7 @@ export async function downloadClinicalPdf(options: { fileName: string; title: st
   const pdf = new jsPDF({ orientation: "portrait", unit: "pt", format: "letter" });
   const left = 64;
   const width = 484;
-  const bodyFontSize = Math.max(11, Math.min(16, options.fontSize ?? 13));
+  const bodyFontSize = Math.max(11, Math.min(16, options.fontSize ?? DOCUMENT_FONT_SIZE_DEFAULT));
   const bodyLineHeight = bodyFontSize * 1.45;
   let y = 72;
   pdf.setTextColor(17, 52, 65);
@@ -62,7 +66,20 @@ export async function downloadClinicalPdf(options: { fileName: string; title: st
   }
   const signatureAssets = options.signatureAssets ?? [];
   if (signatureAssets.length || options.signer?.name || options.date) {
-    const signatureBlockHeight = 280;
+    const signoffFontSize = Math.max(9, bodyFontSize - 3);
+    const signoffWidth = 210;
+    const signoffLineHeight = signoffFontSize * 1.3;
+    pdf.setFont("helvetica", "normal");
+    pdf.setFontSize(signoffFontSize);
+    const signerNameLines: string[] = options.signer?.name ? pdf.splitTextToSize(options.signer.name, signoffWidth) : [];
+    const signerDetail = options.signer
+      ? [options.signer.specialty, options.signer.rut ? `RUT: ${options.signer.rut}` : ""].filter(Boolean).join(" · ")
+      : "";
+    const signerDetailLines: string[] = signerDetail ? pdf.splitTextToSize(signerDetail, signoffWidth) : [];
+    const dateLines: string[] = options.date ? pdf.splitTextToSize(`Fecha: ${options.date}`, signoffWidth) : [];
+    const signoffTextHeight = (signerNameLines.length + signerDetailLines.length + dateLines.length) * signoffLineHeight
+      + (signerDetailLines.length ? 3 : 0) + (dateLines.length && signerNameLines.length ? 8 : 0);
+    const signatureBlockHeight = Math.max(280, 230 + signoffTextHeight + 12);
     if (y + signatureBlockHeight > 680) { pdf.addPage(); y = 82; }
     const images = await Promise.all(signatureAssets.map(async (asset) => ({ asset, image: await imageData(asset.imageUrl) })));
     for (const { asset, image } of images) {
@@ -75,25 +92,29 @@ export async function downloadClinicalPdf(options: { fileName: string; title: st
       const imageY = Math.max(y, Math.min(y + assetCanvasHeight - imageHeight, imageCenterY - imageHeight / 2));
       pdf.addImage(image.dataUrl, image.format, imageX, imageY, imageWidth, imageHeight, undefined, "FAST");
     }
-    const signerX = left + width - 105;
+    const signerX = left + width / 2;
     const signerY = y + 230;
+    let signoffCursorY = signerY;
     if (options.signer?.name) {
       pdf.setDrawColor(70, 78, 80);
       pdf.line(signerX - 105, signerY - 10, signerX + 105, signerY - 10);
-      pdf.setFont("helvetica", "bold");
-      pdf.setFontSize(8.5);
-      pdf.setTextColor(31, 41, 45);
-      pdf.text(options.signer.name, signerX, signerY, { align: "center" });
       pdf.setFont("helvetica", "normal");
-      pdf.setFontSize(7.5);
-      const detail = [options.signer.specialty, options.signer.rut ? `RUT: ${options.signer.rut}` : ""].filter(Boolean).join(" · ");
-      if (detail) pdf.text(detail, signerX, signerY + 11, { align: "center" });
+      pdf.setFontSize(signoffFontSize);
+      pdf.setTextColor(57, 77, 83);
+      pdf.text(signerNameLines, signerX, signoffCursorY, { align: "center", lineHeightFactor: 1.3 });
+      signoffCursorY += signerNameLines.length * signoffLineHeight;
+      if (signerDetailLines.length) {
+        signoffCursorY += 3;
+        pdf.text(signerDetailLines, signerX, signoffCursorY, { align: "center", lineHeightFactor: 1.3 });
+        signoffCursorY += signerDetailLines.length * signoffLineHeight;
+      }
     }
     if (options.date) {
+      if (signerNameLines.length) signoffCursorY += 8;
       pdf.setFont("helvetica", "normal");
-      pdf.setFontSize(8.5);
-      pdf.setTextColor(82, 92, 96);
-      pdf.text(`Fecha: ${options.date}`, left + width, signerY + 30, { align: "right" });
+      pdf.setFontSize(signoffFontSize);
+      pdf.setTextColor(57, 77, 83);
+      pdf.text(dateLines, signerX, signoffCursorY, { align: "center", lineHeightFactor: 1.3 });
     }
     y += signatureBlockHeight;
   }
