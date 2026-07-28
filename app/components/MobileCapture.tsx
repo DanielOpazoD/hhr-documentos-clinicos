@@ -8,6 +8,7 @@ import { createScannedPdf } from "@/app/lib/client-pdf";
 import { DEFAULT_SCAN_ADJUSTMENTS, DEFAULT_SCAN_CORNERS, prepareScanSource, renderScannedPage, type ScanAdjustments, type ScanCorners, type ScanFilter, type ScanQuality } from "@/app/lib/scan-processing";
 import { detectDocumentCorners } from "@/app/features/scanner/document-detection";
 import { forgetStoredCaptureToken, getCaptureSession, MobileSessionClientError, uploadCapturedFile } from "@/app/features/files/mobile-session-client";
+import { MOBILE_CAPTURE_MAX_FILES } from "@/app/features/files/mobile-session-policy";
 
 type PageFile = {
   id: string;
@@ -92,6 +93,8 @@ export function MobileCapture({ token }: { token: string }) {
   const [accessError, setAccessError] = useState<string | null>(null);
   const [validationAttempt, setValidationAttempt] = useState(0);
   const [expiresAt, setExpiresAt] = useState("");
+  const [remainingFiles, setRemainingFiles] = useState(MOBILE_CAPTURE_MAX_FILES);
+  const [documentUploadId, setDocumentUploadId] = useState(() => crypto.randomUUID());
   const [name, setName] = useState("Documento escaneado");
   const [output, setOutput] = useState<"images" | "pdf">("pdf");
   const [busy, setBusy] = useState(false);
@@ -105,11 +108,22 @@ export function MobileCapture({ token }: { token: string }) {
   const [torchOn, setTorchOn] = useState(false);
   const [flash, setFlash] = useState(false);
   const [review, setReview] = useState<ReviewState | null>(null);
+  const [uploadLocked, setUploadLocked] = useState(false);
+  const [deletedUpload, setDeletedUpload] = useState(false);
+  const [sentPageCount, setSentPageCount] = useState(0);
+  const sentPagesRef = useRef(0);
+  const pageLimit = output === "images"
+    ? Math.min(MOBILE_CAPTURE_MAX_FILES, remainingFiles)
+    : MOBILE_CAPTURE_MAX_FILES;
+  const controlsLocked = busy || uploadLocked;
+  const sentPrefixLocked = sentPageCount > 0;
+  const unsentPageCount = Math.max(0, pages.length - sentPageCount);
 
   useEffect(() => {
     const controller = new AbortController();
     void getCaptureSession(token, controller.signal).then(session => {
       setExpiresAt(session.expiresAt);
+      setRemainingFiles(session.remainingFiles);
       setAccess("active");
     }).catch(cause => {
       if (controller.signal.aborted) return;
@@ -136,6 +150,7 @@ export function MobileCapture({ token }: { token: string }) {
   }
 
   async function startCamera() {
+    if (controlsLocked) return;
     setError(null);
     if (!navigator.mediaDevices?.getUserMedia) { cameraInputRef.current?.click(); return; }
     try {
@@ -162,7 +177,7 @@ export function MobileCapture({ token }: { token: string }) {
   }
 
   async function addFiles(files: File[]) {
-    if (!files.length) return;
+    if (!files.length || controlsLocked) return;
     setProcessing(true);
     setError(null);
     try {
@@ -184,13 +199,13 @@ export function MobileCapture({ token }: { token: string }) {
 
   async function addFileList(list: FileList | null) {
     if (!list) return;
-    const available = Math.max(0, 8 - pages.length);
+    const available = Math.max(0, pageLimit - pages.length);
     await addFiles(Array.from(list).slice(0, available));
   }
 
   async function capturePage() {
     const video = videoRef.current;
-    if (!video?.videoWidth || pages.length >= 8) return;
+    if (!video?.videoWidth || controlsLocked || pages.length >= pageLimit) return;
     const track = streamRef.current?.getVideoTracks()[0];
     type StillCapture = new (mediaTrack: MediaStreamTrack) => { takePhoto: () => Promise<Blob> };
     const ImageCaptureClass = (globalThis as typeof globalThis & { ImageCapture?: StillCapture }).ImageCapture;
@@ -240,29 +255,93 @@ export function MobileCapture({ token }: { token: string }) {
     finally { setDetecting(false); }
   }
 
-  function editPage(page: PageFile) { setReview({ pageId: page.id, corners: cloneCorners(page.corners), filter: page.filter, adjustments: { ...page.adjustments } }); }
-  function update(id: string, change: Partial<PageFile>) { setPages(value => value.map(page => page.id === id ? { ...page, ...change } : page)); }
-  function remove(id: string) { setPages(value => value.filter(page => { if (page.id === id) { URL.revokeObjectURL(page.url); URL.revokeObjectURL(page.sourceUrl); } return page.id !== id; })); }
-  function move(index: number, direction: -1 | 1) { const next = [...pages]; const target = index + direction; if (target < 0 || target >= next.length) return; [next[index], next[target]] = [next[target], next[index]]; setPages(next); }
-  async function sendFile(file: File, fileName: string) { await uploadCapturedFile(token, file, fileName); }
-  async function upload() { setBusy(true); setError(null); try { if (output === "pdf") { const blob = await createScannedPdf(pages); await sendFile(new File([blob], `${name}.pdf`, { type: "application/pdf" }), `${name}.pdf`); } else { for (let index = 0; index < pages.length; index++) await sendFile(pages[index].file, `${name} - página ${index + 1}.jpg`); } setDone(true); } catch (cause) { if (cause instanceof MobileSessionClientError && (cause.status === 404 || cause.status === 410)) { forgetStoredCaptureToken(); setAccess("unavailable"); } setError(cause instanceof Error ? cause.message : "No se pudo enviar el documento."); } finally { setBusy(false); } }
+  function isEditablePage(id: string) { return !controlsLocked && pages.findIndex(page => page.id === id) >= sentPageCount; }
+  function editPage(page: PageFile) { if (isEditablePage(page.id)) setReview({ pageId: page.id, corners: cloneCorners(page.corners), filter: page.filter, adjustments: { ...page.adjustments } }); }
+  function update(id: string, change: Partial<PageFile>) { if (isEditablePage(id)) setPages(value => value.map(page => page.id === id ? { ...page, ...change } : page)); }
+  function remove(id: string) { if (isEditablePage(id)) setPages(value => value.filter(page => { if (page.id === id) { URL.revokeObjectURL(page.url); URL.revokeObjectURL(page.sourceUrl); } return page.id !== id; })); }
+  function move(index: number, direction: -1 | 1) { if (controlsLocked) return; const next = [...pages]; const target = index + direction; if (index < sentPageCount || target < sentPageCount || target >= next.length) return; [next[index], next[target]] = [next[target], next[index]]; setPages(next); }
+  async function sendFile(file: File, fileName: string, uploadId: string) { return uploadCapturedFile(token, file, fileName, uploadId); }
+  async function upload() {
+    if (output === "images" && unsentPageCount > remainingFiles) {
+      setError(`Esta sesión permite guardar ${remainingFiles} ${remainingFiles === 1 ? "imagen más" : "imágenes más"}.`);
+      return;
+    }
+    setBusy(true);
+    setError(null);
+    setUploadLocked(true);
+    let requestStarted = false;
+    try {
+      if (output === "pdf") {
+        const blob = await createScannedPdf(pages);
+        requestStarted = true;
+        const uploaded = await sendFile(new File([blob], `${name}.pdf`, { type: "application/pdf" }), `${name}.pdf`, documentUploadId);
+        setRemainingFiles(uploaded.remainingFiles);
+      } else {
+        for (let index = sentPagesRef.current; index < pages.length; index++) {
+          requestStarted = true;
+          const uploaded = await sendFile(pages[index].file, `${name} - página ${index + 1}.jpg`, pages[index].id);
+          sentPagesRef.current = index + 1;
+          setSentPageCount(index + 1);
+          setRemainingFiles(uploaded.remainingFiles);
+        }
+      }
+      setDone(true);
+    } catch (cause) {
+      const canUnlock = !requestStarted || (
+        cause instanceof MobileSessionClientError
+        && (cause.status === 400 || cause.code === "capacity_exhausted")
+      );
+      if (canUnlock) setUploadLocked(false);
+      if (cause instanceof MobileSessionClientError && cause.code === "capacity_exhausted") {
+        setRemainingFiles(0);
+      }
+      if (cause instanceof MobileSessionClientError && cause.code === "upload_deleted") {
+        setDeletedUpload(true);
+      }
+      if (cause instanceof MobileSessionClientError && (cause.status === 404 || cause.status === 410)) {
+        forgetStoredCaptureToken();
+        setAccess("unavailable");
+      }
+      setError(cause instanceof Error ? cause.message : "No se pudo enviar el documento.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  function restartAfterDeletedUpload() {
+    pages.forEach(page => {
+      URL.revokeObjectURL(page.url);
+      URL.revokeObjectURL(page.sourceUrl);
+    });
+    sentPagesRef.current = 0;
+    setSentPageCount(0);
+    setDocumentUploadId(crypto.randomUUID());
+    setUploadLocked(false);
+    setDeletedUpload(false);
+    setPages([]);
+    setError(null);
+    setAccess("checking");
+    setValidationAttempt(value => value + 1);
+  }
   const reviewPage = review ? pages.find(page => page.id === review.pageId) ?? null : null;
 
   if (access === "checking") return <main className="capture-shell"><div className="capture-status"><Loader2 className="spin" /><p>Abriendo escáner…</p></div></main>;
   if (access === "unavailable") return <main className="capture-shell"><div className="capture-status error"><h1>Enlace no disponible</h1><p>La sesión expiró o fue revocada. Genere un QR nuevo en el escritorio.</p></div></main>;
   if (access === "error") return <main className="capture-shell"><div className="capture-status error"><h1>No se pudo verificar la sesión</h1><p>{accessError ?? "Revise su conexión e intente nuevamente."}</p><button className="button secondary" onClick={() => { setAccess("checking"); setAccessError(null); setValidationAttempt(value => value + 1); }}>Reintentar</button></div></main>;
-  if (done) return <main className="capture-shell"><div className="capture-success"><span><Check size={32} /></span><h1>Documento guardado</h1><p>{pages.length} {pages.length === 1 ? "página quedó disponible" : "páginas quedaron disponibles"} en la biblioteca.</p><button className="button secondary" onClick={() => { pages.forEach(page => { URL.revokeObjectURL(page.url); URL.revokeObjectURL(page.sourceUrl); }); setPages([]); setDone(false); }}>Escanear otro</button></div></main>;
+  if (deletedUpload) return <main className="capture-shell"><div className="capture-status error"><h1>La carga anterior fue eliminada</h1><p>Para respetar esa eliminación, este intento no se volverá a crear automáticamente.</p><button className="button secondary" onClick={restartAfterDeletedUpload}>Iniciar un escaneo nuevo</button></div></main>;
+  if (done) return <main className="capture-shell"><div className="capture-success"><span><Check size={32} /></span><h1>Documento guardado</h1><p>{pages.length} {pages.length === 1 ? "página quedó disponible" : "páginas quedaron disponibles"} en la biblioteca.</p>{remainingFiles > 0 ? <button className="button secondary" onClick={() => { pages.forEach(page => { URL.revokeObjectURL(page.url); URL.revokeObjectURL(page.sourceUrl); }); sentPagesRef.current = 0; setSentPageCount(0); setDocumentUploadId(crypto.randomUUID()); setUploadLocked(false); setPages([]); setDone(false); }}>Escanear otro</button> : <p>La sesión alcanzó su límite. Genere un QR nuevo desde el escritorio para continuar.</p>}</div></main>;
+  if (remainingFiles === 0) return <main className="capture-shell"><div className="capture-status"><h1>Sesión completa</h1><p>Este QR ya recibió ocho archivos. Genere uno nuevo desde el escritorio para continuar.</p></div></main>;
 
-  return <main className="capture-shell"><header className="capture-header"><img src="/hhr-logo.svg" alt="Hospital Hanga Roa" /><div><strong>Escáner HHR</strong><small>Sesión temporal · {expiresAt && `hasta ${new Date(expiresAt).toLocaleTimeString("es-CL", { hour: "2-digit", minute: "2-digit" })}`}</small></div><span className="capture-page-count">{pages.length}/8</span></header>
+  return <main className="capture-shell"><header className="capture-header"><img src="/hhr-logo.svg" alt="Hospital Hanga Roa" /><div><strong>Escáner HHR</strong><small>Sesión temporal · {expiresAt && `hasta ${new Date(expiresAt).toLocaleTimeString("es-CL", { hour: "2-digit", minute: "2-digit" })}`}</small></div><span className="capture-page-count">{pages.length}/{MOBILE_CAPTURE_MAX_FILES}</span></header>
     <section className="capture-content"><div className="capture-intro"><span className="eyebrow">Documento multipágina</span><h1>Escanee con la cámara</h1><p>Capture, ajuste los bordes y elija el estilo de cada página.</p></div>
       <input ref={cameraInputRef} type="file" hidden accept="image/*" capture="environment" onChange={event => { void addFileList(event.target.files); event.target.value = ""; }} />
       <input ref={galleryInputRef} type="file" hidden accept="image/*" multiple onChange={event => { void addFileList(event.target.files); event.target.value = ""; }} />
-      <div className="capture-primary-actions"><button className="scan-start" disabled={pages.length >= 8 || processing} onClick={() => void startCamera()}><Camera size={24} /><span><strong>{pages.length ? "Escanear otra página" : "Abrir cámara"}</strong><small>Captura en alta resolución</small></span></button><button className="gallery-start" disabled={pages.length >= 8 || processing} onClick={() => galleryInputRef.current?.click()}><FileImage size={20} /><span>{processing ? "Procesando…" : "Elegir imágenes"}</span></button></div>
+      <div className="capture-primary-actions"><button className="scan-start" disabled={pages.length >= pageLimit || processing || controlsLocked} onClick={() => void startCamera()}><Camera size={24} /><span><strong>{pages.length ? "Escanear otra página" : "Abrir cámara"}</strong><small>Captura en alta resolución</small></span></button><button className="gallery-start" disabled={pages.length >= pageLimit || processing || controlsLocked} onClick={() => galleryInputRef.current?.click()}><FileImage size={20} /><span>{processing ? "Procesando…" : "Elegir imágenes"}</span></button></div>
       {error ? <p className="form-error capture-error">{error}</p> : null}
-      {pages.length ? <div className="mobile-pages"><div className="mobile-pages-title"><strong>{pages.length} {pages.length === 1 ? "página" : "páginas"}</strong><span>Orden de salida</span></div>{pages.map((page, index) => <article key={page.id}><button className="page-thumb" onClick={() => editPage(page)} aria-label={`Editar página ${index + 1}`}><img src={page.url} alt={`Página ${index + 1}`} style={{ transform: `rotate(${page.rotation}deg)` }} /><span>{index + 1}</span></button><div><strong>Página {index + 1} · {filterOptions.find(item => item.id === page.filter)?.label}</strong><small className={`quality-${page.quality.level}`}>{page.quality.label} · {page.quality.detail}</small><div><button onClick={() => move(index, -1)} disabled={index === 0} aria-label="Mover arriba"><ArrowUp size={16} /></button><button onClick={() => move(index, 1)} disabled={index === pages.length - 1} aria-label="Mover abajo"><ArrowDown size={16} /></button><button onClick={() => editPage(page)} aria-label="Editar bordes y estilo"><Pencil size={16} /></button><button onClick={() => update(page.id, { rotation: (page.rotation + 90) % 360 })} aria-label="Rotar"><RotateCw size={16} /></button><button className="danger" onClick={() => remove(page.id)} aria-label="Quitar"><Trash2 size={16} /></button></div></div></article>)}</div> : null}
-      {pages.length ? <div className="scan-finish"><label>Nombre<input value={name} maxLength={80} onChange={event => setName(event.target.value)} /></label><div className="format-switch"><button className={output === "pdf" ? "active" : ""} onClick={() => setOutput("pdf")}>PDF único</button><button className={output === "images" ? "active" : ""} onClick={() => setOutput("images")}>Imágenes</button></div><button className="button primary full capture-submit" disabled={busy || !name.trim()} onClick={() => void upload()}>{busy ? <Loader2 size={18} className="spin" /> : <UploadCloud size={18} />}{busy ? "Guardando…" : "Guardar en HHR-documentos"}</button></div> : null}
+      {pages.length ? <div className="mobile-pages"><div className="mobile-pages-title"><strong>{pages.length} {pages.length === 1 ? "página" : "páginas"}</strong><span>Orden de salida</span></div>{pages.map((page, index) => { const pageLocked = controlsLocked || index < sentPageCount; return <article key={page.id}><button className="page-thumb" disabled={pageLocked} onClick={() => editPage(page)} aria-label={`Editar página ${index + 1}`}><img src={page.url} alt={`Página ${index + 1}`} style={{ transform: `rotate(${page.rotation}deg)` }} /><span>{index + 1}</span></button><div><strong>Página {index + 1} · {filterOptions.find(item => item.id === page.filter)?.label}</strong><small className={`quality-${page.quality.level}`}>{page.quality.label} · {page.quality.detail}</small><div><button onClick={() => move(index, -1)} disabled={pageLocked || index === sentPageCount} aria-label="Mover arriba"><ArrowUp size={16} /></button><button onClick={() => move(index, 1)} disabled={pageLocked || index === pages.length - 1} aria-label="Mover abajo"><ArrowDown size={16} /></button><button disabled={pageLocked} onClick={() => editPage(page)} aria-label="Editar bordes y estilo"><Pencil size={16} /></button><button disabled={pageLocked} onClick={() => update(page.id, { rotation: (page.rotation + 90) % 360 })} aria-label="Rotar"><RotateCw size={16} /></button><button className="danger" disabled={pageLocked} onClick={() => remove(page.id)} aria-label="Quitar"><Trash2 size={16} /></button></div></div></article>; })}</div> : null}
+      {pages.length ? <div className="scan-finish"><label>Nombre<input value={name} maxLength={80} disabled={controlsLocked || sentPrefixLocked} onChange={event => setName(event.target.value)} /></label><div className="format-switch"><button className={output === "pdf" ? "active" : ""} disabled={controlsLocked || sentPrefixLocked} onClick={() => { sentPagesRef.current = 0; setSentPageCount(0); setOutput("pdf"); }}>PDF único</button><button className={output === "images" ? "active" : ""} disabled={controlsLocked || sentPrefixLocked} onClick={() => { sentPagesRef.current = 0; setSentPageCount(0); setOutput("images"); }}>Imágenes</button></div>{output === "images" && unsentPageCount > remainingFiles ? <p className="form-error">Esta sesión permite guardar {remainingFiles} {remainingFiles === 1 ? "imagen más" : "imágenes más"}.</p> : null}<button className="button primary full capture-submit" disabled={busy || processing || detecting || Boolean(review) || !name.trim() || (output === "images" && unsentPageCount > remainingFiles)} onClick={() => void upload()}>{busy ? <Loader2 size={18} className="spin" /> : <UploadCloud size={18} />}{busy ? "Guardando…" : "Guardar en HHR-documentos"}</button></div> : null}
     </section>
-    {cameraOpen ? <div className="camera-stage"><video ref={videoRef} autoPlay muted playsInline /><div className={flash ? "camera-flash visible" : "camera-flash"} /><header><button onClick={stopCamera} aria-label="Cerrar cámara"><X size={23} /></button><span>{pages.length ? `${pages.length} capturadas` : "Encuadre el documento"}</span>{torchAvailable ? <button className={torchOn ? "active" : ""} onClick={() => void toggleTorch()} aria-label="Luz">{torchOn ? "Luz on" : "Luz"}</button> : <i />}</header><div className="document-guide"><i /><i /><i /><i /><span>{cameraReady ? "Mantenga el teléfono paralelo al papel" : "Iniciando cámara…"}</span></div><footer>{pages.length ? <img src={pages[pages.length - 1].url} alt="Última página" /> : <i />}<button className="camera-shutter" disabled={!cameraReady || pages.length >= 8} onClick={() => void capturePage()} aria-label="Capturar página"><span /></button><button className="camera-done" onClick={stopCamera}>{pages.length ? "Listo" : "Cancelar"}</button></footer></div> : null}
+    {cameraOpen ? <div className="camera-stage"><video ref={videoRef} autoPlay muted playsInline /><div className={flash ? "camera-flash visible" : "camera-flash"} /><header><button onClick={stopCamera} aria-label="Cerrar cámara"><X size={23} /></button><span>{pages.length ? `${pages.length} capturadas` : "Encuadre el documento"}</span>{torchAvailable ? <button className={torchOn ? "active" : ""} onClick={() => void toggleTorch()} aria-label="Luz">{torchOn ? "Luz on" : "Luz"}</button> : <i />}</header><div className="document-guide"><i /><i /><i /><i /><span>{cameraReady ? "Mantenga el teléfono paralelo al papel" : "Iniciando cámara…"}</span></div><footer>{pages.length ? <img src={pages[pages.length - 1].url} alt="Última página" /> : <i />}<button className="camera-shutter" disabled={!cameraReady || controlsLocked || pages.length >= pageLimit} onClick={() => void capturePage()} aria-label="Capturar página"><span /></button><button className="camera-done" onClick={stopCamera}>{pages.length ? "Listo" : "Cancelar"}</button></footer></div> : null}
     {review && reviewPage ? <ScanReviewEditor page={reviewPage} review={review} processing={processing} detecting={detecting} onChange={change => setReview(value => value ? { ...value, ...change } : value)} onApply={() => void applyReview()} onRedetect={() => void redetectPage()} onClose={() => setReview(null)} /> : null}
   </main>;
 }

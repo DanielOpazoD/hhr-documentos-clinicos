@@ -17,25 +17,29 @@ export type CreatedMobileSession = MobileSession & {
 
 export type CaptureSession = Pick<MobileSession, "id" | "expiresAt"> & {
   status?: MobileSessionStatus;
+  remainingFiles: number;
 };
 
 export type RevokedMobileSession = Pick<MobileSession, "id" | "status"> & {
   expiresAt?: string;
 };
 
-export type CapturedFile = Omit<SavedFile, "status">;
+export type CapturedUpload = {
+  file: Omit<SavedFile, "status">;
+  remainingFiles: number;
+};
 
 export class MobileSessionClientError extends Error {
-  constructor(message: string, readonly status: number) {
+  constructor(message: string, readonly status: number, readonly code?: string) {
     super(message);
     this.name = "MobileSessionClientError";
   }
 }
 
 async function responseData<T>(response: Response): Promise<T> {
-  const data = await response.json().catch(() => ({})) as T & { error?: string };
+  const data = await response.json().catch(() => ({})) as T & { error?: string; code?: string };
   if (!response.ok) {
-    throw new MobileSessionClientError(data.error ?? "No se pudo completar la operación.", response.status);
+    throw new MobileSessionClientError(data.error ?? "No se pudo completar la operación.", response.status, data.code);
   }
   return data;
 }
@@ -83,14 +87,17 @@ export async function getCaptureSession(token: string, signal?: AbortSignal): Pr
   return (await responseData<{ session: CaptureSession }>(response)).session;
 }
 
-export async function uploadCapturedFile(token: string, file: File, fileName: string): Promise<CapturedFile> {
+export async function uploadCapturedFile(token: string, file: File, fileName: string, uploadId: string): Promise<CapturedUpload> {
   const form = new FormData();
   form.set("file", file, fileName);
   const response = await fetch("/api/mobile-upload", {
     method: "POST",
     body: form,
-    headers: { "x-hhr-capture-token": token },
+    headers: {
+      "x-hhr-capture-token": token,
+      "x-hhr-upload-id": uploadId,
+    },
     referrerPolicy: "no-referrer",
   });
-  return (await responseData<{ file: CapturedFile }>(response)).file;
+  return responseData<CapturedUpload>(response);
 }

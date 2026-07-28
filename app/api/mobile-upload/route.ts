@@ -1,4 +1,4 @@
-import { isActiveMobileSession } from "@/app/features/files/mobile-session-policy";
+import { isActiveMobileSession, MOBILE_CAPTURE_MAX_FILES } from "@/app/features/files/mobile-session-policy";
 import { discardPendingFile } from "@/app/features/files/server/delete-files";
 import { ensureDatabase } from "@/app/lib/server/database";
 import { appEnv } from "@/app/lib/server/environment";
@@ -12,6 +12,7 @@ const allowedTypes = new Set([
   "image/heif",
 ]);
 const maxBytes = 15 * 1024 * 1024;
+const uploadIdPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
 const captureHeaders = {
   "Cache-Control": "no-store",
   "Pragma": "no-cache",
@@ -26,16 +27,35 @@ type StoredMobileSession = {
   status: string;
 };
 
+type StoredCapturedFile = {
+  id: string;
+  name: string;
+  mimeType: string;
+  size: number;
+  origin: string;
+  status: string;
+  createdAt: string;
+};
+
 function captureJson(body: unknown, status = 200): Response {
   return Response.json(body, { status, headers: captureHeaders });
 }
 
-function captureError(message: string, status = 400): Response {
-  return captureJson({ error: message }, status);
+function captureError(message: string, status = 400, code?: string): Response {
+  return captureJson(code ? { error: message, code } : { error: message }, status);
 }
 
 function changedRows(result: D1Result): number {
   return typeof result.meta.changes === "number" ? result.meta.changes : 0;
+}
+
+async function remainingFileCapacity(db: D1Database, sessionId: string): Promise<number> {
+  const row = await db.prepare(
+    `SELECT COUNT(*) AS fileCount
+     FROM files
+     WHERE mobile_session_id = ? AND status IN ('pendiente', 'activo', 'archivado')`,
+  ).bind(sessionId).first<{ fileCount: number }>();
+  return Math.max(0, MOBILE_CAPTURE_MAX_FILES - (row?.fileCount ?? 0));
 }
 
 async function resolveSession(request: Request) {
@@ -59,11 +79,13 @@ export async function GET(request: Request) {
   if (!resolved || !isActiveMobileSession(resolved.session)) {
     return captureError("Este enlace expiró o fue revocado.", 410);
   }
+  const remainingFiles = await remainingFileCapacity(resolved.db, resolved.session.id);
 
   return captureJson({
     session: {
       id: resolved.session.id,
       expiresAt: resolved.session.expiresAt,
+      remainingFiles,
     },
   });
 }
@@ -73,6 +95,8 @@ export async function POST(request: Request) {
   if (!resolved || !isActiveMobileSession(resolved.session)) {
     return captureError("Este enlace expiró o fue revocado.", 410);
   }
+  const id = request.headers.get("x-hhr-upload-id")?.trim().toLowerCase() ?? "";
+  if (!uploadIdPattern.test(id)) return captureError("Identificador de carga inválido.", 400, "invalid_upload_id");
 
   let form: FormData;
   try {
@@ -85,31 +109,99 @@ export async function POST(request: Request) {
     return captureError("Archivo no permitido o superior a 15 MB.");
   }
 
-  const id = crypto.randomUUID();
   const name = safeFileName(file.name);
-  const objectKey = `${resolved.session.ownerEmail}/${id}/${name}`;
+  const objectKey = `${resolved.session.ownerEmail}/${id}/${crypto.randomUUID()}-${name}`;
   const bucket = appEnv().FILES;
   const reservedAt = new Date().toISOString();
-  const pending = await resolved.db.prepare(
-    `INSERT INTO files
-     (id, owner_email, mobile_session_id, object_key, name, mime_type, size, origin, status, patient_id, created_at, updated_at)
-     SELECT ?, owner_email, id, ?, ?, ?, ?, 'QR móvil', 'pendiente', NULL, ?, ?
-     FROM mobile_upload_sessions
-     WHERE id = ? AND token_hash = ? AND status = 'activa' AND expires_at > ?`,
-  ).bind(
-    id,
-    objectKey,
-    name,
-    file.type,
-    file.size,
-    reservedAt,
-    reservedAt,
-    resolved.session.id,
-    resolved.tokenHash,
-    reservedAt,
-  ).run();
+  const reservation = await resolved.db.batch([
+    resolved.db.prepare(
+      `DELETE FROM files
+       WHERE id = ? AND owner_email = ? AND mobile_session_id = ? AND status = 'eliminado'
+         AND NOT EXISTS (
+           SELECT 1
+           FROM audit_events
+           WHERE owner_email = ? AND action = 'uploaded'
+             AND entity_type = 'file' AND entity_id = files.id
+         )`,
+    ).bind(id, resolved.session.ownerEmail, resolved.session.id, resolved.session.ownerEmail),
+    resolved.db.prepare(
+      `INSERT OR IGNORE INTO files
+       (id, owner_email, mobile_session_id, object_key, name, mime_type, size, origin, status, patient_id, created_at, updated_at)
+       SELECT ?, owner_email, id, ?, ?, ?, ?, 'QR móvil', 'pendiente', NULL, ?, ?
+       FROM mobile_upload_sessions
+       WHERE id = ? AND token_hash = ? AND status = 'activa' AND expires_at > ?
+         AND (
+           SELECT COUNT(*)
+           FROM files
+           WHERE mobile_session_id = mobile_upload_sessions.id
+             AND status IN ('pendiente', 'activo', 'archivado')
+         ) < ?
+         AND NOT EXISTS (
+           SELECT 1
+           FROM audit_events
+           WHERE owner_email = mobile_upload_sessions.owner_email
+             AND action = 'uploaded' AND entity_type = 'file' AND entity_id = ?
+         )`,
+    ).bind(
+      id,
+      objectKey,
+      name,
+      file.type,
+      file.size,
+      reservedAt,
+      reservedAt,
+      resolved.session.id,
+      resolved.tokenHash,
+      reservedAt,
+      MOBILE_CAPTURE_MAX_FILES,
+      id,
+    ),
+  ]);
+  const pending = reservation[1];
   if (changedRows(pending) === 0) {
-    return captureError("Este enlace expiró o fue revocado.", 410);
+    const activeSession = await resolved.db.prepare(
+      `SELECT id
+       FROM mobile_upload_sessions
+       WHERE id = ? AND token_hash = ? AND status = 'activa' AND expires_at > ?`,
+    ).bind(resolved.session.id, resolved.tokenHash, reservedAt).first<{ id: string }>();
+    if (!activeSession) return captureError("Este enlace expiró o fue revocado.", 410);
+
+    const existing = await resolved.db.prepare(
+      `SELECT id, name, mime_type AS mimeType, size, origin, status, created_at AS createdAt
+       FROM files
+       WHERE id = ? AND owner_email = ? AND mobile_session_id = ?`,
+    ).bind(id, resolved.session.ownerEmail, resolved.session.id).first<StoredCapturedFile>();
+    if (existing?.status === "activo" || existing?.status === "archivado") {
+      const remainingFiles = await remainingFileCapacity(resolved.db, resolved.session.id);
+      return captureJson({
+        file: {
+          id: existing.id,
+          name: existing.name,
+          mimeType: existing.mimeType,
+          size: existing.size,
+          origin: existing.origin,
+          createdAt: existing.createdAt,
+        },
+        remainingFiles,
+      });
+    }
+    if (existing?.status === "pendiente") {
+      return captureError("Esta carga aún se está procesando. Reintente en unos segundos.", 425, "upload_pending");
+    }
+    if (existing?.status === "eliminado") {
+      return captureError("El archivo asociado a esta carga fue eliminado.", 409, "upload_deleted");
+    }
+    const uploadedReceipt = await resolved.db.prepare(
+      `SELECT id
+       FROM audit_events
+       WHERE owner_email = ? AND action = 'uploaded'
+         AND entity_type = 'file' AND entity_id = ?
+       LIMIT 1`,
+    ).bind(resolved.session.ownerEmail, id).first<{ id: string }>();
+    if (uploadedReceipt) {
+      return captureError("El archivo asociado a esta carga fue eliminado.", 409, "upload_deleted");
+    }
+    return captureError(`Esta sesión admite hasta ${MOBILE_CAPTURE_MAX_FILES} archivos.`, 409, "capacity_exhausted");
   }
 
   try {
@@ -198,6 +290,8 @@ export async function POST(request: Request) {
     return captureError("Este enlace expiró o fue revocado.", 410);
   }
 
+  const remainingFiles = await remainingFileCapacity(resolved.db, resolved.session.id);
+
   return captureJson({
     file: {
       id,
@@ -207,5 +301,6 @@ export async function POST(request: Request) {
       origin: "QR móvil",
       createdAt: reservedAt,
     },
+    remainingFiles,
   }, 201);
 }

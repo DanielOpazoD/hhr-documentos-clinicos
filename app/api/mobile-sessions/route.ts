@@ -8,6 +8,7 @@ import { requestOwner } from "@/app/lib/server/auth";
 import { ensureDatabase } from "@/app/lib/server/database";
 import { jsonError, readJsonObject } from "@/app/lib/server/http";
 import { sha256 } from "@/app/lib/server/security";
+import { after } from "next/server";
 
 type StoredMobileSession = {
   id: string;
@@ -114,7 +115,7 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   const owner = requestOwner(request);
   if (!owner) return jsonError("Autenticación requerida.", 401);
-  await cleanupPendingFileDeletes(owner).catch(() => undefined);
+  after(() => cleanupPendingFileDeletes(owner).catch(() => undefined));
 
   const tokenBytes = crypto.getRandomValues(new Uint8Array(24));
   const token = Array.from(tokenBytes, (byte) => byte.toString(16).padStart(2, "0")).join("");
@@ -126,6 +127,13 @@ export async function POST(request: Request) {
   const db = await ensureDatabase();
 
   await db.batch([
+    db.prepare(
+      `INSERT INTO audit_events
+       (id, owner_email, action, entity_type, entity_id, metadata_json, created_at)
+       SELECT lower(hex(randomblob(16))), owner_email, 'revoked', 'mobile_session', id, ?, ?
+       FROM mobile_upload_sessions
+       WHERE owner_email = ? AND status = 'activa'`,
+    ).bind(JSON.stringify({ reason: "superseded" }), createdAt, owner),
     db.prepare(
       "UPDATE mobile_upload_sessions SET status = 'revocada', updated_at = ? WHERE owner_email = ? AND status = 'activa'",
     ).bind(createdAt, owner),

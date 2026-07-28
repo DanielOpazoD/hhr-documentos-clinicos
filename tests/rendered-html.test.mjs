@@ -95,6 +95,14 @@ test("ships the clinical routes, storage bindings and source templates", async (
   assert.match(mobileCapture, /Detectar de nuevo/);
   assert.match(mobileCapture, /Blancura del papel/);
   assert.match(mobileCapture, /ImageCapture/);
+  assert.match(mobileCapture, /sentPagesRef\.current = index \+ 1/);
+  assert.match(mobileCapture, /for \(let index = sentPagesRef\.current/);
+  assert.match(mobileCapture, /const controlsLocked = busy \|\| uploadLocked/);
+  assert.match(mobileCapture, /setRemainingFiles\(uploaded\.remainingFiles\)/);
+  assert.match(mobileSessionClient, /remainingFiles: number/);
+  assert.match(mobileCapture, /cause\.code === "capacity_exhausted"/);
+  assert.match(mobileCapture, /setRemainingFiles\(0\)/);
+  assert.match(mobileCapture, /restartAfterDeletedUpload/);
   assert.match(scanner, /\/captura#\$\{created\.token\}/);
   assert.doesNotMatch(scanner, /\/captura\/\$\{/);
   assert.match(captureEntry, /sessionStorage/);
@@ -105,6 +113,7 @@ test("ships the clinical routes, storage bindings and source templates", async (
   assert.match(scanner, /currentSessionIdRef\.current === sessionId/);
   assert.match(scanner, /terminalSnapshotCompletedRef/);
   assert.match(mobileSessionClient, /x-hhr-capture-token/);
+  assert.match(mobileSessionClient, /x-hhr-upload-id/);
   assert.match(mobileSessionClient, /fetch\("\/api\/mobile-upload"/);
   assert.doesNotMatch(`${mobileCapture}${mobileSessionClient}`, /\/api\/mobile-upload\/\$\{/);
   assert.doesNotMatch(mobilePage, /params|token/);

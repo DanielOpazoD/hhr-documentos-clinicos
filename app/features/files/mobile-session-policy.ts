@@ -6,6 +6,7 @@ export type MobileSessionState = {
 export type DerivedMobileSessionStatus = "activa" | "expirada" | "revocada";
 export const MOBILE_SESSION_TTL_MS = 10 * 60 * 1000;
 export const MOBILE_CAPTURE_STALE_MS = MOBILE_SESSION_TTL_MS + 5 * 60 * 1000;
+export const MOBILE_CAPTURE_MAX_FILES = 8;
 
 export function deriveMobileSessionStatus(
   session: MobileSessionState,

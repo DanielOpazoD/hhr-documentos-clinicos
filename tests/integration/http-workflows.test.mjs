@@ -37,9 +37,11 @@ async function createMobileSession(owner) {
 }
 
 function mobileUploadFetch(token, init = {}) {
-  const headers = new Headers(init.headers);
+  const { uploadId, ...requestInit } = init;
+  const headers = new Headers(requestInit.headers);
   headers.set("x-hhr-capture-token", token);
-  return app.fetch("/api/mobile-upload", { ...init, headers });
+  if (requestInit.method === "POST") headers.set("x-hhr-upload-id", uploadId ?? crypto.randomUUID());
+  return app.fetch("/api/mobile-upload", { ...requestInit, headers });
 }
 
 function mobileCapture(name, content = `captura sintética ${name}`) {
@@ -359,6 +361,72 @@ test("attributes mobile files to their exact session without origin spoofing", a
   await jsonResponse(await jsonRequest(ownerA, "/api/files", "DELETE", {
     ids: [firstCapture.file.id, secondCapture.file.id, desktopFile.file.id],
   }), 200);
+});
+
+test("caps each mobile session at eight stored files", async () => {
+  const owner = `mobile-limit-${crypto.randomUUID()}@hhr.test`;
+  const session = (await createMobileSession(owner)).session;
+  const uploadedIds = [];
+  const initial = await jsonResponse(await mobileUploadFetch(session.token), 200);
+  assert.equal(initial.session.remainingFiles, 8);
+
+  for (let index = 0; index < 8; index++) {
+    const uploaded = await jsonResponse(await mobileUploadFetch(session.token, {
+      method: "POST",
+      body: mobileCapture(`limite-${index + 1}.png`),
+    }), 201);
+    uploadedIds.push(uploaded.file.id);
+    assert.equal(uploaded.remainingFiles, 7 - index);
+  }
+
+  const rejected = await jsonResponse(await mobileUploadFetch(session.token, {
+    method: "POST",
+    body: mobileCapture("limite-9.png"),
+  }), 409);
+  assert.match(rejected.error, /hasta 8 archivos/);
+
+  const snapshot = await jsonResponse(await ownedFetch(owner, `/api/mobile-sessions?id=${session.id}`), 200);
+  assert.equal(snapshot.files.length, 8);
+  assert.deepEqual(new Set(snapshot.files.map((file) => file.id)), new Set(uploadedIds));
+
+  await jsonResponse(await jsonRequest(owner, "/api/files", "DELETE", { ids: uploadedIds }), 200);
+  await jsonResponse(await jsonRequest(owner, "/api/mobile-sessions", "PATCH", { id: session.id }), 200);
+});
+
+test("deduplicates a mobile upload retried after its response is lost", async () => {
+  const owner = `mobile-retry-${crypto.randomUUID()}@hhr.test`;
+  const session = (await createMobileSession(owner)).session;
+  const uploadId = crypto.randomUUID();
+
+  const first = await jsonResponse(await mobileUploadFetch(session.token, {
+    method: "POST",
+    uploadId,
+    body: mobileCapture("reintento.png"),
+  }), 201);
+  const retried = await jsonResponse(await mobileUploadFetch(session.token, {
+    method: "POST",
+    uploadId,
+    body: mobileCapture("reintento.png"),
+  }), 200);
+
+  assert.equal(first.file.id, uploadId);
+  assert.equal(retried.file.id, uploadId);
+  assert.equal(first.remainingFiles, 7);
+  assert.equal(retried.remainingFiles, 7);
+
+  const snapshot = await jsonResponse(await ownedFetch(owner, `/api/mobile-sessions?id=${session.id}`), 200);
+  assert.deepEqual(snapshot.files.map((file) => file.id), [uploadId]);
+
+  await jsonResponse(await jsonRequest(owner, "/api/files", "DELETE", { ids: [uploadId] }), 200);
+  const deletedRetry = await jsonResponse(await mobileUploadFetch(session.token, {
+    method: "POST",
+    uploadId,
+    body: mobileCapture("reintento.png"),
+  }), 409);
+  assert.equal(deletedRetry.code, "upload_deleted");
+  const deletedSnapshot = await jsonResponse(await ownedFetch(owner, `/api/mobile-sessions?id=${session.id}`), 200);
+  assert.deepEqual(deletedSnapshot.files, []);
+  await jsonResponse(await jsonRequest(owner, "/api/mobile-sessions", "PATCH", { id: session.id }), 200);
 });
 
 test("keeps the mobile capability out of HTTP paths and rendered HTML", async () => {

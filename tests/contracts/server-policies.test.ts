@@ -16,6 +16,7 @@ import {
 import {
   deriveMobileSessionStatus,
   isActiveMobileSession,
+  MOBILE_CAPTURE_MAX_FILES,
   MOBILE_CAPTURE_STALE_MS,
   MOBILE_SESSION_TTL_MS,
 } from "../../app/features/files/mobile-session-policy.ts";
@@ -73,6 +74,7 @@ test("detects stale document writes and preserves complete version snapshots", (
 });
 
 test("accepts only active, unexpired mobile upload sessions", () => {
+  assert.equal(MOBILE_CAPTURE_MAX_FILES, 8);
   assert.equal(MOBILE_SESSION_TTL_MS, 10 * 60 * 1000);
   assert.equal(MOBILE_CAPTURE_STALE_MS > MOBILE_SESSION_TTL_MS, true);
   const now = Date.parse("2026-07-27T12:00:00.000Z");
