@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useLayoutEffect, useState } from "react";
 import { FilePlus2, FileText, Search, Trash2 } from "@/app/components/Icons";
 import { documentTemplates } from "@/app/lib/catalog";
 import { formatUpdated } from "./formatters";
@@ -45,7 +45,7 @@ export function DocumentLibrary({
   const [isCompactViewport, setIsCompactViewport] = useState(false);
   const [mobileLibraryOpen, setMobileLibraryOpen] = useState(false);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     const media = window.matchMedia("(max-width: 520px)");
     const updateViewport = () => setIsCompactViewport(media.matches);
     updateViewport();
