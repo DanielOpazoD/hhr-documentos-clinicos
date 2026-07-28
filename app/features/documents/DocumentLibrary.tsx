@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useLayoutEffect, useState } from "react";
 import { FilePlus2, FileText, Search, Trash2 } from "@/app/components/Icons";
 import { documentTemplates } from "@/app/lib/catalog";
 import { formatUpdated } from "./formatters";
@@ -42,6 +42,16 @@ export function DocumentLibrary({
   const [selectionMode, setSelectionMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(() => new Set());
   const [confirmBulkDelete, setConfirmBulkDelete] = useState(false);
+  const [isCompactViewport, setIsCompactViewport] = useState(false);
+  const [mobileLibraryOpen, setMobileLibraryOpen] = useState(false);
+
+  useLayoutEffect(() => {
+    const media = window.matchMedia("(max-width: 520px)");
+    const updateViewport = () => setIsCompactViewport(media.matches);
+    updateViewport();
+    media.addEventListener("change", updateViewport);
+    return () => media.removeEventListener("change", updateViewport);
+  }, []);
 
   useEffect(() => {
     if (!confirmDeleteId && !confirmBulkDelete && !selectionMode) return;
@@ -59,6 +69,7 @@ export function DocumentLibrary({
   }, [confirmBulkDelete, confirmDeleteId, selectionMode]);
 
   const allSelected = filteredDocuments.length > 0 && filteredDocuments.every((document) => selectedIds.has(document.id));
+  const libraryExpanded = !isCompactViewport || mobileLibraryOpen || newMenuOpen;
   const toggleSelection = (id: string) => setSelectedIds((current) => {
     const next = new Set(current);
     if (next.has(id)) next.delete(id);
@@ -69,34 +80,56 @@ export function DocumentLibrary({
 
   return (
     <aside className="document-library print-hide">
-      <button className="button primary full" disabled={saving} onClick={() => setNewMenuOpen(!newMenuOpen)} aria-keyshortcuts="Control+N Meta+N">
-        <FilePlus2 size={17} /> Nuevo documento
-      </button>
-
-      {newMenuOpen ? (
-        <div className="template-menu" aria-label="Tipo de documento">
-          {documentTemplates.map((item) => (
-            <button key={item.id} disabled={saving} onClick={() => void createDocument(item.id)}>
-              <FileText size={16} />
-              <span><strong>{item.name}</strong><small>{item.description}</small></span>
-            </button>
-          ))}
-        </div>
-      ) : null}
-
-      <div className="recent-heading">
-        <div><strong>Recientes</strong><span>{storedDocuments.length}</span></div>
-        {storedDocuments.length ? (
-          <button className="text-button" onClick={() => {
-            setSelectionMode((current) => !current);
-            setSelectedIds(new Set());
-            setConfirmBulkDelete(false);
-          }}>{selectionMode ? "Cancelar" : "Seleccionar"}</button>
-        ) : null}
+      <div className="document-library-mobile-actions">
+        <button className="button primary full" disabled={saving} onClick={() => {
+          setMobileLibraryOpen(true);
+          setNewMenuOpen(!newMenuOpen);
+        }} aria-keyshortcuts="Control+N Meta+N">
+          <FilePlus2 size={17} /> Nuevo documento
+        </button>
+        <button
+          className="button secondary document-library-toggle"
+          type="button"
+          aria-expanded={libraryExpanded}
+          aria-controls="document-library-content"
+          onClick={() => {
+            setNewMenuOpen(false);
+            setMobileLibraryOpen(!libraryExpanded);
+          }}
+        >
+          Recientes <span>{storedDocuments.length}</span>
+        </button>
       </div>
 
-      {storedDocuments.length ? (
-        <>
+      <div id="document-library-content" className="document-library-content" hidden={!libraryExpanded}>
+        {newMenuOpen ? (
+          <div className="template-menu" aria-label="Tipo de documento">
+            {documentTemplates.map((item) => (
+              <button key={item.id} disabled={saving} onClick={() => {
+                setNewMenuOpen(false);
+                setMobileLibraryOpen(false);
+                void createDocument(item.id);
+              }}>
+                <FileText size={16} />
+                <span><strong>{item.name}</strong><small>{item.description}</small></span>
+              </button>
+            ))}
+          </div>
+        ) : null}
+
+        <div className="recent-heading">
+          <div><strong>Recientes</strong><span>{storedDocuments.length}</span></div>
+          {storedDocuments.length ? (
+            <button className="text-button" onClick={() => {
+              setSelectionMode((current) => !current);
+              setSelectedIds(new Set());
+              setConfirmBulkDelete(false);
+            }}>{selectionMode ? "Cancelar" : "Seleccionar"}</button>
+          ) : null}
+        </div>
+
+        {storedDocuments.length ? (
+          <>
           <label className="recent-search">
             <Search size={14} />
             <input
@@ -152,7 +185,12 @@ export function DocumentLibrary({
               return (
                 <div className={`${item.id === documentId ? "active " : ""}${confirming ? "delete-pending " : ""}${selectionMode ? "selecting " : ""}${selected ? "selected" : ""}`} key={item.id}>
                   {selectionMode ? <input className="recent-document-checkbox" type="checkbox" aria-label={`Seleccionar ${item.title}`} checked={selected} onChange={() => toggleSelection(item.id)} /> : null}
-                  <button className="recent-document-open" disabled={saving || deleting} onClick={() => selectionMode ? toggleSelection(item.id) : void openDocument(item.id)}>
+                  <button className="recent-document-open" disabled={saving || deleting} onClick={() => {
+                    if (selectionMode) return toggleSelection(item.id);
+                    setNewMenuOpen(false);
+                    setMobileLibraryOpen(false);
+                    void openDocument(item.id);
+                  }}>
                     <span><strong>{item.title}</strong>{item.patientName ? <small>{item.patientName}</small> : null}</span>
                     <span><em>{item.status}</em><small>{formatUpdated(item.updatedAt)}</small></span>
                   </button>
@@ -173,10 +211,11 @@ export function DocumentLibrary({
               );
             })}
           </div>
-        </>
-      ) : (
-        <p className="empty-recent">Los documentos guardados aparecerán aquí.</p>
-      )}
+          </>
+        ) : (
+          <p className="empty-recent">Los documentos guardados aparecerán aquí.</p>
+        )}
+      </div>
     </aside>
   );
 }

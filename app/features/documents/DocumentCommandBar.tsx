@@ -76,13 +76,14 @@ export function DocumentCommandBar({
             </button>
           )}
           <button
-            className="icon-button"
+            className="button primary document-save-button"
             disabled={saving || (status !== "Borrador" && !patientFullName(patient))}
             onClick={() => void persist()}
             aria-label="Guardar ahora"
             aria-keyshortcuts="Control+S Meta+S"
           >
             <Save size={17} />
+            <span>Guardar</span>
           </button>
         </div>
       </div>

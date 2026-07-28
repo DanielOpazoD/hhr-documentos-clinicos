@@ -146,11 +146,15 @@ test("keeps the clinical studios usable from mobile through desktop", async () =
     "../app/api/documents/[id]/versions/route.ts",
     "../app/lib/client-pdf.ts",
   ];
-  const [moduleSources, styles] = await Promise.all([
+  const [moduleSources, globalStyles, responsiveStyles, layout, dashboard] = await Promise.all([
     Promise.all(documentModules.map((path) => readFile(new URL(path, import.meta.url), "utf8"))),
     readFile(new URL("../app/globals.css", import.meta.url), "utf8"),
+    readFile(new URL("../app/styles/responsive-focus.css", import.meta.url), "utf8"),
+    readFile(new URL("../app/layout.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/components/Dashboard.tsx", import.meta.url), "utf8"),
   ]);
   const documentStudio = moduleSources.join("\n");
+  const styles = `${globalStyles}\n${responsiveStyles}`;
 
   assert.match(documentStudio, /aria-label="Vista del documento"/);
   assert.match(documentStudio, /aria-controls="document-editor"/);
@@ -179,6 +183,10 @@ test("keeps the clinical studios usable from mobile through desktop", async () =
   assert.match(documentStudio, /recent-document-list/);
   assert.match(documentStudio, /aria-keyshortcuts="Control\+N Meta\+N"/);
   assert.match(documentStudio, /aria-keyshortcuts="Control\+S Meta\+S"/);
+  assert.match(documentStudio, /aria-controls="document-library-content"/);
+  assert.match(documentStudio, /aria-expanded=\{libraryExpanded\}/);
+  assert.match(documentStudio, /hidden=\{!libraryExpanded\}/);
+  assert.match(documentStudio, />Guardar<\/span>/);
   assert.match(documentStudio, /event\.key === "Escape"/);
   assert.match(documentStudio, /event\.key === "Enter"/);
   assert.match(documentStudio, /id: "prescripcion", title: "Rp\."/);
@@ -233,6 +241,11 @@ test("keeps the clinical studios usable from mobile through desktop", async () =
   assert.match(styles, /\.simplified-studio \.document-editor-layout \{ grid-template-columns: 1fr; \}/);
   assert.match(styles, /\.document-editor-layout > \.mobile-hidden \{ display: none; \}/);
   assert.match(styles, /\.page-header > \*, \.hero-row > \*.*min-width: 0;/);
+  assert.match(layout, /styles\/responsive-focus\.css/);
+  assert.match(dashboard, /card-link-label/);
+  assert.match(responsiveStyles, /\.dashboard-page \.action-card/);
+  assert.match(responsiveStyles, /\.document-library-content\[hidden\]/);
+  assert.match(responsiveStyles, /padding-bottom: calc\(78px \+ env\(safe-area-inset-bottom\)\)/);
 });
 
 test("contains no production sample workflow or fictitious record creation", async () => {

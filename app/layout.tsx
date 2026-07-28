@@ -3,6 +3,7 @@ import { Geist } from "next/font/google";
 import { headers } from "next/headers";
 import { productIdentity } from "@/app/lib/product";
 import "./globals.css";
+import "./styles/responsive-focus.css";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",

@@ -1,0 +1,294 @@
+/* Focused responsive layer: keep primary clinical work ahead of secondary navigation. */
+.mobile-action-label,
+.document-library-toggle {
+  display: none;
+}
+
+.document-library-mobile-actions {
+  flex: 0 0 auto;
+}
+
+.document-library-mobile-actions > .button {
+  width: 100%;
+  min-height: 36px;
+  padding: 0 9px;
+  font-size: 10px;
+}
+
+.document-library-content {
+  min-height: 0;
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.document-library-content[hidden] {
+  display: none;
+}
+
+.document-save-button {
+  width: 37px;
+  min-width: 37px;
+  padding-inline: 0;
+}
+
+.document-save-button > span {
+  display: none;
+}
+
+@media (max-width: 820px) {
+  .main-area {
+    padding-bottom: calc(78px + env(safe-area-inset-bottom));
+  }
+
+  .mobile-nav {
+    bottom: max(9px, env(safe-area-inset-bottom));
+    overflow: hidden;
+  }
+
+  .mobile-nav a {
+    min-width: 0;
+  }
+
+  .mobile-nav small {
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+}
+
+@media (max-width: 520px) {
+  .page-wrap {
+    padding-top: 20px;
+  }
+
+  /* Home: four short, scannable actions instead of four tall cards. */
+  .dashboard-page .hero-row {
+    margin-bottom: 24px;
+  }
+
+  .dashboard-page .hero-row h1 {
+    margin-top: 4px;
+    font-size: 25px;
+  }
+
+  .dashboard-page .hero-row p {
+    max-width: 34rem;
+    font-size: 12px;
+  }
+
+  .dashboard-page .section-heading {
+    margin-bottom: 10px;
+  }
+
+  .dashboard-page .action-grid {
+    gap: 8px;
+  }
+
+  .dashboard-page .action-card {
+    min-height: 82px;
+    display: grid;
+    grid-template-columns: 42px minmax(0, 1fr) auto;
+    grid-template-areas:
+      "icon eyebrow link"
+      "icon title link"
+      "icon copy link";
+    align-items: center;
+    column-gap: 12px;
+    padding: 12px 13px;
+  }
+
+  .dashboard-page .action-card:hover {
+    transform: none;
+  }
+
+  .dashboard-page .action-icon {
+    grid-area: icon;
+    margin: 0;
+  }
+
+  .dashboard-page .action-card > .eyebrow {
+    grid-area: eyebrow;
+    align-self: end;
+  }
+
+  .dashboard-page .action-card h3 {
+    grid-area: title;
+    margin: 1px 0;
+    font-size: 14px;
+  }
+
+  .dashboard-page .action-card p {
+    grid-area: copy;
+    align-self: start;
+    margin: 0;
+    overflow: hidden;
+    font-size: 10px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .dashboard-page .card-link {
+    grid-area: link;
+    align-self: stretch;
+    display: grid;
+    place-items: center;
+    margin: 0;
+  }
+
+  .dashboard-page .card-link-label {
+    display: none;
+  }
+
+  /* Documents: editor first, library and exports remain one tap away. */
+  .studio-page {
+    padding-top: 16px;
+  }
+
+  .studio-page .compact-page-header {
+    align-items: center;
+    flex-direction: row;
+    gap: 12px;
+    margin-bottom: 12px;
+  }
+
+  .studio-page .compact-page-header h1 {
+    font-size: 24px;
+  }
+
+  .studio-page .header-actions {
+    width: auto;
+    display: flex;
+    margin-left: auto;
+  }
+
+  .studio-page .header-actions .button {
+    width: auto;
+  }
+
+  .studio-print-button,
+  .desktop-action-label {
+    display: none;
+  }
+
+  .mobile-action-label {
+    display: inline;
+  }
+
+  .studio-download-button {
+    min-width: 64px;
+    min-height: 40px;
+    padding-inline: 11px;
+  }
+
+  .document-workspace-shell {
+    gap: 10px;
+  }
+
+  .document-library {
+    gap: 8px;
+    padding: 8px;
+  }
+
+  .document-library-mobile-actions {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 7px;
+  }
+
+  .document-library-mobile-actions > .button {
+    min-height: 42px;
+    font-size: 11px;
+  }
+
+  .document-library-toggle {
+    width: auto !important;
+    display: inline-flex;
+  }
+
+  .document-library-toggle > span {
+    min-width: 22px;
+    padding: 3px 6px;
+    border-radius: 999px;
+    background: #edf2f2;
+    color: var(--muted);
+    font-size: 9px;
+  }
+
+  .document-library-content {
+    max-height: min(56vh, 440px);
+    padding-top: 2px;
+  }
+
+  .document-library .recent-heading strong,
+  .document-library .recent-document-list strong {
+    font-size: 11px;
+  }
+
+  .document-library .recent-heading span,
+  .document-library .recent-heading .text-button,
+  .document-library .recent-document-list small,
+  .document-library .recent-document-list em,
+  .document-library .empty-recent {
+    font-size: 9px;
+  }
+
+  .document-library .recent-search input {
+    min-height: 40px;
+    font-size: 11px;
+  }
+
+  .document-command-bar {
+    gap: 9px;
+    padding: 11px 12px;
+  }
+
+  .document-title-field > span,
+  .save-state strong {
+    font-size: 10px;
+  }
+
+  .document-title-field input {
+    min-height: 40px;
+    font-size: 13px;
+  }
+
+  .save-state small {
+    font-size: 9px;
+  }
+
+  .document-status-actions {
+    flex-wrap: nowrap;
+    justify-content: flex-end;
+    gap: 6px;
+  }
+
+  .document-status-actions .button {
+    min-height: 40px;
+    padding-inline: 10px;
+    font-size: 10px;
+  }
+
+  .document-status-actions .history-button {
+    flex: 0 1 auto;
+  }
+
+  .document-save-button {
+    width: auto;
+    min-width: 88px;
+  }
+
+  .document-save-button > span {
+    display: inline;
+  }
+
+  .studio-view-switch {
+    margin-bottom: 10px;
+  }
+
+  .studio-view-switch button {
+    font-size: 12px;
+  }
+}
