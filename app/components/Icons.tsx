@@ -35,6 +35,7 @@ export {
   List,
   Loader2,
   LockKeyhole,
+  Minus,
   Pencil,
   PlugZap,
   Plus,

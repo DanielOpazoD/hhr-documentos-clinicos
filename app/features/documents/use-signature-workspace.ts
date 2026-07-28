@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { PointerEvent as ReactPointerEvent } from "react";
 import { createSignature, deleteSignature, listSignatures, setDefaultSignature } from "./api";
 import {
@@ -8,8 +8,8 @@ import {
   prepareSignatureUpload,
   type SignatureImageSettings,
 } from "./prepare-signature";
-import type { PlacedSignature, SignatureForm, SignatureRecord, SignerData } from "./types";
-import { SIGNATURE_Y_DEFAULT_PERCENT } from "@/app/lib/document-layout";
+import type { PlacedSignature, SignatureAssetKind, SignatureForm, SignatureRecord, SignerData } from "./types";
+import { clampSignatureY, defaultImagePlacement } from "@/app/lib/document-layout";
 
 const emptySignatureForm: SignatureForm = {
   file: null,
@@ -21,46 +21,99 @@ const emptySignatureForm: SignatureForm = {
 export function useSignatureWorkspace(markDirty: () => void) {
   const [signatures, setSignatures] = useState<SignatureRecord[]>([]);
   const [placedSignature, setPlacedSignature] = useState<PlacedSignature | null>(null);
+  const [placedStamp, setPlacedStamp] = useState<PlacedSignature | null>(null);
   const [signatureFormOpen, setSignatureFormOpen] = useState(false);
+  const [signatureFormKind, setSignatureFormKind] = useState<SignatureAssetKind>("signature");
   const [signatureForm, setSignatureForm] = useState<SignatureForm>({ ...emptySignatureForm });
   const [signatureImageSettings, setSignatureImageSettings] = useState<SignatureImageSettings>({ ...DEFAULT_SIGNATURE_IMAGE_SETTINGS });
   const [signatureBusy, setSignatureBusy] = useState(false);
   const [signatureError, setSignatureError] = useState<string | null>(null);
   const [signatureDeleteId, setSignatureDeleteId] = useState<string | null>(null);
+  const dragOffsets = useRef<Record<SignatureAssetKind, { x: number; y: number }>>({
+    signature: { x: 0, y: 0 },
+    stamp: { x: 0, y: 0 },
+  });
 
   const refreshSignatures = useCallback(async (signal?: AbortSignal) => {
     try {
       setSignatures(await listSignatures(signal));
     } catch (error) {
       if (!(error instanceof DOMException && error.name === "AbortError")) {
-        setSignatureError(error instanceof Error ? error.message : "No se pudieron cargar las firmas.");
+        setSignatureError(error instanceof Error ? error.message : "No se pudieron cargar las imágenes de firma.");
       }
     }
-  }, [setSignatureError, setSignatures]);
+  }, []);
 
-  const attachSignature = useCallback((signature: SignatureRecord) => {
-    setPlacedSignature({ ...signature, x: 50, y: SIGNATURE_Y_DEFAULT_PERCENT, width: 28 });
+  const attachSignature = useCallback((asset: SignatureRecord) => {
+    const placed = { ...asset, ...defaultImagePlacement(asset.kind) };
+    if (asset.kind === "stamp") setPlacedStamp(placed);
+    else setPlacedSignature(placed);
     markDirty();
-  }, [markDirty, setPlacedSignature]);
+  }, [markDirty]);
 
-  const moveSignature = useCallback((event: ReactPointerEvent<HTMLDivElement>) => {
+  const updatePlacedImage = useCallback((kind: SignatureAssetKind, patch: Partial<Pick<PlacedSignature, "x" | "y" | "width">>) => {
+    const setter = kind === "stamp" ? setPlacedStamp : setPlacedSignature;
+    setter((current) => {
+      if (!current) return current;
+      const width = patch.width ?? current.width;
+      const half = width / 2;
+      return {
+        ...current,
+        ...patch,
+        width,
+        x: Math.min(100 - half, Math.max(half, patch.x ?? current.x)),
+        y: clampSignatureY(patch.y ?? current.y),
+      };
+    });
+    markDirty();
+  }, [markDirty]);
+
+  const removePlacedImage = useCallback((kind: SignatureAssetKind) => {
+    (kind === "stamp" ? setPlacedStamp : setPlacedSignature)(null);
+    markDirty();
+  }, [markDirty]);
+
+  const startSignatureMove = useCallback((kind: SignatureAssetKind, event: ReactPointerEvent<HTMLButtonElement>) => {
+    const image = event.currentTarget.closest(".placed-signature")?.getBoundingClientRect();
+    if (!image) return;
+    dragOffsets.current[kind] = {
+      x: event.clientX - (image.left + image.width / 2),
+      y: event.clientY - (image.top + image.height / 2),
+    };
+    event.currentTarget.setPointerCapture(event.pointerId);
+    event.preventDefault();
+  }, []);
+
+  const moveSignature = useCallback((kind: SignatureAssetKind, event: ReactPointerEvent<HTMLButtonElement>) => {
     if (!event.currentTarget.hasPointerCapture(event.pointerId)) return;
     const placementZone = event.currentTarget.closest(".signature-placement-zone")?.getBoundingClientRect();
     if (!placementZone) return;
-    setPlacedSignature((current) => {
+    const setter = kind === "stamp" ? setPlacedStamp : setPlacedSignature;
+    const offset = dragOffsets.current[kind];
+    setter((current) => {
       if (!current) return current;
       const half = current.width / 2;
       return {
         ...current,
-        x: Math.min(100 - half, Math.max(half, ((event.clientX - placementZone.left) / placementZone.width) * 100)),
+        x: Math.min(100 - half, Math.max(half, ((event.clientX - offset.x - placementZone.left) / placementZone.width) * 100)),
+        y: clampSignatureY(((event.clientY - offset.y - placementZone.top) / placementZone.height) * 100),
       };
     });
     markDirty();
-  }, [markDirty, setPlacedSignature]);
+  }, [markDirty]);
+
+  const openSignatureForm = useCallback((kind: SignatureAssetKind) => {
+    setSignatureFormKind(kind);
+    setSignatureForm({ ...emptySignatureForm });
+    setSignatureImageSettings({ ...DEFAULT_SIGNATURE_IMAGE_SETTINGS });
+    setSignatureError(null);
+    setSignatureFormOpen(true);
+  }, []);
 
   const saveSignature = useCallback(async (signer: SignerData) => {
+    const assetLabel = signatureFormKind === "stamp" ? "timbre" : "firma";
     if (!signatureForm.file || !signer.name.trim()) {
-      setSignatureError("Agregue la imagen y el nombre del profesional.");
+      setSignatureError(`Agregue la imagen de ${assetLabel} y el nombre del profesional.`);
       return;
     }
     setSignatureBusy(true);
@@ -72,38 +125,33 @@ export function useSignatureWorkspace(markDirty: () => void) {
         professionalName: signer.name.trim(),
         professionalRut: signer.rut.trim(),
         specialty: signer.specialty.trim(),
-      });
+      }, signatureFormKind);
       setSignatures((current) => [created, ...current]);
       attachSignature(created);
       setSignatureForm({ ...emptySignatureForm });
       setSignatureImageSettings({ ...DEFAULT_SIGNATURE_IMAGE_SETTINGS });
       setSignatureFormOpen(false);
     } catch (error) {
-      setSignatureError(error instanceof Error ? error.message : "No se pudo guardar la firma.");
+      setSignatureError(error instanceof Error ? error.message : `No se pudo guardar el ${assetLabel}.`);
     } finally {
       setSignatureBusy(false);
     }
-  }, [
-    attachSignature,
-    setSignatureBusy,
-    setSignatureError,
-    setSignatureForm,
-    setSignatureFormOpen,
-    setSignatures,
-    signatureForm,
-    signatureImageSettings,
-  ]);
+  }, [attachSignature, signatureForm, signatureFormKind, signatureImageSettings]);
 
   const makeDefaultSignature = useCallback(async (id: string) => {
     setSignatureBusy(true);
     setSignatureError(null);
     try {
       await setDefaultSignature(id);
-      setSignatures((current) => current
-        .map((signature) => ({ ...signature, isDefault: signature.id === id }))
-        .sort((left, right) => Number(right.isDefault) - Number(left.isDefault)));
+      setSignatures((current) => {
+        const selectedKind = current.find((asset) => asset.id === id)?.kind;
+        return current.map((asset) => ({
+          ...asset,
+          isDefault: asset.kind === selectedKind ? asset.id === id : asset.isDefault,
+        }));
+      });
     } catch (error) {
-      setSignatureError(error instanceof Error ? error.message : "No se pudo definir el perfil predeterminado.");
+      setSignatureError(error instanceof Error ? error.message : "No se pudo definir la imagen predeterminada.");
     } finally {
       setSignatureBusy(false);
     }
@@ -115,22 +163,21 @@ export function useSignatureWorkspace(markDirty: () => void) {
     try {
       await deleteSignature(id);
       setSignatures((current) => {
-        const removedWasDefault = current.find((signature) => signature.id === id)?.isDefault;
-        const remaining = current.filter((signature) => signature.id !== id);
-        return removedWasDefault && remaining.length
-          ? remaining.map((signature, index) => ({ ...signature, isDefault: index === 0 }))
-          : remaining;
+        const removed = current.find((asset) => asset.id === id);
+        const remaining = current.filter((asset) => asset.id !== id);
+        if (!removed?.isDefault) return remaining;
+        const replacement = remaining.find((asset) => asset.kind === removed.kind);
+        return remaining.map((asset) => asset.kind === removed.kind
+          ? { ...asset, isDefault: asset.id === replacement?.id }
+          : asset);
       });
       setPlacedSignature((current) => current?.id === id ? null : current);
+      setPlacedStamp((current) => current?.id === id ? null : current);
       setSignatureDeleteId(null);
       markDirty();
-      try {
-        setSignatures(await listSignatures());
-      } catch {
-        // The DELETE already succeeded; keep the locally committed profile list.
-      }
+      try { setSignatures(await listSignatures()); } catch { /* DELETE already succeeded. */ }
     } catch (error) {
-      setSignatureError(error instanceof Error ? error.message : "No se pudo eliminar el perfil.");
+      setSignatureError(error instanceof Error ? error.message : "No se pudo eliminar la imagen.");
     } finally {
       setSignatureBusy(false);
     }
@@ -139,18 +186,18 @@ export function useSignatureWorkspace(markDirty: () => void) {
   useEffect(() => {
     const controller = new AbortController();
     const timer = window.setTimeout(() => void refreshSignatures(controller.signal), 0);
-    return () => {
-      window.clearTimeout(timer);
-      controller.abort();
-    };
+    return () => { window.clearTimeout(timer); controller.abort(); };
   }, [refreshSignatures]);
 
   return {
     signatures,
     placedSignature,
     setPlacedSignature,
+    placedStamp,
+    setPlacedStamp,
     signatureFormOpen,
     setSignatureFormOpen,
+    signatureFormKind,
     signatureForm,
     setSignatureForm,
     signatureImageSettings,
@@ -160,7 +207,11 @@ export function useSignatureWorkspace(markDirty: () => void) {
     signatureDeleteId,
     setSignatureDeleteId,
     attachSignature,
+    updatePlacedImage,
+    removePlacedImage,
+    startSignatureMove,
     moveSignature,
+    openSignatureForm,
     saveSignature,
     makeDefaultSignature,
     removeSignatureProfile,

@@ -1,10 +1,11 @@
-import { Check, Clock3, RotateCcw, Save } from "@/app/components/Icons";
+import { Check, Clock3, Minus, Plus, RotateCcw, Save } from "@/app/components/Icons";
 import type { DocumentWorkspace } from "./use-document-workspace";
 import { patientFullName } from "./identity";
 
 type Props = Pick<
   DocumentWorkspace,
   | "dirty"
+  | "documentFontSize"
   | "documentId"
   | "documentTitle"
   | "patient"
@@ -14,6 +15,10 @@ type Props = Pick<
   | "setDocumentTitle"
   | "status"
   | "markDirty"
+  | "canDecreaseDocumentFontSize"
+  | "canIncreaseDocumentFontSize"
+  | "decreaseDocumentFontSize"
+  | "increaseDocumentFontSize"
   | "openDocumentHistory"
   | "persist"
   | "reloadDocument"
@@ -21,6 +26,7 @@ type Props = Pick<
 
 export function DocumentCommandBar({
   dirty,
+  documentFontSize,
   documentId,
   documentTitle,
   patient,
@@ -30,6 +36,10 @@ export function DocumentCommandBar({
   setDocumentTitle,
   status,
   markDirty,
+  canDecreaseDocumentFontSize,
+  canIncreaseDocumentFontSize,
+  decreaseDocumentFontSize,
+  increaseDocumentFontSize,
   openDocumentHistory,
   persist,
   reloadDocument,
@@ -55,6 +65,12 @@ export function DocumentCommandBar({
         <div className="save-state" role="status" aria-live="polite">
           <span className={dirty ? "status-dot pending" : "status-dot"} />
           <span><strong>{saveLabel}</strong>{savedAt ? <small>{savedAt}</small> : null}</span>
+        </div>
+        <div className="document-type-control" role="group" aria-label="Tamaño global de letra">
+          <span>Texto</span>
+          <button type="button" aria-label="Disminuir tamaño de letra" disabled={!canDecreaseDocumentFontSize} onClick={decreaseDocumentFontSize}><Minus size={14} /></button>
+          <output aria-live="polite">{documentFontSize}</output>
+          <button type="button" aria-label="Aumentar tamaño de letra" disabled={!canIncreaseDocumentFontSize} onClick={increaseDocumentFontSize}><Plus size={14} /></button>
         </div>
         <div className="document-status-actions">
           {documentId ? (

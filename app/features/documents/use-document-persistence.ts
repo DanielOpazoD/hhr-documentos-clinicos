@@ -17,6 +17,7 @@ export type DocumentPersistenceSnapshot = {
   legacyInsurance: string;
   patient: PatientData;
   placedSignature: PlacedSignature | null;
+  placedStamp: PlacedSignature | null;
   sections: DocumentSection[];
   signer: SignerData;
   status: DocumentStatus;
@@ -56,15 +57,8 @@ export function useDocumentPersistence(options: {
       current.setSaveError("Ingrese el nombre del paciente para guardar.");
       return Promise.resolve(false);
     }
-    const signature = snapshot.placedSignature ? {
-      id: snapshot.placedSignature.id,
-      professionalName: snapshot.placedSignature.professionalName,
-      professionalRut: snapshot.placedSignature.professionalRut,
-      specialty: snapshot.placedSignature.specialty,
-      x: snapshot.placedSignature.x,
-      y: snapshot.placedSignature.y,
-      width: snapshot.placedSignature.width,
-    } : undefined;
+    const signature = storedPlacement(snapshot.placedSignature);
+    const stamp = storedPlacement(snapshot.placedStamp);
     const revision = current.editRevision.current;
     const requestWorkspaceEpoch = current.workspaceEpoch.current;
     setSaving(true);
@@ -84,6 +78,7 @@ export function useDocumentPersistence(options: {
             signer: snapshot.signer,
             issueDate: snapshot.issueDate,
             signature,
+            stamp,
             ...(snapshot.aiMetadata ? { ai: snapshot.aiMetadata } : {}),
           },
         });
@@ -119,6 +114,19 @@ export function useDocumentPersistence(options: {
   }, [options.dirty, persist, saveEpoch]);
 
   return { flushPendingSave, persist, saving };
+}
+
+function storedPlacement(asset: PlacedSignature | null) {
+  return asset ? {
+    id: asset.id,
+    kind: asset.kind,
+    professionalName: asset.professionalName,
+    professionalRut: asset.professionalRut,
+    specialty: asset.specialty,
+    x: asset.x,
+    y: asset.y,
+    width: asset.width,
+  } : undefined;
 }
 
 function applySavedDocument(

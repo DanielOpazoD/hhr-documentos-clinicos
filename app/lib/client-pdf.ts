@@ -4,12 +4,15 @@
 
 type PdfSection = { title?: string; body: string };
 type PdfSignature = { imageUrl: string; professionalName: string; professionalRut: string; specialty: string; x: number; y: number; width: number };
+type PdfSigner = { name: string; rut: string; specialty: string };
 
-export async function downloadClinicalPdf(options: { fileName: string; title: string; subtitle?: string | string[]; sections: PdfSection[]; date?: string; footer?: string; signature?: PdfSignature }) {
+export async function downloadClinicalPdf(options: { fileName: string; title: string; subtitle?: string | string[]; sections: PdfSection[]; date?: string; footer?: string; signatureAssets?: PdfSignature[]; signer?: PdfSigner; fontSize?: number }) {
   const { jsPDF } = await loadJsPdf();
   const pdf = new jsPDF({ orientation: "portrait", unit: "pt", format: "letter" });
   const left = 64;
   const width = 484;
+  const bodyFontSize = Math.max(11, Math.min(16, options.fontSize ?? 13));
+  const bodyLineHeight = bodyFontSize * 1.45;
   let y = 72;
   pdf.setTextColor(17, 52, 65);
   pdf.setFont("helvetica", "bold");
@@ -29,39 +32,59 @@ export async function downloadClinicalPdf(options: { fileName: string; title: st
   pdf.line(left, y, left + width, y);
   y += 28;
   for (const section of options.sections) {
-    if (y > 690) { pdf.addPage(); y = 72; }
+    pdf.setFont("helvetica", "normal");
+    pdf.setFontSize(bodyFontSize);
+    const lines = pdf.splitTextToSize(section.body || "—", width);
+    const headingHeight = section.title ? 18 : 0;
+    if (y + headingHeight + bodyLineHeight > 680) { pdf.addPage(); y = 72; }
     if (section.title) {
       pdf.setFont("helvetica", "bold");
-      pdf.setFontSize(10);
+      pdf.setFontSize(Math.max(10, bodyFontSize - 1));
       pdf.setTextColor(17, 52, 65);
       pdf.text(section.title.toUpperCase(), left, y);
       y += 18;
     }
     pdf.setFont("helvetica", "normal");
-    pdf.setFontSize(10.5);
+    pdf.setFontSize(bodyFontSize);
     pdf.setTextColor(31, 41, 45);
-    const lines = pdf.splitTextToSize(section.body || "—", width);
-    pdf.text(lines, left, y, { lineHeightFactor: 1.45 });
-    y += lines.length * 15 + 22;
+    let lineIndex = 0;
+    while (lineIndex < lines.length) {
+      const availableLines = Math.max(1, Math.floor((680 - y) / bodyLineHeight));
+      const pageLines = lines.slice(lineIndex, lineIndex + availableLines);
+      pdf.text(pageLines, left, y, { lineHeightFactor: 1.45 });
+      y += pageLines.length * bodyLineHeight;
+      lineIndex += pageLines.length;
+      if (lineIndex < lines.length) { pdf.addPage(); y = 72; }
+    }
+    y += 22;
   }
-  if (options.signature) {
-    const signatureImage = await imageData(options.signature.imageUrl);
-    const signatureWidth = Math.max(90, Math.min(210, 612 * options.signature.width / 100));
-    const signatureHeight = Math.min(74, signatureWidth / signatureImage.ratio);
-    const signatureX = Math.max(24, Math.min(612 - signatureWidth - 24, 612 * options.signature.x / 100 - signatureWidth / 2));
-    const signatureBlockHeight = signatureHeight + 42;
+  const signatureAssets = options.signatureAssets ?? [];
+  if (signatureAssets.length || options.signer?.name) {
+    const signatureBlockHeight = 150;
     if (y + signatureBlockHeight > 680) { pdf.addPage(); y = 82; }
-    const signatureY = y + 10;
-    pdf.addImage(signatureImage.dataUrl, signatureImage.format, signatureX, signatureY, signatureWidth, signatureHeight, undefined, "FAST");
-    pdf.setFont("helvetica", "bold");
-    pdf.setFontSize(8.5);
-    pdf.setTextColor(31, 41, 45);
-    pdf.text(options.signature.professionalName, signatureX + signatureWidth / 2, signatureY + signatureHeight + 11, { align: "center" });
-    pdf.setFont("helvetica", "normal");
-    pdf.setFontSize(7.5);
-    const detail = [options.signature.specialty, options.signature.professionalRut ? `RUT: ${options.signature.professionalRut}` : ""].filter(Boolean).join(" · ");
-    if (detail) pdf.text(detail, signatureX + signatureWidth / 2, signatureY + signatureHeight + 22, { align: "center" });
-    y = signatureY + signatureBlockHeight;
+    const images = await Promise.all(signatureAssets.map(async (asset) => ({ asset, image: await imageData(asset.imageUrl) })));
+    for (const { asset, image } of images) {
+      const imageWidth = Math.max(72, Math.min(190, 612 * asset.width / 100));
+      const imageHeight = Math.min(72, imageWidth / image.ratio);
+      const imageX = Math.max(24, Math.min(612 - imageWidth - 24, 612 * asset.x / 100 - imageWidth / 2));
+      const imageY = y + Math.max(0, Math.min(70, asset.y - 12)) / 56 * 62;
+      pdf.addImage(image.dataUrl, image.format, imageX, imageY, imageWidth, imageHeight, undefined, "FAST");
+    }
+    if (options.signer?.name) {
+      const signerX = 306;
+      const signerY = y + 112;
+      pdf.setDrawColor(70, 78, 80);
+      pdf.line(signerX - 105, signerY - 10, signerX + 105, signerY - 10);
+      pdf.setFont("helvetica", "bold");
+      pdf.setFontSize(8.5);
+      pdf.setTextColor(31, 41, 45);
+      pdf.text(options.signer.name, signerX, signerY, { align: "center" });
+      pdf.setFont("helvetica", "normal");
+      pdf.setFontSize(7.5);
+      const detail = [options.signer.specialty, options.signer.rut ? `RUT: ${options.signer.rut}` : ""].filter(Boolean).join(" · ");
+      if (detail) pdf.text(detail, signerX, signerY + 11, { align: "center" });
+    }
+    y += signatureBlockHeight;
   }
   pdf.setDrawColor(207, 216, 218);
   pdf.line(left, 700, left + width, 700);
@@ -79,18 +102,18 @@ export async function downloadClinicalPdf(options: { fileName: string; title: st
 
 async function imageData(url: string) {
   const response = await fetch(url);
-  if (!response.ok) throw new Error("No se pudo incluir la firma en el PDF.");
+  if (!response.ok) throw new Error("No se pudo incluir una imagen de firma en el PDF.");
   const blob = await response.blob();
   const dataUrl = await new Promise<string>((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = () => resolve(String(reader.result));
-    reader.onerror = () => reject(new Error("No se pudo leer la firma."));
+    reader.onerror = () => reject(new Error("No se pudo leer una imagen de firma."));
     reader.readAsDataURL(blob);
   });
   const ratio = await new Promise<number>((resolve, reject) => {
     const image = new Image();
     image.onload = () => resolve(Math.max(.5, image.naturalWidth / Math.max(1, image.naturalHeight)));
-    image.onerror = () => reject(new Error("La imagen de firma no es válida."));
+    image.onerror = () => reject(new Error("Una imagen de firma no es válida."));
     image.src = dataUrl;
   });
   return { dataUrl, ratio, format: blob.type === "image/png" ? "PNG" : "JPEG" };

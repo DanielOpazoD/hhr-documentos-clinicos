@@ -17,11 +17,12 @@ const presets: Array<{ id: SignatureImageSettings["filter"]; label: string }> = 
 
 type Props = {
   file: File;
+  label: string;
   settings: SignatureImageSettings;
   onChange: (settings: SignatureImageSettings) => void;
 };
 
-export function SignatureImageEditor({ file, settings, onChange }: Props) {
+export function SignatureImageEditor({ file, label, settings, onChange }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [previewError, setPreviewError] = useState<string | null>(null);
 
@@ -37,26 +38,26 @@ export function SignatureImageEditor({ file, settings, onChange }: Props) {
         preview.getContext("2d")?.drawImage(rendered, 0, 0);
         setPreviewError(null);
       } catch (error) {
-        if (active) setPreviewError(error instanceof Error ? error.message : "No se pudo mostrar la firma.");
+        if (active) setPreviewError(error instanceof Error ? error.message : `No se pudo mostrar el ${label}.`);
       }
     }, 70);
     return () => {
       active = false;
       window.clearTimeout(timer);
     };
-  }, [file, settings]);
+  }, [file, label, settings]);
 
   const update = (patch: Partial<SignatureImageSettings>) => onChange({ ...settings, ...patch });
 
   return (
-    <section className="signature-image-editor" aria-label="Edición de imagen de firma">
+    <section className="signature-image-editor" aria-label={`Edición de imagen de ${label}`}>
       <header>
         <span><strong>Acabado de la imagen</strong><small>Fondo blanco automático</small></span>
         <button type="button" className="text-button" onClick={() => onChange({ ...DEFAULT_SIGNATURE_IMAGE_SETTINGS })}><RotateCcw size={13} /> Restablecer</button>
       </header>
       <div className="signature-image-preview"><canvas ref={canvasRef} /></div>
       {previewError ? <p className="form-error">{previewError}</p> : null}
-      <div className="signature-image-presets" role="group" aria-label="Estilo de firma">
+      <div className="signature-image-presets" role="group" aria-label={`Estilo de ${label}`}>
         {presets.map((preset) => (
           <button type="button" key={preset.id} className={settings.filter === preset.id ? "active" : ""} onClick={() => update({ filter: preset.id })}>
             {settings.filter === preset.id ? <Check size={12} /> : null}{preset.label}
