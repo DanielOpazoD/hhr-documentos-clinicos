@@ -7,6 +7,9 @@ CREATE TABLE `signatures` (
 	`object_key` text NOT NULL,
 	`mime_type` text NOT NULL,
 	`size` integer NOT NULL,
+	`is_default` integer DEFAULT false NOT NULL,
 	`created_at` text NOT NULL,
 	`updated_at` text NOT NULL
 );
+--> statement-breakpoint
+CREATE UNIQUE INDEX `signatures_owner_default_idx` ON `signatures` (`owner_email`) WHERE "is_default" = 1;
