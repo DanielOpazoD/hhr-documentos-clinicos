@@ -43,7 +43,9 @@ export const documents = sqliteTable("documents", {
   contentJson: text("content_json").notNull(),
   version: integer("version").notNull().default(1),
   ...timestamps,
-});
+}, (table) => [
+  index("documents_owner_updated_idx").on(table.ownerEmail, table.updatedAt),
+]);
 
 export const documentVersions = sqliteTable("document_versions", {
   id: text("id").primaryKey(),
@@ -70,6 +72,7 @@ export const files = sqliteTable("files", {
   patientId: text("patient_id"),
   ...timestamps,
 }, (table) => [
+  index("files_owner_created_idx").on(table.ownerEmail, table.createdAt),
   index("files_owner_mobile_session_created_idx").on(
     table.ownerEmail,
     table.mobileSessionId,
@@ -96,6 +99,7 @@ export const signatures = sqliteTable("signatures", {
   isDefault: integer("is_default", { mode: "boolean" }).notNull().default(false),
   ...timestamps,
 }, (table) => [
+  index("signatures_owner_updated_idx").on(table.ownerEmail, table.updatedAt),
   uniqueIndex("signatures_owner_default_idx")
     .on(table.ownerEmail)
     .where(sql`"is_default" = 1`),
@@ -129,6 +133,11 @@ export const aiPrompts = sqliteTable("ai_prompts", {
   isDefault: integer("is_default", { mode: "boolean" }).notNull().default(false),
   ...timestamps,
 }, (table) => [
+  index("ai_prompts_owner_target_idx").on(
+    table.ownerEmail,
+    table.targetType,
+    table.updatedAt,
+  ),
   uniqueIndex("ai_prompts_owner_target_default_idx")
     .on(table.ownerEmail, table.targetType)
     .where(sql`"is_default" = 1`),
