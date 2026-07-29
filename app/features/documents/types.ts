@@ -10,6 +10,7 @@ export type DocumentSection = {
 export type PatientData = {
   firstNames: string;
   lastNames: string;
+  fullName?: string;
   rut: string;
   birthDate: string;
 };

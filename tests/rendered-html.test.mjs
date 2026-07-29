@@ -339,11 +339,14 @@ test("keeps the clinical studios usable from mobile through desktop", async () =
   assert.match(documentStudio, /patient-first-names/);
   assert.match(documentStudio, /Nombre completo/);
   assert.match(documentStudio, /updatePatientName/);
+  assert.match(documentStudio, /patient\.fullName \?\? patientFullName\(patient\)/);
   assert.doesNotMatch(await readFile(new URL("../app/features/documents/PatientEditor.tsx", import.meta.url), "utf8"), /patient-last-names|>Nombres<|>Apellidos</);
   assert.match(documentStudio, /section-title-/);
   assert.match(documentStudio, /<h3>Rp\.<\/h3>/);
   assert.match(documentStudio, /signature-placement-zone/);
   assert.match(documentStudio, /signing-assets-canvas/);
+  assert.match(documentStudio, /aria-keyshortcuts="ArrowUp ArrowDown ArrowLeft ArrowRight"/);
+  assert.match(documentStudio, /updatePlacedImage\(kind, movement\)/);
   assert.match(documentStudio, /document-signoff/);
   assert.match(documentStudio, /Fondo blanco automático/);
   assert.match(documentStudio, /renderSignatureImage/);

@@ -2,7 +2,7 @@
 
 import { useCallback, useState } from "react";
 import { todayInRapaNui } from "./formatters";
-import { patientFromStored } from "./identity";
+import { patientFromStored, patientWithFullName } from "./identity";
 import type { PatientData, SignerData, StoredContent } from "./types";
 
 const emptyPatient: PatientData = { firstNames: "", lastNames: "", rut: "", birthDate: "" };
@@ -20,7 +20,7 @@ export function useDocumentIdentity(markDirty: () => void) {
   }, [markDirty]);
 
   const updatePatientName = useCallback((value: string) => {
-    setPatient((current) => ({ ...current, firstNames: value, lastNames: "" }));
+    setPatient((current) => patientWithFullName(current, value));
     markDirty();
   }, [markDirty]);
 

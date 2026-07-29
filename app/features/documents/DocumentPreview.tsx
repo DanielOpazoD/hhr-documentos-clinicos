@@ -26,6 +26,7 @@ type Props = Pick<
   | "signer"
   | "status"
   | "startSignatureMove"
+  | "updatePlacedImage"
   | "templateId"
   | "version"
   | "visibleTitle"
@@ -53,6 +54,7 @@ export function DocumentPreview({
   signer,
   status,
   startSignatureMove,
+  updatePlacedImage,
   templateId,
   version,
   visibleTitle,
@@ -156,8 +158,8 @@ export function DocumentPreview({
         ))}
         <div className="signature-placement-zone">
           <div className="signing-assets-canvas">
-            {placedSignature ? <PlacedImage asset={placedSignature} kind="signature" moveSignature={moveSignature} startSignatureMove={startSignatureMove} /> : null}
-            {placedStamp ? <PlacedImage asset={placedStamp} kind="stamp" moveSignature={moveSignature} startSignatureMove={startSignatureMove} /> : null}
+            {placedSignature ? <PlacedImage asset={placedSignature} kind="signature" moveSignature={moveSignature} startSignatureMove={startSignatureMove} updatePlacedImage={updatePlacedImage} /> : null}
+            {placedStamp ? <PlacedImage asset={placedStamp} kind="stamp" moveSignature={moveSignature} startSignatureMove={startSignatureMove} updatePlacedImage={updatePlacedImage} /> : null}
           </div>
           <div className="document-signoff">
             {signer.name ? (
@@ -262,11 +264,13 @@ function PlacedImage({
   kind,
   moveSignature,
   startSignatureMove,
+  updatePlacedImage,
 }: {
   asset: PlacedSignature;
   kind: SignatureAssetKind;
   moveSignature: DocumentWorkspace["moveSignature"];
   startSignatureMove: DocumentWorkspace["startSignatureMove"];
+  updatePlacedImage: DocumentWorkspace["updatePlacedImage"];
 }) {
   const label = kind === "stamp" ? "timbre" : "firma";
   return (
@@ -277,8 +281,21 @@ function PlacedImage({
       <button
         type="button"
         className="signature-drag-handle print-hide"
-        aria-label={`Mover ${label}`}
-        title={`Arrastrar ${label}`}
+        aria-keyshortcuts="ArrowUp ArrowDown ArrowLeft ArrowRight"
+        aria-label={`Mover ${label}; use las flechas del teclado`}
+        title={`Arrastrar ${label} o mover con las flechas`}
+        onKeyDown={(event) => {
+          const step = event.shiftKey ? 5 : 1;
+          const movement = {
+            ArrowDown: { y: asset.y + step },
+            ArrowLeft: { x: asset.x - step },
+            ArrowRight: { x: asset.x + step },
+            ArrowUp: { y: asset.y - step },
+          }[event.key];
+          if (!movement) return;
+          event.preventDefault();
+          updatePlacedImage(kind, movement);
+        }}
         onPointerDown={(event) => startSignatureMove(kind, event)}
         onPointerMove={(event) => moveSignature(kind, event)}
       >
