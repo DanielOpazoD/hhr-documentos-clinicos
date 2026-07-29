@@ -9,6 +9,8 @@ export {
   Check,
   CheckCircle2,
   ChevronDown,
+  ChevronLeft,
+  ChevronRight,
   Clipboard,
   Clock3,
   Copy,

@@ -285,11 +285,4 @@
     display: none;
   }
 
-  .studio-view-switch {
-    margin-bottom: 10px;
-  }
-
-  .studio-view-switch button {
-    font-size: 12px;
-  }
 }

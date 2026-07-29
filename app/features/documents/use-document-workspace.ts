@@ -44,7 +44,6 @@ export function useDocumentWorkspace() {
   const [storedDocuments, setStoredDocuments] = useState<StoredDocument[]>([]);
   const [recentQuery, setRecentQuery] = useState("");
   const [newMenuOpen, setNewMenuOpen] = useState(false);
-  const [mobileView, setMobileView] = useState<"edit" | "preview">("edit");
   const [loadError, setLoadError] = useState<string | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [deletingDocumentIds, setDeletingDocumentIds] = useState<Set<string>>(() => new Set());
@@ -336,7 +335,7 @@ export function useDocumentWorkspace() {
     ...identityWorkspace,
     updateSigner, sections, status, documentId, documentUpdatedAt, version, savedAt,
     saving, dirty, storedDocuments, filteredDocuments, recentQuery, setRecentQuery,
-    newMenuOpen, setNewMenuOpen, mobileView, setMobileView, loadError, saveError,
+    newMenuOpen, setNewMenuOpen, loadError, saveError,
     deletingDocumentIds,
     ...historyWorkspace,
     ...signatureWorkspace,

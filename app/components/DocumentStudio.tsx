@@ -5,7 +5,7 @@ import { createPortal } from "react-dom";
 import { Printer, Sparkles, X } from "@/app/components/Icons";
 import { AiStudio } from "@/app/components/AiStudio";
 import { DocumentCommandActions, DocumentSaveError } from "@/app/features/documents/DocumentCommandBar";
-import { DocumentEditor } from "@/app/features/documents/DocumentEditor";
+import { AiProvenance } from "@/app/features/documents/AiProvenance";
 import { DocumentLibrary } from "@/app/features/documents/DocumentLibrary";
 import { PatientEditor } from "@/app/features/documents/PatientEditor";
 import { ProfessionalEditor } from "@/app/features/documents/ProfessionalEditor";
@@ -21,7 +21,7 @@ export function DocumentStudio() {
   const [assistantActivated, setAssistantActivated] = useState(false);
   const [signaturePanelOpen, setSignaturePanelOpen] = useState(false);
   const [professionalSlot, setProfessionalSlot] = useState<HTMLElement | null>(null);
-  const { closeDocumentHistory, openDocument, persist, setMobileView, setNewMenuOpen, setSignatureDeleteId, setSignatureFormOpen } = workspace;
+  const { closeDocumentHistory, openDocument, persist, setNewMenuOpen, setSignatureDeleteId, setSignatureFormOpen } = workspace;
   const saveFromKeyboard = useCallback(() => void persist(), [persist]);
   const openNewDocumentMenu = useCallback(() => setNewMenuOpen(true), [setNewMenuOpen]);
   const closeSignaturePanel = useCallback(() => {
@@ -70,7 +70,6 @@ export function DocumentStudio() {
 
   const editFromPreview = useCallback((fieldId: string) => {
     const compactViewport = window.matchMedia("(max-width: 820px)").matches;
-    if (compactViewport) setMobileView("edit");
     window.requestAnimationFrame(() => window.requestAnimationFrame(() => {
       const resolvedFieldId = compactViewport && fieldId.startsWith("professional-")
         ? `mobile-${fieldId}`
@@ -80,7 +79,7 @@ export function DocumentStudio() {
       field.focus();
       field.scrollIntoView({ block: "center", behavior: "smooth" });
     }));
-  }, [setMobileView]);
+  }, []);
 
   useEffect(() => {
     const frame = window.requestAnimationFrame(() => {
@@ -154,32 +153,15 @@ export function DocumentStudio() {
             <DocumentLibrary {...workspace} />
             <main className="document-main">
               <PatientEditor {...workspace} />
-              <div className="studio-view-switch print-hide" role="tablist" aria-label="Vista del documento">
-                <button
-                  role="tab"
-                  aria-selected={workspace.mobileView === "edit"}
-                  aria-controls="document-editor"
-                  onClick={() => workspace.setMobileView("edit")}
-                >
-                  Editar
-                </button>
-                <button
-                  role="tab"
-                  aria-selected={workspace.mobileView === "preview"}
-                  aria-controls="document-preview"
-                  onClick={() => workspace.setMobileView("preview")}
-                >
-                  Vista previa
-                </button>
-              </div>
-              <div className="editor-layout document-editor-layout">
-                <DocumentEditor
-                  workspace={workspace}
-                  onToggleSignature={toggleSignaturePanel}
-                  signatureOpen={signaturePanelOpen}
-                />
-                <DocumentPreview {...workspace} onEditRequest={editFromPreview} />
-              </div>
+              <ProfessionalEditor
+                signer={workspace.signer}
+                updateSigner={workspace.updateSigner}
+                variant="mobile"
+                onToggleSignature={toggleSignaturePanel}
+                signatureOpen={signaturePanelOpen}
+              />
+              <AiProvenance {...workspace} />
+              <DocumentPreview {...workspace} onEditRequest={editFromPreview} />
             </main>
           </div>
         </div>

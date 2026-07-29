@@ -1,6 +1,6 @@
 import NextImage from "next/image";
-import { useState, type CSSProperties } from "react";
-import { GripVertical, Minus, Plus } from "@/app/components/Icons";
+import { useLayoutEffect, useRef, useState, type CSSProperties } from "react";
+import { ArrowDown, ArrowUp, GripVertical, Minus, MoreHorizontal, Plus, Trash2 } from "@/app/components/Icons";
 import { formatStoredDate } from "./formatters";
 import { patientFullName } from "./identity";
 import type { PlacedSignature, SignatureAssetKind } from "./types";
@@ -8,6 +8,7 @@ import type { DocumentWorkspace } from "./use-document-workspace";
 
 type Props = Pick<
   DocumentWorkspace,
+  | "addSection"
   | "documentFontSize"
   | "documentTitle"
   | "canDecreaseDocumentFontSize"
@@ -15,11 +16,12 @@ type Props = Pick<
   | "decreaseDocumentFontSize"
   | "increaseDocumentFontSize"
   | "issueDate"
-  | "mobileView"
+  | "moveSection"
   | "moveSignature"
   | "patient"
   | "placedSignature"
   | "placedStamp"
+  | "removeSection"
   | "sections"
   | "signer"
   | "status"
@@ -29,9 +31,11 @@ type Props = Pick<
   | "visibleTitle"
   | "markDirty"
   | "setDocumentTitle"
+  | "updateSection"
 > & { onEditRequest: (fieldId: string) => void };
 
 export function DocumentPreview({
+  addSection,
   documentFontSize,
   documentTitle,
   canDecreaseDocumentFontSize,
@@ -39,11 +43,12 @@ export function DocumentPreview({
   decreaseDocumentFontSize,
   increaseDocumentFontSize,
   issueDate,
-  mobileView,
+  moveSection,
   moveSignature,
   patient,
   placedSignature,
   placedStamp,
+  removeSection,
   sections,
   signer,
   status,
@@ -53,19 +58,25 @@ export function DocumentPreview({
   visibleTitle,
   markDirty,
   setDocumentTitle,
+  updateSection,
   onEditRequest,
 }: Props) {
   const [editingTitle, setEditingTitle] = useState(false);
   const paperStyle = { "--document-font-size": `${documentFontSize}px` } as CSSProperties;
   return (
-    <section id="document-preview" className={`paper-panel ${mobileView === "preview" ? "mobile-visible" : "mobile-hidden"}`}>
+    <section id="document-preview" className="paper-panel">
       <div className="paper-toolbar print-hide">
         <span><span className={`status-pill ${status.toLowerCase()}`}>{status}</span> v{version}</span>
-        <div className="document-type-control" role="group" aria-label="Tamaño global de letra">
-          <span>Texto</span>
-          <button type="button" aria-label="Disminuir tamaño de letra" disabled={!canDecreaseDocumentFontSize} onClick={decreaseDocumentFontSize}><Minus size={14} /></button>
-          <output aria-live="polite">{documentFontSize}</output>
-          <button type="button" aria-label="Aumentar tamaño de letra" disabled={!canIncreaseDocumentFontSize} onClick={increaseDocumentFontSize}><Plus size={14} /></button>
+        <div className="paper-toolbar-actions">
+          {templateId !== "receta_externa" ? (
+            <button type="button" className="paper-add-section" onClick={addSection}><Plus size={13} /> Agregar sección</button>
+          ) : null}
+          <div className="document-type-control" role="group" aria-label="Tamaño global de letra">
+            <span>Texto</span>
+            <button type="button" aria-label="Disminuir tamaño de letra" disabled={!canDecreaseDocumentFontSize} onClick={decreaseDocumentFontSize}><Minus size={14} /></button>
+            <output aria-live="polite">{documentFontSize}</output>
+            <button type="button" aria-label="Aumentar tamaño de letra" disabled={!canIncreaseDocumentFontSize} onClick={increaseDocumentFontSize}><Plus size={14} /></button>
+          </div>
         </div>
       </div>
       <article style={paperStyle} className={`clinical-paper document-paper ${templateId === "receta_externa" ? "prescription-paper" : ""}`}>
@@ -102,15 +113,45 @@ export function DocumentPreview({
             <p><b>Fecha de nacimiento:</b> <button type="button" className="preview-edit-target" onClick={() => onEditRequest("patient-birth-date")}>{formatStoredDate(patient.birthDate) || "—"}</button></p>
           </div>
         </section>
-        {sections.map((section) => (
-          <section className={section.id === "prescripcion" ? "paper-prescription" : undefined} key={section.id}>
-            {/* "Rp." is fixed by the prescription template, so its heading opens the editable body. */}
-            <h3><button type="button" className="preview-edit-target" onClick={() => onEditRequest(section.id === "prescripcion" ? `section-${section.id}` : `section-title-${section.id}`)}>{section.title}</button></h3>
-            <button type="button" className={`preview-edit-target paper-section-edit ${!section.body ? "paper-empty" : ""}`} onClick={() => onEditRequest(`section-${section.id}`)}>
-              {section.body
-                ? section.body.split("\n").map((line, index) => <span key={index}>{line || " "}</span>)
-                : <span className={section.id === "prescripcion" ? "prescription-empty" : undefined}>{section.id === "prescripcion" ? " " : "—"}</span>}
-            </button>
+        {sections.map((section, index) => (
+          <section className={`paper-editable-section${section.id === "prescripcion" ? " paper-prescription" : ""}`} key={section.id}>
+            <div className="paper-section-heading">
+              {section.id === "prescripcion" ? (
+                <h3>Rp.</h3>
+              ) : (
+                <AutoGrowingTextarea
+                  id={`section-title-${section.id}`}
+                  className="paper-section-title-input print-hide"
+                  label={`Título de la sección ${index + 1}`}
+                  minHeight={30}
+                  resizeKey={documentFontSize}
+                  value={section.title}
+                  placeholder="Título de la sección"
+                  onChange={(value) => updateSection(section.id, { title: value })}
+                />
+              )}
+              {section.id !== "prescripcion" ? <h3 className="paper-section-title-print print-only">{section.title}</h3> : null}
+              {section.id !== "prescripcion" ? (
+                <SectionActions
+                  canMoveDown={index < sections.length - 1}
+                  canMoveUp={index > 0}
+                  index={index}
+                  label={section.title || `sección ${index + 1}`}
+                  onMove={moveSection}
+                  onRemove={() => removeSection(section.id)}
+                />
+              ) : null}
+            </div>
+            <AutoGrowingTextarea
+              id={`section-${section.id}`}
+              className={`paper-section-body print-hide${!section.body ? " paper-empty" : ""}`}
+              label={section.id === "prescripcion" ? "Prescripción" : `Contenido de ${section.title || `sección ${index + 1}`}`}
+              resizeKey={documentFontSize}
+              value={section.body}
+              placeholder={section.id === "prescripcion" ? "Escriba el o los fármacos e indicaciones" : "Escriba aquí…"}
+              onChange={(value) => updateSection(section.id, { body: value })}
+            />
+            <div className={`paper-section-body-print print-only${!section.body ? " paper-empty" : ""}`}>{section.body || (section.id === "prescripcion" ? " " : "—")}</div>
           </section>
         ))}
         <div className="signature-placement-zone">
@@ -132,6 +173,87 @@ export function DocumentPreview({
         {templateId === "receta_externa" ? <div className="prescription-warning">RECETA MÉDICA EXTERNA</div> : null}
       </article>
     </section>
+  );
+}
+
+function SectionActions({
+  canMoveDown,
+  canMoveUp,
+  index,
+  label,
+  onMove,
+  onRemove,
+}: {
+  canMoveDown: boolean;
+  canMoveUp: boolean;
+  index: number;
+  label: string;
+  onMove: DocumentWorkspace["moveSection"];
+  onRemove: () => void;
+}) {
+  const closeMenu = (target: EventTarget & HTMLButtonElement) => {
+    target.closest("details")?.removeAttribute("open");
+  };
+  return (
+    <details className="section-actions-menu paper-section-actions print-hide">
+      <summary aria-label={`Opciones de ${label}`}><MoreHorizontal size={16} /></summary>
+      <div role="menu">
+        <button type="button" role="menuitem" disabled={!canMoveUp} onClick={(event) => { onMove(index, -1); closeMenu(event.currentTarget); }}><ArrowUp size={14} /> Mover arriba</button>
+        <button type="button" role="menuitem" disabled={!canMoveDown} onClick={(event) => { onMove(index, 1); closeMenu(event.currentTarget); }}><ArrowDown size={14} /> Mover abajo</button>
+        <button type="button" role="menuitem" className="section-delete" onClick={(event) => { onRemove(); closeMenu(event.currentTarget); }}><Trash2 size={14} /> Eliminar</button>
+      </div>
+    </details>
+  );
+}
+
+function AutoGrowingTextarea({
+  className,
+  id,
+  label,
+  minHeight = 76,
+  onChange,
+  placeholder,
+  resizeKey,
+  value,
+}: {
+  className: string;
+  id: string;
+  label: string;
+  minHeight?: number;
+  onChange: (value: string) => void;
+  placeholder: string;
+  resizeKey: number;
+  value: string;
+}) {
+  const ref = useRef<HTMLTextAreaElement>(null);
+  useLayoutEffect(() => {
+    const textarea = ref.current;
+    if (!textarea) return;
+    const resize = () => {
+      textarea.style.height = "auto";
+      textarea.style.height = `${Math.max(minHeight, textarea.scrollHeight)}px`;
+    };
+    resize();
+    let lastWidth = textarea.clientWidth;
+    const observer = new ResizeObserver(([entry]) => {
+      const nextWidth = entry.contentRect.width;
+      if (nextWidth === lastWidth) return;
+      lastWidth = nextWidth;
+      resize();
+    });
+    observer.observe(textarea);
+    return () => observer.disconnect();
+  }, [minHeight, resizeKey, value]);
+  return (
+    <textarea
+      ref={ref}
+      id={id}
+      className={className}
+      aria-label={label}
+      value={value}
+      placeholder={placeholder}
+      onChange={(event) => onChange(event.target.value)}
+    />
   );
 }
 

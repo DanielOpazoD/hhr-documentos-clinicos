@@ -1,4 +1,4 @@
-import { Pencil, Stethoscope } from "@/app/components/Icons";
+import { ChevronLeft, ChevronRight, Pencil, Stethoscope } from "@/app/components/Icons";
 import type { DocumentWorkspace } from "./use-document-workspace";
 
 type Props = Pick<DocumentWorkspace, "signer" | "updateSigner"> & {
@@ -11,7 +11,7 @@ export function ProfessionalEditor({ onToggleSignature, signatureOpen, signer, u
   const prefix = variant === "mobile" ? "mobile-professional" : "professional";
   const headingId = `${prefix}-editor-title`;
   return (
-    <section className={`professional-editor professional-editor-${variant}${variant === "mobile" ? " editor-section" : ""}`} aria-labelledby={headingId}>
+    <section className={`professional-editor professional-editor-${variant}${variant === "mobile" ? " editor-section print-hide" : ""}`} aria-labelledby={headingId}>
       <header>
         <span aria-hidden="true"><Stethoscope size={14} /></span>
         <div>
@@ -27,8 +27,11 @@ export function ProfessionalEditor({ onToggleSignature, signatureOpen, signer, u
           title="Firma y timbre"
           onClick={onToggleSignature}
         >
-          <Pencil size={13} />
-          <span>Firma</span>
+          {variant === "sidebar" ? (
+            signatureOpen ? <ChevronLeft size={13} /> : <ChevronRight size={13} />
+          ) : (
+            <><Pencil size={13} /><span>Firma</span></>
+          )}
         </button>
       </header>
       <div className="professional-fields">

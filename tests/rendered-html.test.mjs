@@ -276,7 +276,6 @@ test("keeps the clinical studios usable from mobile through desktop", async () =
     "../app/components/AiStudio.tsx",
     "../app/features/ai/AiDraftResult.tsx",
     "../app/features/documents/DocumentCommandBar.tsx",
-    "../app/features/documents/DocumentEditor.tsx",
     "../app/features/documents/DocumentHistoryDialog.tsx",
     "../app/features/documents/DocumentLibrary.tsx",
     "../app/features/documents/AiProvenance.tsx",
@@ -290,7 +289,6 @@ test("keeps the clinical studios usable from mobile through desktop", async () =
     "../app/features/documents/SignatureImageEditor.tsx",
     "../app/features/documents/SignatureProfileSelector.tsx",
     "../app/features/documents/prepare-signature.ts",
-    "../app/features/documents/SectionsEditor.tsx",
     "../app/features/documents/templates.ts",
     "../app/features/documents/use-document-keyboard.ts",
     "../app/features/documents/use-document-identity.ts",
@@ -315,9 +313,8 @@ test("keeps the clinical studios usable from mobile through desktop", async () =
   const documentStudio = moduleSources.join("\n");
   const styles = `${globalStyles}\n${responsiveStyles}`;
 
-  assert.match(documentStudio, /aria-label="Vista del documento"/);
-  assert.match(documentStudio, /aria-controls="document-editor"/);
-  assert.match(documentStudio, /aria-controls="document-preview"/);
+  assert.doesNotMatch(documentStudio, /aria-label="Vista del documento"|aria-controls="document-editor"/);
+  assert.match(documentStudio, /id="document-preview"/);
   assert.match(documentStudio, /patient-manual-grid/);
   assert.match(documentStudio, /Fecha de nacimiento/);
   assert.match(documentStudio, /Firma y timbre/);
@@ -344,7 +341,7 @@ test("keeps the clinical studios usable from mobile through desktop", async () =
   assert.match(documentStudio, /updatePatientName/);
   assert.doesNotMatch(await readFile(new URL("../app/features/documents/PatientEditor.tsx", import.meta.url), "utf8"), /patient-last-names|>Nombres<|>Apellidos</);
   assert.match(documentStudio, /section-title-/);
-  assert.match(documentStudio, /Rp\." is fixed by the prescription template/);
+  assert.match(documentStudio, /<h3>Rp\.<\/h3>/);
   assert.match(documentStudio, /signature-placement-zone/);
   assert.match(documentStudio, /signing-assets-canvas/);
   assert.match(documentStudio, /document-signoff/);
@@ -354,7 +351,9 @@ test("keeps the clinical studios usable from mobile through desktop", async () =
   assert.match(documentStudio, /saturation/);
   assert.match(documentStudio, /addSection/);
   assert.match(documentStudio, /removeSection/);
-  assert.match(documentStudio, /section-title-input/);
+  assert.match(documentStudio, /paper-section-title-input/);
+  assert.match(documentStudio, /paper-section-body/);
+  assert.match(documentStudio, /paper-add-section/);
   assert.match(documentStudio, /section-actions-menu/);
   assert.match(documentStudio, /role="menuitem"/);
   assert.match(documentStudio, /Mover arriba/);
@@ -443,7 +442,17 @@ test("keeps the clinical studios usable from mobile through desktop", async () =
   assert.match(previewSource, /aria-label="Tamaño global de letra"/);
   assert.match(previewSource, /paper-title-input/);
   assert.match(previewSource, /setEditingTitle\(true\)/);
+  assert.match(previewSource, /onChange=\{\(value\) => updateSection\(section\.id, \{ body: value \}\)\}/);
+  assert.match(previewSource, /Math\.max\(minHeight, textarea\.scrollHeight\)/);
+  assert.match(previewSource, /new ResizeObserver/);
+  assert.match(previewSource, /resizeKey=\{documentFontSize\}/);
+  assert.match(previewSource, /Escriba el o los fármacos e indicaciones/);
+  assert.match(previewSource, /paper-section-title-print print-only/);
+  assert.match(previewSource, /paper-section-body-print print-only/);
+  assert.match(previewSource, /Opciones de \$\{label\}/);
   assert.doesNotMatch(previewSource, /paper-edit-hint|onEditRequest\("document-title"\)/);
+  const documentStudioSource = await readFile(new URL("../app/components/DocumentStudio.tsx", import.meta.url), "utf8");
+  assert.doesNotMatch(documentStudioSource, /DocumentEditor|SectionsEditor|studio-view-switch/);
   assert.match(documentStudio, /DOCUMENT_FONT_SIZE_DEFAULT = 16/);
   assert.match(documentStudio, /hhr-document-font-size-v1/);
   assert.match(documentStudio, /browser storage is blocked or full/);
@@ -451,14 +460,20 @@ test("keeps the clinical studios usable from mobile through desktop", async () =
   assert.match(documentStudio, /normalizeStoredSignatureY/);
   assert.equal(moduleSources.filter((source) => source.split("\n").length > 350).length, 0);
   assert.match(styles, /@media \(max-width: 1240px\)/);
-  assert.match(styles, /\.simplified-studio \.document-editor-layout \{ grid-template-columns: 1fr; \}/);
+  assert.match(styles, /\.paper-editable-section/);
+  assert.match(styles, /\.paper-section-title-input/);
+  assert.match(styles, /\.paper-section-body/);
+  assert.match(styles, /\.paper-section-title-print \{[^}]*white-space: pre-wrap;/);
+  assert.match(styles, /\.paper-section-actions \{ opacity: 1; \}/);
+  assert.match(styles, /@media \(hover: none\), \(pointer: coarse\)/);
+  assert.match(styles, /\.print-only \{ display: block !important; \}/);
   assert.match(styles, /\.clinical-paper \.paper-date/);
   assert.match(styles, /\.preview-edit-target/);
   assert.match(styles, /\.document-signer\.preview-edit-target/);
   assert.match(styles, /\.professional-editor/);
   assert.match(styles, /\.professional-editor-sidebar/);
   assert.match(styles, /\.professional-editor-mobile/);
-  assert.match(styles, /\.document-editor-layout > \.mobile-hidden \{ display: none; \}/);
+  assert.doesNotMatch(styles, /\.document-editor-layout > \.mobile-hidden/);
   assert.match(styles, /\.page-header > \*, \.hero-row > \*.*min-width: 0;/);
   assert.match(layout, /styles\/responsive-focus\.css/);
   assert.match(dashboard, /card-link-label/);
