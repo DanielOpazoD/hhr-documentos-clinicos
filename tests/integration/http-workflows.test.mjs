@@ -79,6 +79,7 @@ test("requires an authenticated owner outside the local preview", async () => {
     ["/api/ai/prompts", "GET"],
     ["/api/ai/providers", "GET"],
     ["/api/ai/usage", "GET"],
+    ["/api/integrations/google-drive/config", "GET"],
     ["/api/mobile-sessions", "POST"],
   ];
 

@@ -1,6 +1,7 @@
 import type { OpenAiOutput } from "./openai-responses";
 import { hospitalSalvadorFields, isHospitalSalvadorFieldKey } from "../hospital-salvador-fields";
 import type { AiTargetId } from "../types";
+import { protectUnsupportedSection } from "./clinical-evidence";
 
 type RawClinicalOutput = {
   document_kind?: unknown;
@@ -78,6 +79,7 @@ export function parseClinicalOutput(
   const sourceTexts = options.sourceTexts ?? [];
   const sourceCount = sourceTexts.length;
   const pageSources = sourceTexts.map((sourceText) => normalizedPageSources(sourceText));
+  const unsupportedSections: string[] = [];
   for (const section of candidate.sections) {
     if (!section || typeof section.title !== "string" || !section.title.trim() || typeof section.text !== "string" || !section.text.trim()) {
       throw new Error("El modelo devolvió una sección incompleta.");
@@ -85,11 +87,18 @@ export function parseClinicalOutput(
     if (options.target === "traslado_salvador" && (typeof section.key !== "string" || !isHospitalSalvadorFieldKey(section.key))) {
       throw new Error("El modelo no respetó los campos del formulario de traslado.");
     }
-    if (
-      !Array.isArray(section.evidence) ||
-      (!section.evidence.some((item) => typeof item?.excerpt === "string" && item.excerpt.trim())
-        && !declaredAbsence(section.text))
-    ) throw new Error("El modelo no respaldó una sección con evidencia de la fuente.");
+    if (!Array.isArray(section.evidence)) {
+      throw new Error("El modelo devolvió evidencia con un formato inválido.");
+    }
+    const protectedSection = protectUnsupportedSection({
+      title: section.title,
+      text: section.text,
+      evidence: section.evidence,
+      declaresAbsence: declaredAbsence(section.text),
+    });
+    if (protectedSection.unsupportedTitle) unsupportedSections.push(protectedSection.unsupportedTitle);
+    section.text = protectedSection.text;
+    section.evidence = protectedSection.evidence;
     for (const evidence of section.evidence) {
       const sourceIndex = Number(evidence?.source_index);
       const pageNumber = evidence?.page === null ? null : Number(evidence?.page);
@@ -144,6 +153,14 @@ export function parseClinicalOutput(
         evidence: [],
       })
     : candidate.sections;
+  const missingInformation = [...candidate.missing_information];
+  for (const title of unsupportedSections) {
+    const notice = `Sin evidencia verificable para la sección: ${title}.`;
+    if (!missingInformation.includes(notice)) missingInformation.push(notice);
+  }
+  const processingSummary = unsupportedSections.length
+    ? `${candidate.processing_summary.trim()} ${unsupportedSections.length === 1 ? "Una sección sin evidencia se dejó como «No consignado» para revisión." : `${unsupportedSections.length} secciones sin evidencia se dejaron como «No consignado» para revisión.`}`.trim()
+    : candidate.processing_summary.trim();
   return {
     documentKind: candidate.document_kind,
     patient: {
@@ -157,7 +174,7 @@ export function parseClinicalOutput(
       rut: nullableText(candidate.signer.rut),
       specialty: nullableText(candidate.signer.specialty),
     },
-    processingSummary: candidate.processing_summary.trim(),
+    processingSummary,
     sections: sourceSections.map((section) => ({
       ...(typeof section.key === "string" ? { key: section.key } : {}),
       title: String(section.title),
@@ -180,7 +197,7 @@ export function parseClinicalOutput(
         };
       }),
     })),
-    missingInformation: candidate.missing_information,
+    missingInformation,
     safetyNotice: candidate.safety_notice,
   };
 }

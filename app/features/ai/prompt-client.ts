@@ -1,4 +1,4 @@
-import type { AiPromptInput, AiPromptProfile } from "./prompt-types";
+import type { AiPromptImprovement, AiPromptInput, AiPromptProfile } from "./prompt-types";
 
 async function promptResponse(response: Response): Promise<{ prompts: AiPromptProfile[]; prompt?: AiPromptProfile }> {
   const data = await response.json().catch(() => ({ error: "No se pudo leer la respuesta." })) as {
@@ -33,4 +33,18 @@ export async function updatePromptProfile(id: string, input: AiPromptInput) {
 
 export async function deletePromptProfile(id: string) {
   return promptResponse(await fetch(`/api/ai/prompts/${id}`, { method: "DELETE" }));
+}
+
+export async function improvePromptProfile(input: AiPromptInput): Promise<AiPromptImprovement> {
+  const response = await fetch("/api/ai/prompts/improve", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(input),
+  });
+  const data = await response.json().catch(() => ({ error: "No se pudo leer la respuesta." })) as {
+    improvement?: AiPromptImprovement;
+    error?: string;
+  };
+  if (!response.ok || !data.improvement) throw new Error(data.error ?? "No se pudo mejorar el prompt.");
+  return data.improvement;
 }

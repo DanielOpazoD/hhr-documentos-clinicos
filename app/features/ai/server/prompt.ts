@@ -27,8 +27,14 @@ function sectionSchema(target: AiTargetId) {
       title: hospitalSalvador
         ? { type: "string", enum: hospitalSalvadorFields.map((field) => field.label) }
         : { type: "string" },
-      text: { type: "string" },
-      evidence: evidenceSchema,
+      text: {
+        type: "string",
+        description: "Contenido clínico respaldado por evidence. Si no existe respaldo, usa exactamente 'No consignado'.",
+      },
+      evidence: {
+        ...evidenceSchema,
+        description: "Incluye al menos una cita literal para toda sección con contenido clínico. Solo puede estar vacío cuando text es exactamente 'No consignado'.",
+      },
     },
     required: hospitalSalvador ? ["key", "title", "text", "evidence"] : ["title", "text", "evidence"],
     additionalProperties: false,
@@ -100,7 +106,7 @@ Reglas obligatorias:
 - No calcules valores clínicos ausentes. En función renal, conserva la fórmula declarada por la fuente y no construyas una tendencia entre fórmulas distintas.
 - Interpreta un resultado de laboratorio solamente con el intervalo de referencia, unidad y método consignados en esa misma fuente; no apliques cortes universales incluidos en el perfil.
 - No agregues controles, tamizajes, plazos ni planes de seguimiento que no estén documentados en las fuentes.
-- Cada afirmación clínica debe conservar evidencia de origen para auditoría interna. Una sección sin evidencia solo puede declarar que el dato no fue encontrado.
+- Cada sección con contenido clínico debe incluir al menos una cita literal no vacía en evidence. Si no puedes citar la fuente, escribe exactamente "No consignado", deja evidence vacío e incorpora el dato en missing_information.
 - Todo dato ausente pertenece también a missing_information.
 - El resultado siempre es un borrador editable que requiere revisión profesional.
 - Aunque el perfil describa un formato Word o del sistema clínico, responde primero con el JSON estructurado solicitado. La aplicación se ocupa del documento final.

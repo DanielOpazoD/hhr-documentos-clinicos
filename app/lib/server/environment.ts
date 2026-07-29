@@ -8,6 +8,9 @@ export type AppEnv = {
   LOCAL_AI_BASE_URL?: string;
   LOCAL_AI_MODEL?: string;
   LOCAL_AI_API_KEY?: string;
+  GOOGLE_DRIVE_CLIENT_ID?: string;
+  GOOGLE_DRIVE_API_KEY?: string;
+  GOOGLE_DRIVE_APP_ID?: string;
 };
 
 export function appEnv(): AppEnv {

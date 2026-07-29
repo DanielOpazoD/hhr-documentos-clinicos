@@ -3,6 +3,7 @@ import Link from "next/link";
 import { ArrowRight, Check, FileText, FileUp, Sparkles, Trash2 } from "@/app/components/Icons";
 import { AiProcessingStatus } from "./AiProcessingStatus";
 import { AiModelPicker } from "./AiModelPicker";
+import { GoogleDrivePicker } from "./GoogleDrivePicker";
 import { aiTargetGroups, aiTargets, getTargetDefinition } from "./targets";
 import type { AiStudioController } from "./use-ai-studio";
 
@@ -40,6 +41,8 @@ export function AiImportForm({ controller }: { controller: AiStudioController })
           <strong>{controller.files.length ? "Agregar más archivos" : "Seleccione o arrastre archivos"}</strong>
           <small>PDF, DOCX, JPG o PNG · hasta 8 archivos</small>
         </button>
+        <div className="ai-source-divider"><span>o</span></div>
+        <GoogleDrivePicker disabled={controller.processing} fileCount={controller.files.length} onFiles={controller.addFiles} />
         {controller.files.length ? (
           <div className="ai-file-queue">
             {controller.files.map((file, index) => (

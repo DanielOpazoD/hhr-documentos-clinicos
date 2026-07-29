@@ -14,6 +14,7 @@ import {
   validateSourceContents,
   type SourceDescriptor,
 } from "../../app/features/ai/server/source-policy.ts";
+import { protectUnsupportedSection } from "../../app/features/ai/server/clinical-evidence.ts";
 
 const DOCX_MIME_TYPE = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
 
@@ -94,4 +95,24 @@ test("rejects spoofed source metadata and accepts authentic file signatures", as
     validateSourceContents([malformedDocx], validateSourceBatch([malformedDocx])),
     /no coincide con su formato/,
   );
+});
+
+test("replaces unsupported clinical text instead of rejecting the entire draft", () => {
+  assert.deepEqual(protectUnsupportedSection({
+    title: "Diagnóstico",
+    text: "Neumonía",
+    evidence: [],
+    declaresAbsence: false,
+  }), {
+    text: "No consignado",
+    evidence: [],
+    unsupportedTitle: "Diagnóstico",
+  });
+
+  assert.equal(protectUnsupportedSection({
+    title: "Diagnóstico",
+    text: "Neumonía",
+    evidence: [{ excerpt: "Diagnóstico: neumonía" }],
+    declaresAbsence: false,
+  }).unsupportedTitle, null);
 });
