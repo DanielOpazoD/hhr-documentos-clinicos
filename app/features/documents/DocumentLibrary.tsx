@@ -4,7 +4,6 @@ import { useEffect, useLayoutEffect, useState } from "react";
 import { FilePlus2, FileText, Search, Trash2 } from "@/app/components/Icons";
 import { documentTemplates } from "@/app/lib/catalog";
 import { formatUpdated } from "./formatters";
-import { ProfessionalEditor } from "./ProfessionalEditor";
 import type { DocumentWorkspace } from "./use-document-workspace";
 
 type Props = Pick<
@@ -15,11 +14,9 @@ type Props = Pick<
   | "newMenuOpen"
   | "recentQuery"
   | "saving"
-  | "signer"
   | "setNewMenuOpen"
   | "setRecentQuery"
   | "storedDocuments"
-  | "updateSigner"
   | "createDocument"
   | "deleteDocument"
   | "deleteDocuments"
@@ -33,11 +30,9 @@ export function DocumentLibrary({
   newMenuOpen,
   recentQuery,
   saving,
-  signer,
   setNewMenuOpen,
   setRecentQuery,
   storedDocuments,
-  updateSigner,
   createDocument,
   deleteDocument,
   deleteDocuments,
@@ -121,8 +116,6 @@ export function DocumentLibrary({
             ))}
           </div>
         ) : null}
-
-        <ProfessionalEditor signer={signer} updateSigner={updateSigner} />
 
         <div className="recent-heading">
           <div><strong>Recientes</strong><span>{storedDocuments.length}</span></div>

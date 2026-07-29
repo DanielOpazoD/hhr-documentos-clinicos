@@ -241,8 +241,8 @@
   }
 
   .document-command-bar {
-    gap: 9px;
-    padding: 11px 12px;
+    gap: 6px;
+    padding: 0;
   }
 
   .patient-editor {
@@ -263,20 +263,6 @@
   .patient-manual-grid input {
     min-height: 40px;
     font-size: 11px;
-  }
-
-  .document-title-field > span,
-  .save-state strong {
-    font-size: 10px;
-  }
-
-  .document-title-field input {
-    min-height: 40px;
-    font-size: 13px;
-  }
-
-  .save-state small {
-    font-size: 9px;
   }
 
   .document-status-actions {

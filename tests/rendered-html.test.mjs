@@ -271,10 +271,12 @@ test("uses byte-identical PDFs from origin/main/Formularios", async () => {
 
 test("keeps the clinical studios usable from mobile through desktop", async () => {
   const documentModules = [
+    "../app/components/AppFrame.tsx",
     "../app/components/DocumentStudio.tsx",
     "../app/components/AiStudio.tsx",
     "../app/features/ai/AiDraftResult.tsx",
     "../app/features/documents/DocumentCommandBar.tsx",
+    "../app/features/documents/DocumentEditor.tsx",
     "../app/features/documents/DocumentHistoryDialog.tsx",
     "../app/features/documents/DocumentLibrary.tsx",
     "../app/features/documents/AiProvenance.tsx",
@@ -319,7 +321,8 @@ test("keeps the clinical studios usable from mobile through desktop", async () =
   assert.match(documentStudio, /patient-manual-grid/);
   assert.match(documentStudio, /Fecha de nacimiento/);
   assert.match(documentStudio, /Firma y timbre/);
-  assert.match(documentStudio, /Cargo o especialidad/);
+  assert.match(documentStudio, /Nombre médico/);
+  assert.match(documentStudio, />Especialidad</);
   assert.doesNotMatch(documentStudio, /Previsión/);
   assert.match(documentStudio, /Administrar imágenes guardadas/);
   assert.match(documentStudio, /Predeterminada/);
@@ -327,11 +330,15 @@ test("keeps the clinical studios usable from mobile through desktop", async () =
   assert.match(documentStudio, /removeSignatureProfile/);
   assert.match(documentStudio, /deleteSignature/);
   assert.match(documentStudio, /Eliminar esta imagen/);
-  assert.match(documentStudio, /Las imágenes se administran y posicionan por separado/);
+  assert.doesNotMatch(documentStudio, /Las imágenes se administran y posicionan por separado/);
   assert.match(documentStudio, /professional-editor/);
-  assert.match(documentStudio, /Datos habituales de firma/);
+  assert.match(documentStudio, /document-professional-slot/);
+  assert.match(documentStudio, /createPortal/);
+  assert.match(documentStudio, /variant="sidebar"/);
+  assert.match(documentStudio, /variant="mobile"/);
+  assert.match(documentStudio, /Nombre, RUT y especialidad/);
   assert.match(documentStudio, /onEditRequest/);
-  assert.match(documentStudio, /Seleccione un campo para editar/);
+  assert.doesNotMatch(documentStudio, /Seleccione un campo para editar/);
   assert.match(documentStudio, /patient-first-names/);
   assert.match(documentStudio, /section-title-/);
   assert.match(documentStudio, /Rp\." is fixed by the prescription template/);
@@ -420,6 +427,14 @@ test("keeps the clinical studios usable from mobile through desktop", async () =
   assert.doesNotMatch(documentStudio, /left \+ width, 746/);
   assert.match(documentStudio, /availableLines/);
   assert.match(documentStudio, /Tamaño global de letra/);
+  const commandBarSource = await readFile(new URL("../app/features/documents/DocumentCommandBar.tsx", import.meta.url), "utf8");
+  const previewSource = await readFile(new URL("../app/features/documents/DocumentPreview.tsx", import.meta.url), "utf8");
+  assert.doesNotMatch(commandBarSource, /Revisar|Finalizar|document-title|save-state|Tamaño global de letra/);
+  assert.match(previewSource, /className="paper-toolbar print-hide"/);
+  assert.match(previewSource, /aria-label="Tamaño global de letra"/);
+  assert.match(previewSource, /paper-title-input/);
+  assert.match(previewSource, /setEditingTitle\(true\)/);
+  assert.doesNotMatch(previewSource, /paper-edit-hint|onEditRequest\("document-title"\)/);
   assert.match(documentStudio, /DOCUMENT_FONT_SIZE_DEFAULT = 16/);
   assert.match(documentStudio, /hhr-document-font-size-v1/);
   assert.match(documentStudio, /browser storage is blocked or full/);
@@ -432,6 +447,8 @@ test("keeps the clinical studios usable from mobile through desktop", async () =
   assert.match(styles, /\.preview-edit-target/);
   assert.match(styles, /\.document-signer\.preview-edit-target/);
   assert.match(styles, /\.professional-editor/);
+  assert.match(styles, /\.professional-editor-sidebar/);
+  assert.match(styles, /\.professional-editor-mobile/);
   assert.match(styles, /\.document-editor-layout > \.mobile-hidden \{ display: none; \}/);
   assert.match(styles, /\.page-header > \*, \.hero-row > \*.*min-width: 0;/);
   assert.match(layout, /styles\/responsive-focus\.css/);

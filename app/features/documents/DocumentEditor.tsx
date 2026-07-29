@@ -1,5 +1,6 @@
 import { AiProvenance } from "./AiProvenance";
 import { SectionsEditor } from "./SectionsEditor";
+import { ProfessionalEditor } from "./ProfessionalEditor";
 import { SignatureEditor } from "./SignatureEditor";
 import type { DocumentWorkspace } from "./use-document-workspace";
 import type { CSSProperties } from "react";
@@ -13,6 +14,7 @@ export function DocumentEditor({ workspace }: { workspace: DocumentWorkspace }) 
     >
       <AiProvenance {...workspace} />
       <SectionsEditor {...workspace} />
+      <ProfessionalEditor signer={workspace.signer} updateSigner={workspace.updateSigner} variant="mobile" />
       <SignatureEditor {...workspace} />
     </section>
   );

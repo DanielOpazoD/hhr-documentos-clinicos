@@ -1,6 +1,6 @@
 import NextImage from "next/image";
-import type { CSSProperties } from "react";
-import { GripVertical } from "@/app/components/Icons";
+import { useState, type CSSProperties } from "react";
+import { GripVertical, Minus, Plus } from "@/app/components/Icons";
 import { formatStoredDate } from "./formatters";
 import { patientFullName } from "./identity";
 import type { PlacedSignature, SignatureAssetKind } from "./types";
@@ -9,6 +9,11 @@ import type { DocumentWorkspace } from "./use-document-workspace";
 type Props = Pick<
   DocumentWorkspace,
   | "documentFontSize"
+  | "documentTitle"
+  | "canDecreaseDocumentFontSize"
+  | "canIncreaseDocumentFontSize"
+  | "decreaseDocumentFontSize"
+  | "increaseDocumentFontSize"
   | "issueDate"
   | "mobileView"
   | "moveSignature"
@@ -22,10 +27,17 @@ type Props = Pick<
   | "templateId"
   | "version"
   | "visibleTitle"
+  | "markDirty"
+  | "setDocumentTitle"
 > & { onEditRequest: (fieldId: string) => void };
 
 export function DocumentPreview({
   documentFontSize,
+  documentTitle,
+  canDecreaseDocumentFontSize,
+  canIncreaseDocumentFontSize,
+  decreaseDocumentFontSize,
+  increaseDocumentFontSize,
   issueDate,
   mobileView,
   moveSignature,
@@ -39,21 +51,49 @@ export function DocumentPreview({
   templateId,
   version,
   visibleTitle,
+  markDirty,
+  setDocumentTitle,
   onEditRequest,
 }: Props) {
+  const [editingTitle, setEditingTitle] = useState(false);
   const paperStyle = { "--document-font-size": `${documentFontSize}px` } as CSSProperties;
   return (
     <section id="document-preview" className={`paper-panel ${mobileView === "preview" ? "mobile-visible" : "mobile-hidden"}`}>
       <div className="paper-toolbar print-hide">
         <span><span className={`status-pill ${status.toLowerCase()}`}>{status}</span> v{version}</span>
-        <span className="paper-edit-hint">Seleccione un campo para editar · {documentFontSize} px</span>
+        <div className="document-type-control" role="group" aria-label="Tamaño global de letra">
+          <span>Texto</span>
+          <button type="button" aria-label="Disminuir tamaño de letra" disabled={!canDecreaseDocumentFontSize} onClick={decreaseDocumentFontSize}><Minus size={14} /></button>
+          <output aria-live="polite">{documentFontSize}</output>
+          <button type="button" aria-label="Aumentar tamaño de letra" disabled={!canIncreaseDocumentFontSize} onClick={increaseDocumentFontSize}><Plus size={14} /></button>
+        </div>
       </div>
       <article style={paperStyle} className={`clinical-paper document-paper ${templateId === "receta_externa" ? "prescription-paper" : ""}`}>
         <div className="paper-brand">
           <div><span>Servicio de Salud Metropolitano Oriente</span><strong>Hospital Hanga Roa</strong></div>
           <NextImage src="/hhr-logo.svg" alt="Hospital Hanga Roa" width={54} height={54} />
         </div>
-        <h2><button type="button" className="preview-edit-target paper-title-edit" onClick={() => onEditRequest("document-title")}>{visibleTitle.toUpperCase()}</button></h2>
+        <h2>
+          {editingTitle ? (
+            <input
+              id="document-title"
+              className="paper-title-input"
+              aria-label="Título del documento"
+              autoFocus
+              value={documentTitle}
+              onBlur={() => setEditingTitle(false)}
+              onChange={(event) => {
+                setDocumentTitle(event.target.value);
+                markDirty();
+              }}
+              onKeyDown={(event) => {
+                if (event.key === "Enter" || event.key === "Escape") event.currentTarget.blur();
+              }}
+            />
+          ) : (
+            <button type="button" className="preview-edit-target paper-title-edit" onClick={() => setEditingTitle(true)}>{visibleTitle.toUpperCase()}</button>
+          )}
+        </h2>
         <div className="paper-rule" />
         <section>
           <div className="paper-patient-lines">

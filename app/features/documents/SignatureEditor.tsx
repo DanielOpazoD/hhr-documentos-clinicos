@@ -26,7 +26,7 @@ export function SignatureEditor(workspace: DocumentWorkspace) {
   return (
     <div className="editor-section signature-editor">
       <div className="editor-section-title signature-heading">
-        <div><h2>Firma y timbre</h2><small>Las imágenes se administran y posicionan por separado.</small></div>
+        <div><h2>Firma y timbre</h2></div>
         {signatureFormOpen ? <button className="text-button" onClick={() => setSignatureFormOpen(false)}><X size={14} /> Cerrar</button> : null}
       </div>
 

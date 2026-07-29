@@ -1,12 +1,14 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import { Download, Printer, Sparkles, X } from "@/app/components/Icons";
 import { AiStudio } from "@/app/components/AiStudio";
 import { DocumentCommandBar } from "@/app/features/documents/DocumentCommandBar";
 import { DocumentEditor } from "@/app/features/documents/DocumentEditor";
 import { DocumentLibrary } from "@/app/features/documents/DocumentLibrary";
 import { PatientEditor } from "@/app/features/documents/PatientEditor";
+import { ProfessionalEditor } from "@/app/features/documents/ProfessionalEditor";
 import { DocumentPreview } from "@/app/features/documents/DocumentPreview";
 import { DocumentHistoryDialog } from "@/app/features/documents/DocumentHistoryDialog";
 import { useDocumentWorkspace } from "@/app/features/documents/use-document-workspace";
@@ -16,6 +18,7 @@ export function DocumentStudio() {
   const workspace = useDocumentWorkspace();
   const [assistantOpen, setAssistantOpen] = useState(false);
   const [assistantActivated, setAssistantActivated] = useState(false);
+  const [professionalSlot, setProfessionalSlot] = useState<HTMLElement | null>(null);
   const { closeDocumentHistory, openDocument, persist, setMobileView, setNewMenuOpen, setSignatureDeleteId, setSignatureFormOpen } = workspace;
   const saveFromKeyboard = useCallback(() => void persist(), [persist]);
   const openNewDocumentMenu = useCallback(() => setNewMenuOpen(true), [setNewMenuOpen]);
@@ -52,14 +55,25 @@ export function DocumentStudio() {
   }, [openDocument, setAssistantVisibility]);
 
   const editFromPreview = useCallback((fieldId: string) => {
-    if (window.matchMedia("(max-width: 820px)").matches) setMobileView("edit");
+    const compactViewport = window.matchMedia("(max-width: 820px)").matches;
+    if (compactViewport) setMobileView("edit");
     window.requestAnimationFrame(() => window.requestAnimationFrame(() => {
-      const field = document.getElementById(fieldId);
+      const resolvedFieldId = compactViewport && fieldId.startsWith("professional-")
+        ? `mobile-${fieldId}`
+        : fieldId;
+      const field = document.getElementById(resolvedFieldId);
       if (!(field instanceof HTMLElement)) return;
       field.focus();
       field.scrollIntoView({ block: "center", behavior: "smooth" });
     }));
   }, [setMobileView]);
+
+  useEffect(() => {
+    const frame = window.requestAnimationFrame(() => {
+      setProfessionalSlot(document.getElementById("document-professional-slot"));
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, []);
 
   useEffect(() => {
     const syncAssistantFromUrl = () => {
@@ -73,73 +87,79 @@ export function DocumentStudio() {
   }, []);
 
   return (
-    <div className="page-wrap studio-page simplified-studio">
-      <header className="page-header compact-page-header">
-        <div className="document-page-title">
-          <h1>Documentos</h1>
-          <p>Redacte manualmente o genere un borrador con IA.</p>
-        </div>
-        <div className="header-actions">
-          <button
-            type="button"
-            className={assistantOpen ? "button secondary document-assistant-toggle active" : "button secondary document-assistant-toggle"}
-            aria-expanded={assistantOpen}
-            aria-controls="document-ai-assistant"
-            onClick={() => setAssistantVisibility(!assistantOpen)}
-          >
-            {assistantOpen ? <X size={16} /> : <Sparkles size={16} />}
-            {assistantOpen ? "Volver al editor" : "Usar IA"}
-          </button>
-          {!assistantOpen ? <>
-            <button className="button secondary studio-print-button" onClick={() => window.print()}><Printer size={16} /> Imprimir</button>
-            <button className="button primary studio-download-button" aria-label="Descargar PDF" onClick={() => void workspace.downloadPdf()}>
-              <Download size={16} />
-              <span className="desktop-action-label">Descargar PDF</span>
-              <span className="mobile-action-label" aria-hidden="true">PDF</span>
-            </button>
-          </> : null}
-        </div>
-      </header>
-
-      {workspace.loadError ? <p className="form-error standalone">{workspace.loadError}</p> : null}
-
-      {assistantActivated ? (
-        <div hidden={!assistantOpen}>
-          <AiStudio active={assistantOpen} embedded onOpenDocument={openGeneratedDocument} />
-        </div>
+    <>
+      {professionalSlot ? createPortal(
+        <ProfessionalEditor signer={workspace.signer} updateSigner={workspace.updateSigner} variant="sidebar" />,
+        professionalSlot,
       ) : null}
-      <div hidden={assistantOpen}>
-        <div className="document-workspace-shell">
-          <DocumentLibrary {...workspace} />
-          <main className="document-main">
-            <DocumentCommandBar {...workspace} />
-            <PatientEditor {...workspace} />
-            <div className="studio-view-switch print-hide" role="tablist" aria-label="Vista del documento">
-              <button
-                role="tab"
-                aria-selected={workspace.mobileView === "edit"}
-                aria-controls="document-editor"
-                onClick={() => workspace.setMobileView("edit")}
-              >
-                Editar
+      <div className="page-wrap studio-page simplified-studio">
+        <header className="page-header compact-page-header">
+          <div className="document-page-title">
+            <h1>Documentos</h1>
+            <p>Redacte manualmente o genere un borrador con IA.</p>
+          </div>
+          <div className="header-actions">
+            <button
+              type="button"
+              className={assistantOpen ? "button secondary document-assistant-toggle active" : "button secondary document-assistant-toggle"}
+              aria-expanded={assistantOpen}
+              aria-controls="document-ai-assistant"
+              onClick={() => setAssistantVisibility(!assistantOpen)}
+            >
+              {assistantOpen ? <X size={16} /> : <Sparkles size={16} />}
+              {assistantOpen ? "Volver al editor" : "Usar IA"}
+            </button>
+            {!assistantOpen ? <>
+              <button className="button secondary studio-print-button" onClick={() => window.print()}><Printer size={16} /> Imprimir</button>
+              <button className="button primary studio-download-button" aria-label="Descargar PDF" onClick={() => void workspace.downloadPdf()}>
+                <Download size={16} />
+                <span className="desktop-action-label">Descargar PDF</span>
+                <span className="mobile-action-label" aria-hidden="true">PDF</span>
               </button>
-              <button
-                role="tab"
-                aria-selected={workspace.mobileView === "preview"}
-                aria-controls="document-preview"
-                onClick={() => workspace.setMobileView("preview")}
-              >
-                Vista previa
-              </button>
-            </div>
-            <div className="editor-layout document-editor-layout">
-              <DocumentEditor workspace={workspace} />
-              <DocumentPreview {...workspace} onEditRequest={editFromPreview} />
-            </div>
-          </main>
+            </> : null}
+          </div>
+        </header>
+
+        {workspace.loadError ? <p className="form-error standalone">{workspace.loadError}</p> : null}
+
+        {assistantActivated ? (
+          <div hidden={!assistantOpen}>
+            <AiStudio active={assistantOpen} embedded onOpenDocument={openGeneratedDocument} />
+          </div>
+        ) : null}
+        <div hidden={assistantOpen}>
+          <div className="document-workspace-shell">
+            <DocumentLibrary {...workspace} />
+            <main className="document-main">
+              <DocumentCommandBar {...workspace} />
+              <PatientEditor {...workspace} />
+              <div className="studio-view-switch print-hide" role="tablist" aria-label="Vista del documento">
+                <button
+                  role="tab"
+                  aria-selected={workspace.mobileView === "edit"}
+                  aria-controls="document-editor"
+                  onClick={() => workspace.setMobileView("edit")}
+                >
+                  Editar
+                </button>
+                <button
+                  role="tab"
+                  aria-selected={workspace.mobileView === "preview"}
+                  aria-controls="document-preview"
+                  onClick={() => workspace.setMobileView("preview")}
+                >
+                  Vista previa
+                </button>
+              </div>
+              <div className="editor-layout document-editor-layout">
+                <DocumentEditor workspace={workspace} />
+                <DocumentPreview {...workspace} onEditRequest={editFromPreview} />
+              </div>
+            </main>
+          </div>
         </div>
+        {workspace.historyOpen ? <DocumentHistoryDialog {...workspace} /> : null}
       </div>
-      {workspace.historyOpen ? <DocumentHistoryDialog {...workspace} /> : null}
-    </div>
+    </>
   );
 }
