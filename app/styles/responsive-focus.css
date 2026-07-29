@@ -245,6 +245,26 @@
     padding: 11px 12px;
   }
 
+  .patient-editor {
+    grid-template-columns: 1fr;
+    gap: 8px;
+    padding: 10px;
+  }
+
+  .patient-manual-grid {
+    grid-template-columns: 1fr 1fr;
+    gap: 7px;
+  }
+
+  .patient-manual-grid label:last-child {
+    grid-column: auto;
+  }
+
+  .patient-manual-grid input {
+    min-height: 40px;
+    font-size: 11px;
+  }
+
   .document-title-field > span,
   .save-state strong {
     font-size: 10px;

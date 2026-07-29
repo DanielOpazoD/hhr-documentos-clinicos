@@ -55,6 +55,7 @@ export function DocumentCommandBar({
         <label className="document-title-field">
           <span>Título</span>
           <input
+            id="document-title"
             value={documentTitle}
             onChange={(event) => {
               setDocumentTitle(event.target.value);

@@ -22,7 +22,7 @@ type Props = Pick<
   | "templateId"
   | "version"
   | "visibleTitle"
->;
+> & { onEditRequest: (fieldId: string) => void };
 
 export function DocumentPreview({
   documentFontSize,
@@ -39,34 +39,38 @@ export function DocumentPreview({
   templateId,
   version,
   visibleTitle,
+  onEditRequest,
 }: Props) {
   const paperStyle = { "--document-font-size": `${documentFontSize}px` } as CSSProperties;
   return (
     <section id="document-preview" className={`paper-panel ${mobileView === "preview" ? "mobile-visible" : "mobile-hidden"}`}>
       <div className="paper-toolbar print-hide">
         <span><span className={`status-pill ${status.toLowerCase()}`}>{status}</span> v{version}</span>
-        <span>{documentFontSize} px</span>
+        <span className="paper-edit-hint">Seleccione un campo para editar · {documentFontSize} px</span>
       </div>
       <article style={paperStyle} className={`clinical-paper document-paper ${templateId === "receta_externa" ? "prescription-paper" : ""}`}>
         <div className="paper-brand">
           <div><span>Servicio de Salud Metropolitano Oriente</span><strong>Hospital Hanga Roa</strong></div>
           <NextImage src="/hhr-logo.svg" alt="Hospital Hanga Roa" width={54} height={54} />
         </div>
-        <h2>{visibleTitle.toUpperCase()}</h2>
+        <h2><button type="button" className="preview-edit-target paper-title-edit" onClick={() => onEditRequest("document-title")}>{visibleTitle.toUpperCase()}</button></h2>
         <div className="paper-rule" />
         <section>
           <div className="paper-patient-lines">
-            <p><b>Nombre:</b> {patientFullName(patient) || "—"}</p>
-            <p><b>RUT:</b> {patient.rut || "—"}</p>
-            <p><b>Fecha de nacimiento:</b> {formatStoredDate(patient.birthDate) || "—"}</p>
+            <p><b>Nombre:</b> <button type="button" className="preview-edit-target" onClick={() => onEditRequest("patient-first-names")}>{patientFullName(patient) || "—"}</button></p>
+            <p><b>RUT:</b> <button type="button" className="preview-edit-target" onClick={() => onEditRequest("patient-rut")}>{patient.rut || "—"}</button></p>
+            <p><b>Fecha de nacimiento:</b> <button type="button" className="preview-edit-target" onClick={() => onEditRequest("patient-birth-date")}>{formatStoredDate(patient.birthDate) || "—"}</button></p>
           </div>
         </section>
         {sections.map((section) => (
           <section className={section.id === "prescripcion" ? "paper-prescription" : undefined} key={section.id}>
-            <h3>{section.title}</h3>
-            {section.body
-              ? section.body.split("\n").map((line, index) => <p key={index}>{line || " "}</p>)
-              : <p className={`paper-empty ${section.id === "prescripcion" ? "prescription-empty" : ""}`}>{section.id === "prescripcion" ? " " : "—"}</p>}
+            {/* "Rp." is fixed by the prescription template, so its heading opens the editable body. */}
+            <h3><button type="button" className="preview-edit-target" onClick={() => onEditRequest(section.id === "prescripcion" ? `section-${section.id}` : `section-title-${section.id}`)}>{section.title}</button></h3>
+            <button type="button" className={`preview-edit-target paper-section-edit ${!section.body ? "paper-empty" : ""}`} onClick={() => onEditRequest(`section-${section.id}`)}>
+              {section.body
+                ? section.body.split("\n").map((line, index) => <span key={index}>{line || " "}</span>)
+                : <span className={section.id === "prescripcion" ? "prescription-empty" : undefined}>{section.id === "prescripcion" ? " " : "—"}</span>}
+            </button>
           </section>
         ))}
         <div className="signature-placement-zone">
@@ -76,13 +80,13 @@ export function DocumentPreview({
           </div>
           <div className="document-signoff">
             {signer.name ? (
-              <div className="document-signer">
+              <button type="button" className="document-signer preview-edit-target" onClick={() => onEditRequest("professional-name")}>
                 <strong>{signer.name}</strong>
                 {signer.specialty ? <span>{signer.specialty}</span> : null}
                 {signer.rut ? <span>RUT: {signer.rut}</span> : null}
-              </div>
+              </button>
             ) : null}
-            <p className="paper-date">Fecha: {formatStoredDate(issueDate)}</p>
+            <button type="button" className="paper-date preview-edit-target" onClick={() => onEditRequest("document-issue-date")}>Fecha: {formatStoredDate(issueDate)}</button>
           </div>
         </div>
         {templateId === "receta_externa" ? <div className="prescription-warning">RECETA MÉDICA EXTERNA</div> : null}

@@ -280,6 +280,7 @@ test("keeps the clinical studios usable from mobile through desktop", async () =
     "../app/features/documents/AiProvenance.tsx",
     "../app/features/documents/ai-metadata.ts",
     "../app/features/documents/PatientEditor.tsx",
+    "../app/features/documents/ProfessionalEditor.tsx",
     "../app/features/documents/DocumentPreview.tsx",
     "../app/features/documents/document-pdf.ts",
     "../app/lib/document-layout.ts",
@@ -317,7 +318,7 @@ test("keeps the clinical studios usable from mobile through desktop", async () =
   assert.match(documentStudio, /aria-controls="document-preview"/);
   assert.match(documentStudio, /patient-manual-grid/);
   assert.match(documentStudio, /Fecha de nacimiento/);
-  assert.match(documentStudio, /Firma profesional/);
+  assert.match(documentStudio, /Firma y timbre/);
   assert.match(documentStudio, /Cargo o especialidad/);
   assert.doesNotMatch(documentStudio, /Previsión/);
   assert.match(documentStudio, /Administrar imágenes guardadas/);
@@ -326,7 +327,14 @@ test("keeps the clinical studios usable from mobile through desktop", async () =
   assert.match(documentStudio, /removeSignatureProfile/);
   assert.match(documentStudio, /deleteSignature/);
   assert.match(documentStudio, /Eliminar esta imagen/);
-  assert.match(documentStudio, /firma y timbre se administran por separado/);
+  assert.match(documentStudio, /Las imágenes se administran y posicionan por separado/);
+  assert.match(documentStudio, /professional-editor/);
+  assert.match(documentStudio, /Datos habituales de firma/);
+  assert.match(documentStudio, /onEditRequest/);
+  assert.match(documentStudio, /Seleccione un campo para editar/);
+  assert.match(documentStudio, /patient-first-names/);
+  assert.match(documentStudio, /section-title-/);
+  assert.match(documentStudio, /Rp\." is fixed by the prescription template/);
   assert.match(documentStudio, /signature-placement-zone/);
   assert.match(documentStudio, /signing-assets-canvas/);
   assert.match(documentStudio, /document-signoff/);
@@ -390,7 +398,7 @@ test("keeps the clinical studios usable from mobile through desktop", async () =
   assert.match(documentStudio, /Servicio de Salud Metropolitano Oriente/);
   assert.match(documentStudio, /date: formatStoredDate\(input\.issueDate\)/);
   assert.doesNotMatch(await readFile(new URL("../app/features/documents/DocumentPreview.tsx", import.meta.url), "utf8"), /<h3>Paciente<\/h3>/);
-  assert.doesNotMatch(await readFile(new URL("../app/features/documents/PatientEditor.tsx", import.meta.url), "utf8"), /<h2>Paciente<\/h2>/);
+  assert.match(await readFile(new URL("../app/features/documents/PatientEditor.tsx", import.meta.url), "utf8"), /aria-labelledby="patient-editor-title"/);
   assert.match(await readFile(new URL("../app/features/documents/document-pdf.ts", import.meta.url), "utf8"), /title: "",\s*body: `Nombre:/);
   assert.match(documentStudio, /SIGNATURE_Y_MAX_PERCENT = 67/);
   assert.match(documentStudio, /defaultProfileApplied\.current = true/);
@@ -421,6 +429,9 @@ test("keeps the clinical studios usable from mobile through desktop", async () =
   assert.match(styles, /@media \(max-width: 1240px\)/);
   assert.match(styles, /\.simplified-studio \.document-editor-layout \{ grid-template-columns: 1fr; \}/);
   assert.match(styles, /\.clinical-paper \.paper-date/);
+  assert.match(styles, /\.preview-edit-target/);
+  assert.match(styles, /\.document-signer\.preview-edit-target/);
+  assert.match(styles, /\.professional-editor/);
   assert.match(styles, /\.document-editor-layout > \.mobile-hidden \{ display: none; \}/);
   assert.match(styles, /\.page-header > \*, \.hero-row > \*.*min-width: 0;/);
   assert.match(layout, /styles\/responsive-focus\.css/);

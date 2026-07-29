@@ -35,6 +35,7 @@ export function SectionsEditor({ addSection, removeSection, sections, moveSectio
           <div>
             <GripVertical size={16} />
             <input
+              id={`section-title-${section.id}`}
               className="section-title-input"
               aria-label={`Título de la sección ${index + 1}`}
               value={section.title}

@@ -18,7 +18,7 @@ export function SignatureEditor(workspace: DocumentWorkspace) {
     setSignatureForm, setSignatureFormOpen, setSignatureImageSettings,
     signatureBusy, signatureDeleteId, signatureError, signatureForm,
     signatureFormKind, signatureFormOpen, signatureImageSettings, signatures,
-    signer, updateSigner,
+    signer,
   } = workspace;
   const inputRef = useRef<HTMLInputElement>(null);
   const formLabel = signatureFormKind === "stamp" ? "timbre" : "firma";
@@ -26,14 +26,8 @@ export function SignatureEditor(workspace: DocumentWorkspace) {
   return (
     <div className="editor-section signature-editor">
       <div className="editor-section-title signature-heading">
-        <div><h2>Firma profesional</h2><small>Datos, firma y timbre se administran por separado.</small></div>
+        <div><h2>Firma y timbre</h2><small>Las imágenes se administran y posicionan por separado.</small></div>
         {signatureFormOpen ? <button className="text-button" onClick={() => setSignatureFormOpen(false)}><X size={14} /> Cerrar</button> : null}
-      </div>
-
-      <div className="signer-fields">
-        <label>Nombre y apellido<input value={signer.name} onChange={(event) => updateSigner("name", event.target.value)} /></label>
-        <label>RUT<input value={signer.rut} onChange={(event) => updateSigner("rut", event.target.value)} /></label>
-        <label>Cargo o especialidad<input value={signer.specialty} onChange={(event) => updateSigner("specialty", event.target.value)} /></label>
       </div>
 
       <div className="signing-assets">

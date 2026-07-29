@@ -1,4 +1,3 @@
-import { PatientEditor } from "./PatientEditor";
 import { AiProvenance } from "./AiProvenance";
 import { SectionsEditor } from "./SectionsEditor";
 import { SignatureEditor } from "./SignatureEditor";
@@ -13,7 +12,6 @@ export function DocumentEditor({ workspace }: { workspace: DocumentWorkspace }) 
       className={`editor-panel print-hide ${workspace.mobileView === "edit" ? "mobile-visible" : "mobile-hidden"}`}
     >
       <AiProvenance {...workspace} />
-      <PatientEditor {...workspace} />
       <SectionsEditor {...workspace} />
       <SignatureEditor {...workspace} />
     </section>

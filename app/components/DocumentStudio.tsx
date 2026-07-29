@@ -6,6 +6,7 @@ import { AiStudio } from "@/app/components/AiStudio";
 import { DocumentCommandBar } from "@/app/features/documents/DocumentCommandBar";
 import { DocumentEditor } from "@/app/features/documents/DocumentEditor";
 import { DocumentLibrary } from "@/app/features/documents/DocumentLibrary";
+import { PatientEditor } from "@/app/features/documents/PatientEditor";
 import { DocumentPreview } from "@/app/features/documents/DocumentPreview";
 import { DocumentHistoryDialog } from "@/app/features/documents/DocumentHistoryDialog";
 import { useDocumentWorkspace } from "@/app/features/documents/use-document-workspace";
@@ -15,7 +16,7 @@ export function DocumentStudio() {
   const workspace = useDocumentWorkspace();
   const [assistantOpen, setAssistantOpen] = useState(false);
   const [assistantActivated, setAssistantActivated] = useState(false);
-  const { closeDocumentHistory, openDocument, persist, setNewMenuOpen, setSignatureDeleteId, setSignatureFormOpen } = workspace;
+  const { closeDocumentHistory, openDocument, persist, setMobileView, setNewMenuOpen, setSignatureDeleteId, setSignatureFormOpen } = workspace;
   const saveFromKeyboard = useCallback(() => void persist(), [persist]);
   const openNewDocumentMenu = useCallback(() => setNewMenuOpen(true), [setNewMenuOpen]);
   const closeTransientControls = useCallback(() => {
@@ -49,6 +50,16 @@ export function DocumentStudio() {
     url.searchParams.delete("assistant");
     window.history.replaceState({}, "", `${url.pathname}${url.search}`);
   }, [openDocument, setAssistantVisibility]);
+
+  const editFromPreview = useCallback((fieldId: string) => {
+    if (window.matchMedia("(max-width: 820px)").matches) setMobileView("edit");
+    window.requestAnimationFrame(() => window.requestAnimationFrame(() => {
+      const field = document.getElementById(fieldId);
+      if (!(field instanceof HTMLElement)) return;
+      field.focus();
+      field.scrollIntoView({ block: "center", behavior: "smooth" });
+    }));
+  }, [setMobileView]);
 
   useEffect(() => {
     const syncAssistantFromUrl = () => {
@@ -102,6 +113,7 @@ export function DocumentStudio() {
           <DocumentLibrary {...workspace} />
           <main className="document-main">
             <DocumentCommandBar {...workspace} />
+            <PatientEditor {...workspace} />
             <div className="studio-view-switch print-hide" role="tablist" aria-label="Vista del documento">
               <button
                 role="tab"
@@ -122,7 +134,7 @@ export function DocumentStudio() {
             </div>
             <div className="editor-layout document-editor-layout">
               <DocumentEditor workspace={workspace} />
-              <DocumentPreview {...workspace} />
+              <DocumentPreview {...workspace} onEditRequest={editFromPreview} />
             </div>
           </main>
         </div>
