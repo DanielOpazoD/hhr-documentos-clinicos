@@ -62,8 +62,12 @@ test("ships the clinical routes, storage bindings and source templates", async (
     "../app/api/signatures/[id]/route.ts",
     "../app/api/ai/prompts/route.ts",
     "../app/api/ai/prompts/[id]/route.ts",
+    "../app/api/ai/prompts/improve/route.ts",
+    "../app/api/integrations/google-drive/config/route.ts",
     "../app/api/ai/usage/route.ts",
     "../public/templates/laboratorio.pdf",
+    "../public/templates/serologia-hepatitis-chagas.pdf",
+    "../public/templates/serologia-vdrl-mha-tp.pdf",
     "../public/templates/imagenologia.pdf",
     "../public/templates/encuesta-imagenologia.pdf",
     "../public/templates/consentimiento.pdf",
@@ -249,9 +253,11 @@ test("serializes terminal mobile snapshots and keeps scanner polling server-auth
   );
 });
 
-test("uses byte-identical PDFs from origin/main/Formularios", async () => {
+test("uses byte-identical original clinical PDFs", async () => {
   const expected = new Map([
     ["laboratorio.pdf", "0fabdedcf24914f00af09a99b30b7f4d4f7a66509671996dc771ff1c31219921"],
+    ["serologia-hepatitis-chagas.pdf", "2c1253bd29397b98a3d465827b05032ba0e40f2c6949e993d56fe73e4e918e88"],
+    ["serologia-vdrl-mha-tp.pdf", "4f19c383b9e8d448860cf852782ca2da6c89e5ef965a8023d47c71a3d331bc5b"],
     ["imagenologia.pdf", "8561373bdbf0160dd0afb8e129148976513be83e403907a057ae3ef2a929c0c9"],
     ["encuesta-imagenologia.pdf", "dc59fb93bff9a2e3d9cd460e4767fa9aa07f31bd4c2186c3c5aa925bbe87cc0d"],
     ["consentimiento.pdf", "aa4f2679a437020e82f10f794ad9b74c812cd76c0e22f5a2ae1c7df875509cb2"],
@@ -261,10 +267,15 @@ test("uses byte-identical PDFs from origin/main/Formularios", async () => {
     assert.equal(createHash("sha256").update(bytes).digest("hex"), digest, fileName);
   }
 
-  const studio = await readFile(new URL("../app/components/FormsStudio.tsx", import.meta.url), "utf8");
+  const [studio, catalog] = await Promise.all([
+    readFile(new URL("../app/components/FormsStudio.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/lib/catalog.ts", import.meta.url), "utf8"),
+  ]);
   assert.match(studio, /className="official-pdf-frame"/);
   assert.match(studio, /forms-navigation/);
   assert.match(studio, /Descargar/);
+  assert.match(catalog, /serologia-hepatitis-chagas\.pdf/);
+  assert.match(catalog, /serologia-vdrl-mha-tp\.pdf/);
   assert.doesNotMatch(studio, /GitHub|origin\/main|SHA-256|Sin campos inventados|Cómo utilizarlo/);
   assert.doesNotMatch(studio, /clinical-paper|downloadClinicalPdf|Prestaciones solicitadas/);
 });
@@ -587,10 +598,12 @@ test("offers isolated OpenAI and local Gemma providers", async () => {
     "../app/features/ai/prompt-types.ts",
     "../app/features/ai/server/prompt-store.ts",
     "../app/features/ai/server/prompt-validation.ts",
+    "../app/features/ai/server/prompt-improvement.ts",
     "../app/api/ai/providers/route.ts",
     "../app/api/ai/import/route.ts",
     "../app/api/ai/prompts/route.ts",
     "../app/api/ai/prompts/[id]/route.ts",
+    "../app/api/ai/prompts/improve/route.ts",
   ].map((path) => readFile(new URL(path, import.meta.url), "utf8")));
   const source = modules.join("\n");
   assert.match(source, /hhr-gemma-local/);
@@ -633,6 +646,9 @@ test("offers isolated OpenAI and local Gemma providers", async () => {
   assert.match(source, /promptId/);
   assert.match(source, /promptInstructions/);
   assert.match(source, /Los prompts base no se pueden eliminar/);
+  assert.match(source, /Mejorar con IA/);
+  assert.match(source, /prompt_improvement/);
+  assert.match(source, /Propuesta aplicada; revísela antes de guardar/);
   assert.doesNotMatch(source, /merged\.slice\(0, 8\)/);
   assert.match(source, /En toda fuente PDF, incluso escaneada, usa el número de página real del PDF/);
   assert.match(source, /sourceMimeType === "application\/pdf"\s*\? pageNumber === null/);
@@ -651,6 +667,29 @@ test("offers isolated OpenAI and local Gemma providers", async () => {
   assert.match(source, /Profesional firmante/);
   assert.match(source, /disabled=\{controller\.processing\}/);
   assert.doesNotMatch(source, /0\.0\.0\.0/);
+});
+
+test("integrates Google Drive through a scoped, ephemeral picker", async () => {
+  const [picker, control, importForm, connections, configRoute, environment, example, documentation] = await Promise.all([
+    readFile(new URL("../app/features/integrations/google-drive.ts", import.meta.url), "utf8"),
+    readFile(new URL("../app/features/ai/GoogleDrivePicker.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/features/ai/AiImportForm.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/components/Connections.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/api/integrations/google-drive/config/route.ts", import.meta.url), "utf8"),
+    readFile(new URL("../app/lib/server/environment.ts", import.meta.url), "utf8"),
+    readFile(new URL("../.env.example", import.meta.url), "utf8"),
+    readFile(new URL("../docs/GOOGLE_DRIVE.md", import.meta.url), "utf8"),
+  ]);
+  const source = [picker, control, importForm, connections, configRoute, environment, example, documentation].join("\n");
+  assert.match(source, /https:\/\/www\.googleapis\.com\/auth\/drive\.file/);
+  assert.match(source, /setIncludeFolders\(true\)/);
+  assert.match(source, /MULTISELECT_ENABLED/);
+  assert.match(source, /GoogleDrivePicker/);
+  assert.match(source, /GOOGLE_DRIVE_CLIENT_ID/);
+  assert.match(source, /GOOGLE_DRIVE_API_KEY/);
+  assert.match(source, /GOOGLE_DRIVE_APP_ID/);
+  assert.match(source, /no se guarda la sesión/i);
+  assert.doesNotMatch(source, /GOOGLE_DRIVE_CLIENT_SECRET|localStorage|sessionStorage/);
 });
 
 test("organizes, archives and deletes stored files through owned server routes", async () => {
