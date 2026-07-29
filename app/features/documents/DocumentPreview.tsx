@@ -199,10 +199,10 @@ function SectionActions({
   return (
     <details className="section-actions-menu paper-section-actions print-hide">
       <summary aria-label={`Opciones de ${label}`}><MoreHorizontal size={16} /></summary>
-      <div role="menu">
-        <button type="button" role="menuitem" disabled={!canMoveUp} onClick={(event) => { onMove(index, -1); closeMenu(event.currentTarget); }}><ArrowUp size={14} /> Mover arriba</button>
-        <button type="button" role="menuitem" disabled={!canMoveDown} onClick={(event) => { onMove(index, 1); closeMenu(event.currentTarget); }}><ArrowDown size={14} /> Mover abajo</button>
-        <button type="button" role="menuitem" className="section-delete" onClick={(event) => { onRemove(); closeMenu(event.currentTarget); }}><Trash2 size={14} /> Eliminar</button>
+      <div>
+        <button type="button" disabled={!canMoveUp} onClick={(event) => { onMove(index, -1); closeMenu(event.currentTarget); }}><ArrowUp size={14} /> Mover arriba</button>
+        <button type="button" disabled={!canMoveDown} onClick={(event) => { onMove(index, 1); closeMenu(event.currentTarget); }}><ArrowDown size={14} /> Mover abajo</button>
+        <button type="button" className="section-delete" onClick={(event) => { onRemove(); closeMenu(event.currentTarget); }}><Trash2 size={14} /> Eliminar</button>
       </div>
     </details>
   );

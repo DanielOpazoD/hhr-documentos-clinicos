@@ -358,7 +358,7 @@ test("keeps the clinical studios usable from mobile through desktop", async () =
   assert.match(documentStudio, /paper-section-body/);
   assert.match(documentStudio, /paper-add-section/);
   assert.match(documentStudio, /section-actions-menu/);
-  assert.match(documentStudio, /role="menuitem"/);
+  assert.doesNotMatch(documentStudio, /role="menuitem"|role="menu"/);
   assert.match(documentStudio, /Mover arriba/);
   assert.match(documentStudio, /Nueva sección/);
   assert.match(documentStudio, /recent-document-list/);
@@ -368,8 +368,13 @@ test("keeps the clinical studios usable from mobile through desktop", async () =
   assert.match(documentStudio, /aria-expanded=\{libraryExpanded\}/);
   assert.match(documentStudio, /hidden=\{!libraryExpanded\}/);
   assert.match(documentStudio, /aria-controls="document-ai-assistant"/);
+  assert.match(documentStudio, /aria-label=\{assistantOpen \? "Volver al editor" : "Usar IA"\}/);
   assert.match(documentStudio, /signature-settings-panel/);
   assert.match(documentStudio, /aria-label="Configurar firma y timbre"/);
+  assert.match(documentStudio, /signaturePanelRef\.current\?\.focus\(\)/);
+  assert.match(documentStudio, /trigger\.focus\(\)/);
+  assert.match(documentStudio, /professionalSlot && !assistantOpen/);
+  assert.match(documentStudio, /signaturePanelOpen && !assistantOpen/);
   assert.doesNotMatch(await readFile(new URL("../app/components/DocumentStudio.tsx", import.meta.url), "utf8"), /Descargar PDF|studio-download-button/);
   assert.match(documentStudio, /Redacte manualmente o genere un borrador con IA/);
   assert.match(documentStudio, /<AiStudio active=\{assistantOpen\} embedded/);
@@ -481,6 +486,7 @@ test("keeps the clinical studios usable from mobile through desktop", async () =
   assert.match(styles, /\.professional-editor-sidebar/);
   assert.match(styles, /\.studio-page \.document-command-bar, \.studio-page \.document-status-actions \{ display: contents; \}/);
   assert.match(styles, /\.studio-page \.header-actions \.button \{ flex: 0 0 auto; white-space: nowrap; \}/);
+  assert.match(styles, /\.studio-page \.header-actions \{ width: 100%; display: flex; justify-content: flex-end; gap: 6px; \}/);
   assert.match(styles, /\.professional-editor-mobile/);
   assert.doesNotMatch(styles, /\.document-editor-layout > \.mobile-hidden/);
   assert.match(styles, /\.page-header > \*, \.hero-row > \*.*min-width: 0;/);

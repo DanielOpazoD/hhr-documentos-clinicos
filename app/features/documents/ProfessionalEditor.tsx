@@ -2,7 +2,7 @@ import { ChevronLeft, ChevronRight, Pencil, Stethoscope } from "@/app/components
 import type { DocumentWorkspace } from "./use-document-workspace";
 
 type Props = Pick<DocumentWorkspace, "signer" | "updateSigner"> & {
-  onToggleSignature: () => void;
+  onToggleSignature: (trigger: HTMLButtonElement) => void;
   signatureOpen: boolean;
   variant: "sidebar" | "mobile";
 };
@@ -25,7 +25,7 @@ export function ProfessionalEditor({ onToggleSignature, signatureOpen, signer, u
           aria-expanded={signatureOpen}
           aria-label="Configurar firma y timbre"
           title="Firma y timbre"
-          onClick={onToggleSignature}
+          onClick={(event) => onToggleSignature(event.currentTarget)}
         >
           {variant === "sidebar" ? (
             signatureOpen ? <ChevronLeft size={13} /> : <ChevronRight size={13} />

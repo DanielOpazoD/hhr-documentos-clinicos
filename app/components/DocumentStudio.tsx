@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { Printer, Sparkles, X } from "@/app/components/Icons";
 import { AiStudio } from "@/app/components/AiStudio";
@@ -21,19 +21,25 @@ export function DocumentStudio() {
   const [assistantActivated, setAssistantActivated] = useState(false);
   const [signaturePanelOpen, setSignaturePanelOpen] = useState(false);
   const [professionalSlot, setProfessionalSlot] = useState<HTMLElement | null>(null);
+  const signaturePanelRef = useRef<HTMLElement>(null);
+  const signatureTriggerRef = useRef<HTMLButtonElement | null>(null);
   const { closeDocumentHistory, openDocument, persist, setNewMenuOpen, setSignatureDeleteId, setSignatureFormOpen } = workspace;
   const saveFromKeyboard = useCallback(() => void persist(), [persist]);
   const openNewDocumentMenu = useCallback(() => setNewMenuOpen(true), [setNewMenuOpen]);
-  const closeSignaturePanel = useCallback(() => {
+  const closeSignaturePanel = useCallback((restoreFocus = true) => {
+    const trigger = signatureTriggerRef.current;
+    signatureTriggerRef.current = null;
     setSignaturePanelOpen(false);
     setSignatureDeleteId(null);
     setSignatureFormOpen(false);
+    if (restoreFocus && trigger) window.requestAnimationFrame(() => trigger.focus());
   }, [setSignatureDeleteId, setSignatureFormOpen]);
-  const toggleSignaturePanel = useCallback(() => {
+  const toggleSignaturePanel = useCallback((trigger: HTMLButtonElement) => {
     if (signaturePanelOpen) {
       closeSignaturePanel();
       return;
     }
+    signatureTriggerRef.current = trigger;
     setSignaturePanelOpen(true);
   }, [closeSignaturePanel, signaturePanelOpen]);
   const closeTransientControls = useCallback(() => {
@@ -50,7 +56,7 @@ export function DocumentStudio() {
 
   const setAssistantVisibility = useCallback((open: boolean, updateUrl = true) => {
     if (open) setAssistantActivated(true);
-    if (open) closeSignaturePanel();
+    if (open) closeSignaturePanel(false);
     setAssistantOpen(open);
     if (!updateUrl) return;
     const url = new URL(window.location.href);
@@ -88,20 +94,26 @@ export function DocumentStudio() {
     return () => window.cancelAnimationFrame(frame);
   }, []);
 
+  useLayoutEffect(() => {
+    if (!signaturePanelOpen) return;
+    signaturePanelRef.current?.focus();
+  }, [signaturePanelOpen]);
+
   useEffect(() => {
     const syncAssistantFromUrl = () => {
       const open = new URLSearchParams(window.location.search).get("assistant") === "1";
       if (open) setAssistantActivated(true);
+      if (open) closeSignaturePanel(false);
       setAssistantOpen(open);
     };
     syncAssistantFromUrl();
     window.addEventListener("popstate", syncAssistantFromUrl);
     return () => window.removeEventListener("popstate", syncAssistantFromUrl);
-  }, []);
+  }, [closeSignaturePanel]);
 
   return (
     <>
-      {professionalSlot ? createPortal(
+      {professionalSlot && !assistantOpen ? createPortal(
         <ProfessionalEditor
           signer={workspace.signer}
           updateSigner={workspace.updateSigner}
@@ -111,8 +123,8 @@ export function DocumentStudio() {
         />,
         professionalSlot,
       ) : null}
-      {signaturePanelOpen ? (
-        <aside id="signature-settings-panel" className="signature-settings-panel print-hide" aria-label="Configurar firma y timbre">
+      {signaturePanelOpen && !assistantOpen ? (
+        <aside ref={signaturePanelRef} tabIndex={-1} id="signature-settings-panel" className="signature-settings-panel print-hide" aria-label="Configurar firma y timbre">
           <SignatureEditor workspace={workspace} onClose={closeSignaturePanel} />
         </aside>
       ) : null}
@@ -126,12 +138,13 @@ export function DocumentStudio() {
             <button
               type="button"
               className={assistantOpen ? "button secondary document-assistant-toggle active" : "button secondary document-assistant-toggle"}
+              aria-label={assistantOpen ? "Volver al editor" : "Usar IA"}
               aria-expanded={assistantOpen}
               aria-controls="document-ai-assistant"
               onClick={() => setAssistantVisibility(!assistantOpen)}
             >
               {assistantOpen ? <X size={16} /> : <Sparkles size={16} />}
-              {assistantOpen ? "Volver al editor" : "Usar IA"}
+              <span>{assistantOpen ? "Volver al editor" : "Usar IA"}</span>
             </button>
             {!assistantOpen ? <>
               <button aria-label="Imprimir documento" className="button primary studio-print-button" onClick={() => window.print()}><Printer size={16} /><span>Imprimir</span></button>
