@@ -134,7 +134,7 @@ export function DocumentStudio() {
               {assistantOpen ? "Volver al editor" : "Usar IA"}
             </button>
             {!assistantOpen ? <>
-              <button className="button primary studio-print-button" onClick={() => window.print()}><Printer size={16} /> Imprimir</button>
+              <button aria-label="Imprimir documento" className="button primary studio-print-button" onClick={() => window.print()}><Printer size={16} /><span>Imprimir</span></button>
               <DocumentCommandActions {...workspace} />
             </> : null}
           </div>

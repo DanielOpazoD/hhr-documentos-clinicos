@@ -21,8 +21,8 @@ export function DocumentCommandActions({
     <div className="document-command-bar print-hide">
       <div className="document-status-actions">
         {documentId ? (
-          <button className="button secondary history-button" disabled={saving} onClick={() => void openDocumentHistory()}>
-            <Clock3 size={15} /> Historial
+          <button aria-label="Ver historial del documento" className="button secondary history-button" disabled={saving} onClick={() => void openDocumentHistory()}>
+            <Clock3 size={15} /><span>Historial</span>
           </button>
         ) : null}
         <button

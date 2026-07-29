@@ -373,6 +373,10 @@ test("keeps the clinical studios usable from mobile through desktop", async () =
   assert.match(documentStudio, /Continuar en el editor/);
   assert.match(documentStudio, /url\.searchParams\.set\("document", id\)/);
   assert.match(documentStudio, />Guardar<\/span>/);
+  assert.match(documentStudio, />Imprimir<\/span>/);
+  assert.match(documentStudio, />Historial<\/span>/);
+  assert.match(documentStudio, /aria-label="Imprimir documento"/);
+  assert.match(documentStudio, /aria-label="Ver historial del documento"/);
   assert.match(documentStudio, /event\.key === "Escape"/);
   assert.match(documentStudio, /event\.key === "Enter"/);
   assert.match(documentStudio, /id: "prescripcion", title: "Rp\."/);
@@ -472,6 +476,8 @@ test("keeps the clinical studios usable from mobile through desktop", async () =
   assert.match(styles, /\.document-signer\.preview-edit-target/);
   assert.match(styles, /\.professional-editor/);
   assert.match(styles, /\.professional-editor-sidebar/);
+  assert.match(styles, /\.studio-page \.document-command-bar, \.studio-page \.document-status-actions \{ display: contents; \}/);
+  assert.match(styles, /\.studio-page \.header-actions \.button \{ flex: 0 0 auto; white-space: nowrap; \}/);
   assert.match(styles, /\.professional-editor-mobile/);
   assert.doesNotMatch(styles, /\.document-editor-layout > \.mobile-hidden/);
   assert.match(styles, /\.page-header > \*, \.hero-row > \*.*min-width: 0;/);

@@ -326,8 +326,8 @@ input:disabled { color: #6b7f84; background: #f5f7f7; }
 .professional-fields { display: grid; gap: 4px; }
 .professional-fields label { margin-top: 3px; color: var(--muted); font-size: 8px; font-weight: 750; }
 .professional-fields input { height: 34px; padding-inline: 9px; background: #fff; font-size: 10px; }
-.professional-editor-sidebar { padding: 9px 8px; border-color: #dfe4e4; background: #fff; }
-.professional-editor-sidebar > header { grid-template-columns: 24px minmax(0,1fr) auto; gap: 6px; margin-bottom: 7px; }
+.professional-editor-sidebar { padding: 9px 26px 9px 8px; border-color: #dfe4e4; background: #fff; }
+.professional-editor-sidebar > header { grid-template-columns: 24px minmax(0,1fr); gap: 6px; margin-bottom: 7px; }
 .professional-editor-sidebar > header > span { width: 24px; height: 24px; border-radius: 7px; }
 .professional-editor-sidebar > header strong { font-size: 10px; }
 .professional-editor-sidebar > header small { font-size: 8px; }
@@ -383,6 +383,9 @@ input:disabled { color: #6b7f84; background: #f5f7f7; }
 .studio-page { width: min(1680px, 100%); padding: 24px clamp(16px, 2vw, 28px) 48px; }
 .studio-page .compact-page-header { margin-bottom: 14px; }
 .studio-page .compact-page-header .document-page-title { display: grid; gap: 3px; }
+.studio-page .header-actions { flex-wrap: nowrap; align-items: center; }
+.studio-page .header-actions .button { flex: 0 0 auto; white-space: nowrap; }
+.studio-page .document-command-bar, .studio-page .document-status-actions { display: contents; }
 .document-page-title h1 { margin: 0; font-size: clamp(28px, 2.4vw, 32px); }
 .document-page-title p { color: var(--muted); font-size: 12px; }
 .document-assistant-toggle { border-color: #c9d9da; color: var(--cyan); }
@@ -646,6 +649,8 @@ input:disabled { color: #6b7f84; background: #f5f7f7; }
   .document-assistant-toggle { min-width: 42px; padding-inline: 10px; }
   .document-assistant-toggle { font-size: 0; gap: 0; }
   .document-assistant-toggle svg { width: 18px; height: 18px; }
+  .studio-print-button, .history-button { width: 42px !important; min-width: 42px; padding-inline: 0; }
+  .studio-print-button span, .history-button span { display: none; }
   .document-ai-header { grid-template-columns: auto minmax(0, 1fr) auto; gap: 9px; padding: 13px; }
   .document-ai-mark { width: 34px; height: 34px; }
   .document-ai-header h2 { font-size: 14px; }
