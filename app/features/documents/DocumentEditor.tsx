@@ -1,11 +1,18 @@
 import { AiProvenance } from "./AiProvenance";
 import { SectionsEditor } from "./SectionsEditor";
 import { ProfessionalEditor } from "./ProfessionalEditor";
-import { SignatureEditor } from "./SignatureEditor";
 import type { DocumentWorkspace } from "./use-document-workspace";
 import type { CSSProperties } from "react";
 
-export function DocumentEditor({ workspace }: { workspace: DocumentWorkspace }) {
+export function DocumentEditor({
+  onToggleSignature,
+  signatureOpen,
+  workspace,
+}: {
+  onToggleSignature: () => void;
+  signatureOpen: boolean;
+  workspace: DocumentWorkspace;
+}) {
   return (
     <section
       id="document-editor"
@@ -14,8 +21,13 @@ export function DocumentEditor({ workspace }: { workspace: DocumentWorkspace }) 
     >
       <AiProvenance {...workspace} />
       <SectionsEditor {...workspace} />
-      <ProfessionalEditor signer={workspace.signer} updateSigner={workspace.updateSigner} variant="mobile" />
-      <SignatureEditor {...workspace} />
+      <ProfessionalEditor
+        signer={workspace.signer}
+        updateSigner={workspace.updateSigner}
+        variant="mobile"
+        onToggleSignature={onToggleSignature}
+        signatureOpen={signatureOpen}
+      />
     </section>
   );
 }

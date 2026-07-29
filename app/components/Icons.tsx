@@ -36,6 +36,7 @@ export {
   Loader2,
   LockKeyhole,
   Minus,
+  MoreHorizontal,
   Pencil,
   PlugZap,
   Plus,

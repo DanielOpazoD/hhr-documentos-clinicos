@@ -19,6 +19,11 @@ export function useDocumentIdentity(markDirty: () => void) {
     markDirty();
   }, [markDirty]);
 
+  const updatePatientName = useCallback((value: string) => {
+    setPatient((current) => ({ ...current, firstNames: value, lastNames: "" }));
+    markDirty();
+  }, [markDirty]);
+
   const updateSigner = useCallback((field: keyof SignerData, value: string) => {
     setSigner((current) => ({ ...current, [field]: value }));
     markDirty();
@@ -61,6 +66,7 @@ export function useDocumentIdentity(markDirty: () => void) {
     signer,
     issueDate,
     updatePatient,
+    updatePatientName,
     updateSigner,
     loadSignerProfile,
     updateIssueDate,

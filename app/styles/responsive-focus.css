@@ -168,19 +168,9 @@
     width: auto;
   }
 
-  .studio-print-button,
-  .desktop-action-label {
-    display: none;
-  }
-
-  .mobile-action-label {
-    display: inline;
-  }
-
-  .studio-download-button {
-    min-width: 64px;
+  .studio-print-button {
     min-height: 40px;
-    padding-inline: 11px;
+    padding-inline: 12px;
   }
 
   .document-workspace-shell {
@@ -256,6 +246,10 @@
     gap: 7px;
   }
 
+  .patient-name-field {
+    grid-column: 1 / -1;
+  }
+
   .patient-manual-grid label:last-child {
     grid-column: auto;
   }
@@ -282,12 +276,13 @@
   }
 
   .document-save-button {
-    width: auto;
-    min-width: 88px;
+    width: 40px;
+    min-width: 40px;
+    padding-inline: 0;
   }
 
   .document-save-button > span {
-    display: inline;
+    display: none;
   }
 
   .studio-view-switch {

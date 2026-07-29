@@ -1,9 +1,12 @@
-import { ArrowDown, ArrowUp, GripVertical, Plus, Trash2 } from "@/app/components/Icons";
+import { ArrowDown, ArrowUp, GripVertical, MoreHorizontal, Plus, Trash2 } from "@/app/components/Icons";
 import type { DocumentWorkspace } from "./use-document-workspace";
 
 type Props = Pick<DocumentWorkspace, "addSection" | "removeSection" | "sections" | "moveSection" | "templateId" | "updateSection">;
 
 export function SectionsEditor({ addSection, removeSection, sections, moveSection, templateId, updateSection }: Props) {
+  const closeMenu = (target: EventTarget & HTMLElement) => {
+    target.closest("details")?.removeAttribute("open");
+  };
   if (templateId === "receta_externa") {
     const prescription = sections[0];
     if (!prescription) return null;
@@ -41,11 +44,14 @@ export function SectionsEditor({ addSection, removeSection, sections, moveSectio
               value={section.title}
               onChange={(event) => updateSection(section.id, { title: event.target.value })}
             />
-            <span className="reorder-buttons">
-              <button onClick={() => moveSection(index, -1)} disabled={index === 0} aria-label={`Subir ${section.title}`}><ArrowUp size={14} /></button>
-              <button onClick={() => moveSection(index, 1)} disabled={index === sections.length - 1} aria-label={`Bajar ${section.title}`}><ArrowDown size={14} /></button>
-              <button className="section-delete" onClick={() => removeSection(section.id)} aria-label={`Eliminar ${section.title || `sección ${index + 1}`}`}><Trash2 size={14} /></button>
-            </span>
+            <details className="section-actions-menu">
+              <summary aria-label={`Acciones de ${section.title || `sección ${index + 1}`}`}><MoreHorizontal size={17} /></summary>
+              <div role="menu" aria-label={`Acciones de ${section.title || `sección ${index + 1}`}`}>
+                <button type="button" role="menuitem" onClick={(event) => { moveSection(index, -1); closeMenu(event.currentTarget); }} disabled={index === 0}><ArrowUp size={14} /> Mover arriba</button>
+                <button type="button" role="menuitem" onClick={(event) => { moveSection(index, 1); closeMenu(event.currentTarget); }} disabled={index === sections.length - 1}><ArrowDown size={14} /> Mover abajo</button>
+                <button type="button" role="menuitem" className="section-delete" onClick={(event) => { removeSection(section.id); closeMenu(event.currentTarget); }}><Trash2 size={14} /> Eliminar</button>
+              </div>
+            </details>
           </div>
           <textarea
             id={`section-${section.id}`}

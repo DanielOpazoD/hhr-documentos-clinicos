@@ -340,6 +340,9 @@ test("keeps the clinical studios usable from mobile through desktop", async () =
   assert.match(documentStudio, /onEditRequest/);
   assert.doesNotMatch(documentStudio, /Seleccione un campo para editar/);
   assert.match(documentStudio, /patient-first-names/);
+  assert.match(documentStudio, /Nombre completo/);
+  assert.match(documentStudio, /updatePatientName/);
+  assert.doesNotMatch(await readFile(new URL("../app/features/documents/PatientEditor.tsx", import.meta.url), "utf8"), /patient-last-names|>Nombres<|>Apellidos</);
   assert.match(documentStudio, /section-title-/);
   assert.match(documentStudio, /Rp\." is fixed by the prescription template/);
   assert.match(documentStudio, /signature-placement-zone/);
@@ -352,6 +355,9 @@ test("keeps the clinical studios usable from mobile through desktop", async () =
   assert.match(documentStudio, /addSection/);
   assert.match(documentStudio, /removeSection/);
   assert.match(documentStudio, /section-title-input/);
+  assert.match(documentStudio, /section-actions-menu/);
+  assert.match(documentStudio, /role="menuitem"/);
+  assert.match(documentStudio, /Mover arriba/);
   assert.match(documentStudio, /Nueva sección/);
   assert.match(documentStudio, /recent-document-list/);
   assert.match(documentStudio, /aria-keyshortcuts="Control\+N Meta\+N"/);
@@ -360,6 +366,9 @@ test("keeps the clinical studios usable from mobile through desktop", async () =
   assert.match(documentStudio, /aria-expanded=\{libraryExpanded\}/);
   assert.match(documentStudio, /hidden=\{!libraryExpanded\}/);
   assert.match(documentStudio, /aria-controls="document-ai-assistant"/);
+  assert.match(documentStudio, /signature-settings-panel/);
+  assert.match(documentStudio, /aria-label="Configurar firma y timbre"/);
+  assert.doesNotMatch(await readFile(new URL("../app/components/DocumentStudio.tsx", import.meta.url), "utf8"), /Descargar PDF|studio-download-button/);
   assert.match(documentStudio, /Redacte manualmente o genere un borrador con IA/);
   assert.match(documentStudio, /<AiStudio active=\{assistantOpen\} embedded/);
   assert.match(documentStudio, /Continuar en el editor/);

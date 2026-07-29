@@ -11,11 +11,11 @@ import { DEFAULT_SIGNATURE_IMAGE_SETTINGS } from "./prepare-signature";
 import type { PlacedSignature, SignatureAssetKind } from "./types";
 import type { DocumentWorkspace } from "./use-document-workspace";
 
-export function SignatureEditor(workspace: DocumentWorkspace) {
+export function SignatureEditor({ onClose, workspace }: { onClose: () => void; workspace: DocumentWorkspace }) {
   const {
     makeDefaultSignature, openSignatureForm, placedSignature, placedStamp,
     removeSignatureProfile, saveSignature, setSignatureDeleteId,
-    setSignatureForm, setSignatureFormOpen, setSignatureImageSettings,
+    setSignatureForm, setSignatureImageSettings,
     signatureBusy, signatureDeleteId, signatureError, signatureForm,
     signatureFormKind, signatureFormOpen, signatureImageSettings, signatures,
     signer,
@@ -27,7 +27,7 @@ export function SignatureEditor(workspace: DocumentWorkspace) {
     <div className="editor-section signature-editor">
       <div className="editor-section-title signature-heading">
         <div><h2>Firma y timbre</h2></div>
-        {signatureFormOpen ? <button className="text-button" onClick={() => setSignatureFormOpen(false)}><X size={14} /> Cerrar</button> : null}
+        <button className="text-button signature-panel-close" onClick={onClose}><X size={14} /> Cerrar</button>
       </div>
 
       <div className="signing-assets">

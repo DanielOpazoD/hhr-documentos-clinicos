@@ -2,13 +2,14 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { createPortal } from "react-dom";
-import { Download, Printer, Sparkles, X } from "@/app/components/Icons";
+import { Printer, Sparkles, X } from "@/app/components/Icons";
 import { AiStudio } from "@/app/components/AiStudio";
-import { DocumentCommandBar } from "@/app/features/documents/DocumentCommandBar";
+import { DocumentCommandActions, DocumentSaveError } from "@/app/features/documents/DocumentCommandBar";
 import { DocumentEditor } from "@/app/features/documents/DocumentEditor";
 import { DocumentLibrary } from "@/app/features/documents/DocumentLibrary";
 import { PatientEditor } from "@/app/features/documents/PatientEditor";
 import { ProfessionalEditor } from "@/app/features/documents/ProfessionalEditor";
+import { SignatureEditor } from "@/app/features/documents/SignatureEditor";
 import { DocumentPreview } from "@/app/features/documents/DocumentPreview";
 import { DocumentHistoryDialog } from "@/app/features/documents/DocumentHistoryDialog";
 import { useDocumentWorkspace } from "@/app/features/documents/use-document-workspace";
@@ -18,16 +19,28 @@ export function DocumentStudio() {
   const workspace = useDocumentWorkspace();
   const [assistantOpen, setAssistantOpen] = useState(false);
   const [assistantActivated, setAssistantActivated] = useState(false);
+  const [signaturePanelOpen, setSignaturePanelOpen] = useState(false);
   const [professionalSlot, setProfessionalSlot] = useState<HTMLElement | null>(null);
   const { closeDocumentHistory, openDocument, persist, setMobileView, setNewMenuOpen, setSignatureDeleteId, setSignatureFormOpen } = workspace;
   const saveFromKeyboard = useCallback(() => void persist(), [persist]);
   const openNewDocumentMenu = useCallback(() => setNewMenuOpen(true), [setNewMenuOpen]);
+  const closeSignaturePanel = useCallback(() => {
+    setSignaturePanelOpen(false);
+    setSignatureDeleteId(null);
+    setSignatureFormOpen(false);
+  }, [setSignatureDeleteId, setSignatureFormOpen]);
+  const toggleSignaturePanel = useCallback(() => {
+    if (signaturePanelOpen) {
+      closeSignaturePanel();
+      return;
+    }
+    setSignaturePanelOpen(true);
+  }, [closeSignaturePanel, signaturePanelOpen]);
   const closeTransientControls = useCallback(() => {
     setNewMenuOpen(false);
     closeDocumentHistory();
-    setSignatureDeleteId(null);
-    setSignatureFormOpen(false);
-  }, [closeDocumentHistory, setNewMenuOpen, setSignatureDeleteId, setSignatureFormOpen]);
+    closeSignaturePanel();
+  }, [closeDocumentHistory, closeSignaturePanel, setNewMenuOpen]);
   useDocumentKeyboard({
     saving: workspace.saving,
     onSave: saveFromKeyboard,
@@ -37,13 +50,14 @@ export function DocumentStudio() {
 
   const setAssistantVisibility = useCallback((open: boolean, updateUrl = true) => {
     if (open) setAssistantActivated(true);
+    if (open) closeSignaturePanel();
     setAssistantOpen(open);
     if (!updateUrl) return;
     const url = new URL(window.location.href);
     if (open) url.searchParams.set("assistant", "1");
     else url.searchParams.delete("assistant");
     window.history.pushState({}, "", `${url.pathname}${url.search}`);
-  }, []);
+  }, [closeSignaturePanel]);
 
   const openGeneratedDocument = useCallback(async (id: string) => {
     if (!(await openDocument(id))) return;
@@ -89,8 +103,19 @@ export function DocumentStudio() {
   return (
     <>
       {professionalSlot ? createPortal(
-        <ProfessionalEditor signer={workspace.signer} updateSigner={workspace.updateSigner} variant="sidebar" />,
+        <ProfessionalEditor
+          signer={workspace.signer}
+          updateSigner={workspace.updateSigner}
+          variant="sidebar"
+          onToggleSignature={toggleSignaturePanel}
+          signatureOpen={signaturePanelOpen}
+        />,
         professionalSlot,
+      ) : null}
+      {signaturePanelOpen ? (
+        <aside id="signature-settings-panel" className="signature-settings-panel print-hide" aria-label="Configurar firma y timbre">
+          <SignatureEditor workspace={workspace} onClose={closeSignaturePanel} />
+        </aside>
       ) : null}
       <div className="page-wrap studio-page simplified-studio">
         <header className="page-header compact-page-header">
@@ -110,17 +135,14 @@ export function DocumentStudio() {
               {assistantOpen ? "Volver al editor" : "Usar IA"}
             </button>
             {!assistantOpen ? <>
-              <button className="button secondary studio-print-button" onClick={() => window.print()}><Printer size={16} /> Imprimir</button>
-              <button className="button primary studio-download-button" aria-label="Descargar PDF" onClick={() => void workspace.downloadPdf()}>
-                <Download size={16} />
-                <span className="desktop-action-label">Descargar PDF</span>
-                <span className="mobile-action-label" aria-hidden="true">PDF</span>
-              </button>
+              <button className="button primary studio-print-button" onClick={() => window.print()}><Printer size={16} /> Imprimir</button>
+              <DocumentCommandActions {...workspace} />
             </> : null}
           </div>
         </header>
 
         {workspace.loadError ? <p className="form-error standalone">{workspace.loadError}</p> : null}
+        <DocumentSaveError saveError={workspace.saveError} reloadDocument={workspace.reloadDocument} />
 
         {assistantActivated ? (
           <div hidden={!assistantOpen}>
@@ -131,7 +153,6 @@ export function DocumentStudio() {
           <div className="document-workspace-shell">
             <DocumentLibrary {...workspace} />
             <main className="document-main">
-              <DocumentCommandBar {...workspace} />
               <PatientEditor {...workspace} />
               <div className="studio-view-switch print-hide" role="tablist" aria-label="Vista del documento">
                 <button
@@ -152,7 +173,11 @@ export function DocumentStudio() {
                 </button>
               </div>
               <div className="editor-layout document-editor-layout">
-                <DocumentEditor workspace={workspace} />
+                <DocumentEditor
+                  workspace={workspace}
+                  onToggleSignature={toggleSignaturePanel}
+                  signatureOpen={signaturePanelOpen}
+                />
                 <DocumentPreview {...workspace} onEditRequest={editFromPreview} />
               </div>
             </main>
