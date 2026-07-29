@@ -74,10 +74,9 @@ export function DocumentPreview({
             <button type="button" className="paper-add-section" onClick={addSection}><Plus size={13} /> Agregar sección</button>
           ) : null}
           <div className="document-type-control" role="group" aria-label="Tamaño global de letra">
-            <span>Texto</span>
-            <button type="button" aria-label="Disminuir tamaño de letra" disabled={!canDecreaseDocumentFontSize} onClick={decreaseDocumentFontSize}><Minus size={14} /></button>
+            <button type="button" aria-label="Disminuir tamaño de letra" disabled={!canDecreaseDocumentFontSize} onClick={decreaseDocumentFontSize}><Minus size={12} /></button>
             <output aria-live="polite">{documentFontSize}</output>
-            <button type="button" aria-label="Aumentar tamaño de letra" disabled={!canIncreaseDocumentFontSize} onClick={increaseDocumentFontSize}><Plus size={14} /></button>
+            <button type="button" aria-label="Aumentar tamaño de letra" disabled={!canIncreaseDocumentFontSize} onClick={increaseDocumentFontSize}><Plus size={12} /></button>
           </div>
         </div>
       </div>
@@ -125,7 +124,8 @@ export function DocumentPreview({
                   id={`section-title-${section.id}`}
                   className="paper-section-title-input print-hide"
                   label={`Título de la sección ${index + 1}`}
-                  minHeight={30}
+                  minHeight={26}
+                  rows={1}
                   resizeKey={documentFontSize}
                   value={section.title}
                   placeholder="Título de la sección"
@@ -216,6 +216,7 @@ function AutoGrowingTextarea({
   onChange,
   placeholder,
   resizeKey,
+  rows,
   value,
 }: {
   className: string;
@@ -225,6 +226,7 @@ function AutoGrowingTextarea({
   onChange: (value: string) => void;
   placeholder: string;
   resizeKey: number;
+  rows?: number;
   value: string;
 }) {
   const ref = useRef<HTMLTextAreaElement>(null);
@@ -252,6 +254,7 @@ function AutoGrowingTextarea({
       id={id}
       className={className}
       aria-label={label}
+      rows={rows}
       value={value}
       placeholder={placeholder}
       onChange={(event) => onChange(event.target.value)}

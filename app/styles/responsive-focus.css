@@ -1,6 +1,5 @@
 /* Focused responsive layer: keep primary clinical work ahead of secondary navigation. */
-.mobile-action-label,
-.document-library-toggle {
+.mobile-action-label {
   display: none;
 }
 
@@ -56,6 +55,10 @@
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+  }
+
+  .document-studio-header .document-header-context {
+    width: 100%;
   }
 }
 
@@ -148,10 +151,17 @@
   }
 
   .studio-page .compact-page-header {
-    align-items: center;
-    flex-direction: row;
-    gap: 12px;
+    align-items: stretch;
+    flex-direction: column;
+    gap: 9px;
     margin-bottom: 12px;
+  }
+
+  .studio-page .compact-page-header .document-header-context {
+    width: 100%;
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 8px;
   }
 
   .studio-page .compact-page-header h1 {
@@ -159,9 +169,10 @@
   }
 
   .studio-page .header-actions {
-    width: auto;
+    width: 100%;
     display: flex;
-    margin-left: auto;
+    justify-content: flex-end;
+    margin-left: 0;
   }
 
   .studio-page .header-actions .button {
@@ -178,8 +189,14 @@
   }
 
   .document-library {
+    width: 100%;
+    min-width: 0;
     gap: 8px;
     padding: 8px;
+  }
+
+  .document-library-content {
+    width: 100%;
   }
 
   .document-library-mobile-actions {

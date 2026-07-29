@@ -129,10 +129,13 @@ export function DocumentStudio() {
         </aside>
       ) : null}
       <div className="page-wrap studio-page simplified-studio">
-        <header className="page-header compact-page-header">
-          <div className="document-page-title">
-            <h1>Documentos</h1>
-            <p>Redacte manualmente o genere un borrador con IA.</p>
+        <header className="page-header compact-page-header document-studio-header">
+          <div className="document-header-context">
+            <div className="document-page-title">
+              <h1>Documentos</h1>
+              <p>Redacte manualmente o genere un borrador con IA.</p>
+            </div>
+            {!assistantOpen ? <DocumentLibrary {...workspace} /> : null}
           </div>
           <div className="header-actions">
             <button
@@ -163,7 +166,6 @@ export function DocumentStudio() {
         ) : null}
         <div hidden={assistantOpen}>
           <div className="document-workspace-shell">
-            <DocumentLibrary {...workspace} />
             <main className="document-main">
               <PatientEditor {...workspace} />
               <ProfessionalEditor

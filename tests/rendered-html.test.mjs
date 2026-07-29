@@ -452,6 +452,9 @@ test("keeps the clinical studios usable from mobile through desktop", async () =
   assert.doesNotMatch(commandBarSource, /Revisar|Finalizar|document-title|save-state|Tamaño global de letra/);
   assert.match(previewSource, /className="paper-toolbar print-hide"/);
   assert.match(previewSource, /aria-label="Tamaño global de letra"/);
+  assert.doesNotMatch(previewSource, />Texto<\/span>/);
+  assert.match(previewSource, /minHeight=\{26\}/);
+  assert.match(previewSource, /rows=\{1\}/);
   assert.match(previewSource, /paper-title-input/);
   assert.match(previewSource, /setEditingTitle\(true\)/);
   assert.match(previewSource, /onChange=\{\(value\) => updateSection\(section\.id, \{ body: value \}\)\}/);
@@ -465,6 +468,8 @@ test("keeps the clinical studios usable from mobile through desktop", async () =
   assert.doesNotMatch(previewSource, /paper-edit-hint|onEditRequest\("document-title"\)/);
   const documentStudioSource = await readFile(new URL("../app/components/DocumentStudio.tsx", import.meta.url), "utf8");
   assert.doesNotMatch(documentStudioSource, /DocumentEditor|SectionsEditor|studio-view-switch/);
+  assert.match(documentStudioSource, /document-header-context[\s\S]*<DocumentLibrary/);
+  assert.doesNotMatch(documentStudioSource, /document-workspace-shell">\s*<DocumentLibrary/);
   assert.match(documentStudio, /DOCUMENT_FONT_SIZE_DEFAULT = 16/);
   assert.match(documentStudio, /hhr-document-font-size-v1/);
   assert.match(documentStudio, /browser storage is blocked or full/);
