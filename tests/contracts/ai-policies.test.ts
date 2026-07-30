@@ -16,6 +16,8 @@ import {
 } from "../../app/features/ai/server/source-policy.ts";
 import { protectUnsupportedSection, sanitizeEvidenceCandidates } from "../../app/features/ai/server/clinical-evidence.ts";
 import { composePromptInstructions } from "../../app/features/ai/server/prompt-composition.ts";
+import { normalizedDocumentKind, withoutRedundantIdentitySections } from "../../app/features/ai/server/document-hygiene.ts";
+import { parseAiWorkflowMemory, serializeAiWorkflowMemory } from "../../app/features/ai/workflow-memory.ts";
 import {
   assertProposalIsGeneric,
   compactDocuments,
@@ -162,11 +164,54 @@ test("supports bounded free prompts and optional template refinements", () => {
   assert.match(free, /sin imponer una plantilla predeterminada/);
   assert.match(free, /Crea un resumen breve del formulario/);
   assert.match(free, /define de forma exhaustiva el alcance/);
+  assert.match(free, /no repitas esa información como una sección independiente/);
   assert.throws(() => composePromptInstructions({ mode: "free", userInstructions: "  " }), /no puede estar vacío/);
   assert.throws(
     () => composePromptInstructions({ mode: "profile", baseInstructions: "Base", userInstructions: "x".repeat(4_001) }),
     /hasta 4\.000 caracteres/,
   );
+});
+
+test("keeps patient identity structured and removes a redundant identity section", () => {
+  const incompleteSections = withoutRedundantIdentitySections([
+    { title: "Certificado", text: "Se certifica que la paciente está apta para actividad física." },
+    { title: "Identificación del paciente", text: "Nombre, RUT y fecha de nacimiento." },
+  ], { firstNames: "Vata Mana Roa", lastNames: "Pont Valdes", rut: "22981858-9", birthDate: "2009-03-27" });
+  const realSections = withoutRedundantIdentitySections([
+    { title: "Certificado", text: "Se certifica que la paciente está apta para actividad física." },
+    { title: "Identificación del paciente", text: "Nombre: Pont Valdes, Vata Mana Roa. RUT: 22981858-9. Fecha de nacimiento: 27-03-2009." },
+  ], { firstNames: "Vata Mana Roa", lastNames: "Pont Valdes", rut: "22981858-9", birthDate: "2009-03-27" });
+  assert.deepEqual(incompleteSections.map((section) => section.title), ["Certificado", "Identificación del paciente"]);
+  assert.deepEqual(realSections.map((section) => section.title), ["Certificado"]);
+  assert.equal(normalizedDocumentKind("informe_medico", "free"), "Documento clínico");
+});
+
+test("preserves clinical sections that merely mention the patient", () => {
+  const sections = withoutRedundantIdentitySections([
+    { title: "Paciente y tratamiento", text: "El paciente continúa tratamiento según indicación profesional." },
+  ], { firstNames: "Ana", lastNames: "Pérez" });
+  assert.equal(sections[0]?.title, "Paciente y tratamiento");
+  assert.equal(normalizedDocumentKind("certificado_escolar", "free"), "Certificado escolar");
+});
+
+test("never drops clinical content from an identity-titled section", () => {
+  const sections = withoutRedundantIdentitySections([
+    { title: "Datos del paciente", text: "Nombre: Ana Pérez. Diagnóstico: anemia ferropénica." },
+  ], { firstNames: "Ana", lastNames: "Pérez" });
+  assert.equal(sections.length, 1);
+  assert.match(String(sections[0]?.text), /anemia ferropénica/);
+});
+
+test("remembers only non-clinical AI workflow preferences", () => {
+  const serialized = serializeAiWorkflowMemory({ promptMode: "free", target: "certificado", selectedPromptId: "prompt-123" });
+  assert.deepEqual(parseAiWorkflowMemory(serialized), {
+    version: 1,
+    promptMode: "free",
+    target: "certificado",
+    selectedPromptId: "prompt-123",
+  });
+  assert.doesNotMatch(serialized, /patient|prompt libre|archivo/i);
+  assert.equal(parseAiWorkflowMemory('{"version":1,"promptMode":"free","target":"otro","selectedPromptId":""}'), null);
 });
 
 test("sends only anonymous document structure when deriving a reusable prompt", () => {

@@ -15,6 +15,8 @@ const scopeRules = `Reglas de alcance de la solicitud profesional:
 const freePromptBase = `Crea exclusivamente el documento clínico solicitado por el usuario sin imponer una plantilla predeterminada.
 - Elige títulos breves y una estructura proporcional a la solicitud.
 - Incluye solamente las secciones expresamente pedidas o indispensables para entregar el texto solicitado.
+- Usa los campos estructurados para identificar al paciente y al firmante; no repitas esa información como una sección independiente.
+- Si el usuario pide un certificado breve, redacta una sola sección principal y evita introducciones, resúmenes o conclusiones no solicitadas.
 - Conserva literalmente nombres, fechas, resultados, unidades, medicamentos y dosis presentes en las fuentes.
 - Si una sección solicitada no tiene respaldo en los archivos ni en la indicación profesional, usa exactamente "No consignado".
 ${scopeRules}`;

@@ -1,5 +1,5 @@
 import { outputSchema, systemPrompt } from "./prompt";
-import type { AiEvidence, AiPatient, AiProgressReporter, AiSigner, AiSourceInput, AiTargetId } from "../types";
+import type { AiEvidence, AiPatient, AiProgressReporter, AiPromptMode, AiSigner, AiSourceInput, AiTargetId } from "../types";
 import { parseClinicalOutput } from "./clinical-output";
 import { extractLocalSource, getPdfPageCount } from "./source-extraction";
 import type { AiTokenUsage } from "../usage-types";
@@ -100,6 +100,7 @@ export async function generateClinicalDraft(input: {
   model: string;
   sources: AiSourceInput[];
   target: AiTargetId;
+  promptMode?: AiPromptMode;
   promptInstructions: string;
   professionalInstructions?: string;
   onProgress?: AiProgressReporter;
@@ -148,13 +149,13 @@ export async function generateClinicalDraft(input: {
       max_output_tokens: input.target === "traslado_salvador" ? 9_000 : 6_500,
       ...(supportsReasoning(input.model) ? { reasoning: { effort: "low", summary: "auto" } } : {}),
       input: [
-        { role: "system", content: systemPrompt(input.target, input.promptInstructions) },
+        { role: "system", content: systemPrompt(input.target, input.promptInstructions, input.promptMode) },
         {
           role: "user",
           content: [
             ...content,
             ...professionalContent,
-            { type: "input_text", text: `Analiza las ${input.sources.length} fuentes documentales como un solo caso y prepara el borrador de tipo: ${input.target}. ${professionalInstructions ? `La fuente ${instructionSourceIndex} es la indicación profesional y manda sobre el alcance: no añadas contenido excluido o no solicitado.` : ""} Los marcadores HHR_PAGE_N representan páginas cuando existe texto extraído. En toda fuente PDF, incluso escaneada, usa el número de página real del PDF; reserva page null para DOCX, imágenes independientes y la indicación profesional.` },
+            { type: "input_text", text: `Analiza las ${input.sources.length} fuentes documentales como un solo caso y prepara ${input.promptMode === "free" ? "exclusivamente el documento descrito en la indicación profesional" : `el borrador de tipo: ${input.target}`}. ${professionalInstructions ? `La fuente ${instructionSourceIndex} es la indicación profesional y manda sobre el alcance: no añadas contenido excluido o no solicitado.` : ""} Los marcadores HHR_PAGE_N representan páginas cuando existe texto extraído. En toda fuente PDF, incluso escaneada, usa el número de página real del PDF; reserva page null para DOCX, imágenes independientes y la indicación profesional.` },
           ],
         },
       ],
@@ -184,6 +185,7 @@ export async function generateClinicalDraft(input: {
   await input.onProgress?.({ stage: "verifying", label: "Verificando el borrador", detail: "Comprobando identidad, citas y campos pendientes" });
   const output = parseClinicalOutput(outputText, {
     target: input.target,
+    promptMode: input.promptMode,
     sourceTexts: professionalInstructions ? [...sourceTexts, professionalInstructions] : sourceTexts,
     sourceMimeTypes: professionalInstructions ? [...input.sources.map((source) => source.mimeType), "text/plain"] : input.sources.map((source) => source.mimeType),
     sourcePageCounts: professionalInstructions ? [...sourcePageCounts, null] : sourcePageCounts,

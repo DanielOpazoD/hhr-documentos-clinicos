@@ -105,6 +105,7 @@ export function AiImportForm({ controller }: { controller: AiStudioController })
           <button type="button" aria-pressed={controller.promptMode === "profile"} disabled={controller.processing} onClick={() => controller.setPromptMode("profile")}>Usar plantilla</button>
           <button type="button" aria-pressed={controller.promptMode === "free"} disabled={controller.processing} onClick={() => controller.setPromptMode("free")}>Prompt libre</button>
         </div>
+        <p className="ai-memory-caption">Recuerda modo, tipo y plantilla en este navegador. Nunca pacientes ni archivos.</p>
         {controller.promptMode === "profile" ? <>
           <div className="ai-target-catalog" role="listbox" aria-label="Tipo de documento clínico">
             {aiTargetGroups.map((group) => (

@@ -1,4 +1,4 @@
-import type { AiTargetId } from "../types";
+import type { AiPromptMode, AiTargetId } from "../types";
 import { builtInPrompt } from "../prompt-catalog";
 import { hospitalSalvadorFields, hospitalSalvadorTemplateUrl } from "../hospital-salvador-fields";
 
@@ -86,11 +86,22 @@ export function outputSchema(target: AiTargetId) {
   } as const;
 }
 
-export function systemPrompt(target: AiTargetId, profileInstructions = builtInPrompt(target).instructions): string {
+export function systemPrompt(
+  target: AiTargetId,
+  profileInstructions = builtInPrompt(target).instructions,
+  promptMode: AiPromptMode = "profile",
+): string {
   const outputContract = target === "traslado_salvador"
     ? `Devuelve exactamente los 18 campos de la plantilla oficial en el orden indicado. Usa estas claves estables, una vez cada una: ${hospitalSalvadorFields.map((field) => `${field.key} = ${field.label}`).join("; ")}. Si un campo no aparece, escribe exactamente "No consignado" y deja evidence vacío. No infieras AUGE: solo usa SI o NO cuando la fuente lo consigne explícitamente. La plantilla canónica está resuelta por la aplicación en ${hospitalSalvadorTemplateUrl}; cualquier ruta mencionada en el perfil es solo una referencia de origen. La aplicación rellenará una copia del Word oficial; no intentes crear ni rediseñar el archivo.`
     : "Devuelve entre 1 y 12 secciones. Sigue la estructura del perfil salvo que la indicación profesional limite o cambie expresamente el alcance; en ese caso devuelve solo lo solicitado y omite por completo las secciones, resultados y pendientes excluidos. Si el alcance activo exige declarar una sección ausente, escribe una declaración explícita de ausencia y deja evidence vacío.";
-  return `Eres un asistente de extracción documental para un espacio clínico privado. Tu tarea es producir un borrador clínico del tipo ${target}.
+  const requestedDocument = promptMode === "free"
+    ? "el documento descrito por la solicitud libre del profesional"
+    : `un borrador clínico del tipo ${target}`;
+  const freeModeRules = promptMode === "free" ? `
+- En document_kind escribe un nombre profesional, legible y específico para el documento solicitado (por ejemplo, "Certificado escolar"); nunca uses identificadores internos como informe_medico o documento_libre.
+- La solicitud libre define el género documental. No la conviertas por defecto en un informe médico.
+- Si solicita un certificado breve, devuelve una sola sección sustantiva, salvo que pida expresamente más contenido.` : "";
+  return `Eres un asistente de extracción documental para un espacio clínico privado. Tu tarea es producir ${requestedDocument}.
 
 Reglas obligatorias:
 - Escribe en español de Chile, con tono clínico sobrio.
@@ -103,7 +114,9 @@ Reglas obligatorias:
 - Si un dato es dudoso, decláralo ambiguo. Si no aparece, inclúyelo en missing_information.
 - Puede haber varias fuentes. Usa source_index para identificar el archivo de origen de cada evidencia.
 - Identifica al paciente o sujeto del examen, no al profesional tratante: separa nombres y apellidos, conserva el RUT y usa YYYY-MM-DD para la fecha de nacimiento. Usa null cuando no sea explícito.
+- Registra nombre, RUT y fecha de nacimiento exclusivamente en el objeto patient. No crees secciones tituladas "Identificación del paciente", "Datos del paciente", "Paciente" ni equivalentes. Puedes mencionar el nombre dentro del texto cuando sea gramaticalmente necesario.
 - Identifica al profesional firmante solamente cuando figure inequívocamente como autor o firmante; de lo contrario usa null.
+- Registra al firmante exclusivamente en el objeto signer. No crees secciones separadas de firma, fecha o identificación profesional.
 - Si las fuentes discrepan, no elijas silenciosamente: explica la discrepancia en processing_summary y missing_information.
 - Mantén nombres de medicamentos, dosis, vías, frecuencias, unidades y resultados exactamente como aparecen.
 - No calcules valores clínicos ausentes. En función renal, conserva la fórmula declarada por la fuente y no construyas una tendencia entre fórmulas distintas.
@@ -113,6 +126,7 @@ Reglas obligatorias:
 - Todo dato exigido por el alcance activo y ausente pertenece también a missing_information. No incluyas como pendiente nada que la indicación profesional haya excluido.
 - El resultado siempre es un borrador editable que requiere revisión profesional.
 - Aunque el perfil describa un formato Word o del sistema clínico, responde primero con el JSON estructurado solicitado. La aplicación se ocupa del documento final.
+${freeModeRules}
 
 Contrato de salida para este tipo:
 ${outputContract}

@@ -651,7 +651,7 @@ test("offers isolated OpenAI and local Gemma providers", async () => {
   assert.match(source, /Prompts de documentos/);
   assert.match(source, /Duplicar para editar/);
   assert.match(source, /Usar por defecto/);
-  assert.match(source, /clinical-draft-v6/);
+  assert.match(source, /clinical-draft-v7/);
   assert.match(source, /promptId/);
   assert.match(source, /promptInstructions/);
   assert.match(source, /Prompt libre/);
@@ -766,7 +766,7 @@ test("ships the eight reviewed clinical prompts as configurable defaults", async
   ]);
 
   assert.equal((catalog.match(/id: "builtin-/g) ?? []).length, 8);
-  assert.match(catalog, /clinical-draft-v6/);
+  assert.match(catalog, /clinical-draft-v7/);
   for (const target of ["epicrisis", "traslado_agudo", "informe_medico", "certificado", "tele_gastro", "tele_nefro", "tele_reumato", "traslado_salvador"]) {
     assert.match(targets, new RegExp(`id: "${target}"`));
   }

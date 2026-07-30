@@ -2,7 +2,7 @@ import { parseClinicalOutput } from "./clinical-output";
 import { outputSchema, systemPrompt } from "./prompt";
 import { extractLocalSource } from "./source-extraction";
 import type { OpenAiOutput } from "./openai-responses";
-import type { AiProgressReporter, AiSourceInput, AiTargetId } from "../types";
+import type { AiProgressReporter, AiPromptMode, AiSourceInput, AiTargetId } from "../types";
 import type { AiTokenUsage } from "../usage-types";
 import { PROFESSIONAL_INSTRUCTION_SOURCE } from "./prompt-composition";
 
@@ -16,11 +16,19 @@ function localOutputTokens(target: AiTargetId): number {
   return target === "traslado_salvador" ? 5_500 : LOCAL_OUTPUT_TOKENS;
 }
 
-function requestInstructions(target: AiTargetId, professionalInstructions = "", instructionSourceIndex = -1) {
+function requestInstructions(
+  target: AiTargetId,
+  professionalInstructions = "",
+  instructionSourceIndex = -1,
+  promptMode: AiPromptMode = "profile",
+) {
   const absentFields = target === "traslado_salvador"
     ? 'Incluye exactamente los 18 campos; cuando falte un dato, usa "No consignado" y evidence vacío.'
     : "No crees secciones para datos ausentes.";
-  return `Prepara el borrador de tipo ${target} integrando todas las fuentes. ${professionalInstructions ? `La fuente ${instructionSourceIndex} es la indicación profesional y manda sobre inclusiones y exclusiones; no agregues contenido no solicitado.` : ""} Responde exclusivamente con el JSON solicitado. Los marcadores HHR_PAGE_N delimitan páginas; usa el índice indicado para source_index y no reproduzcas marcadores internos. Usa page null en DOCX, imágenes y la indicación profesional, y un número solamente cuando exista un marcador HHR_PAGE_N. ${absentFields}`;
+  const requestedDocument = promptMode === "free"
+    ? "Prepara exclusivamente el documento descrito en la indicación profesional"
+    : `Prepara el borrador de tipo ${target}`;
+  return `${requestedDocument} integrando todas las fuentes. ${professionalInstructions ? `La fuente ${instructionSourceIndex} es la indicación profesional y manda sobre inclusiones y exclusiones; no agregues contenido no solicitado.` : ""} Responde exclusivamente con el JSON solicitado. Los marcadores HHR_PAGE_N delimitan páginas; usa el índice indicado para source_index y no reproduzcas marcadores internos. Usa page null en DOCX, imágenes y la indicación profesional, y un número solamente cuando exista un marcador HHR_PAGE_N. ${absentFields}`;
 }
 
 function estimatedRequestTokens(
@@ -28,11 +36,12 @@ function estimatedRequestTokens(
   target: AiTargetId,
   promptInstructions: string,
   professionalInstructions = "",
+  promptMode: AiPromptMode = "profile",
 ) {
   const schema = outputSchema(target);
-  const textCharacters = systemPrompt(target, promptInstructions).length
+  const textCharacters = systemPrompt(target, promptInstructions, promptMode).length
     + JSON.stringify(schema).length
-    + requestInstructions(target, professionalInstructions, sources.length).length
+    + requestInstructions(target, professionalInstructions, sources.length, promptMode).length
     + professionalInstructions.length
     + sources.reduce((total, source, index) => total
       + `FUENTE ${index + 1} · source_index ${index}: ${source.sourceName}`.length
@@ -57,10 +66,11 @@ async function messageContent(
   sources: Array<AiSourceInput & { extractedText: string | null }>,
   target: AiTargetId,
   professionalInstructions = "",
+  promptMode: AiPromptMode = "profile",
 ) {
   const content: Array<Record<string, unknown>> = [{
     type: "text",
-    text: requestInstructions(target, professionalInstructions, sources.length),
+    text: requestInstructions(target, professionalInstructions, sources.length, promptMode),
   }];
   for (let index = 0; index < sources.length; index += 1) {
     const source = sources[index];
@@ -87,6 +97,7 @@ export async function generateLocalClinicalDraft(input: {
   model: string;
   sources: AiSourceInput[];
   target: AiTargetId;
+  promptMode?: AiPromptMode;
   promptInstructions: string;
   professionalInstructions?: string;
   onProgress?: AiProgressReporter;
@@ -98,10 +109,10 @@ export async function generateLocalClinicalDraft(input: {
     sources.push({ ...source, extractedText });
   }
   const professionalInstructions = input.professionalInstructions?.trim() ?? "";
-  if (estimatedRequestTokens(sources, input.target, input.promptInstructions, professionalInstructions) > LOCAL_CONTEXT_TOKENS) {
+  if (estimatedRequestTokens(sources, input.target, input.promptInstructions, professionalInstructions, input.promptMode) > LOCAL_CONTEXT_TOKENS) {
     throw new Error("El conjunto de documentos supera el contexto seguro de Gemma local. Reduzca la cantidad o use OpenAI.");
   }
-  const content = await messageContent(sources, input.target, professionalInstructions);
+  const content = await messageContent(sources, input.target, professionalInstructions, input.promptMode);
   const schema = outputSchema(input.target);
   await input.onProgress?.({ stage: "analyzing", label: "Identificando datos clínicos", detail: "Contrastando identidad, fechas y hallazgos entre las fuentes" });
   await input.onProgress?.({ stage: "drafting", label: "Redactando el borrador", detail: "Organizando la información sin completar datos ausentes" });
@@ -117,7 +128,7 @@ export async function generateLocalClinicalDraft(input: {
       temperature: 0.1,
       max_tokens: localOutputTokens(input.target),
       messages: [
-        { role: "system", content: systemPrompt(input.target, input.promptInstructions) },
+        { role: "system", content: systemPrompt(input.target, input.promptInstructions, input.promptMode) },
         { role: "user", content },
       ],
       response_format: {
@@ -142,6 +153,7 @@ export async function generateLocalClinicalDraft(input: {
   return {
     output: parseClinicalOutput(contentText, {
       target: input.target,
+      promptMode: input.promptMode,
       sourceTexts: professionalInstructions ? [...sources.map((source) => source.extractedText), professionalInstructions] : sources.map((source) => source.extractedText),
       sourceMimeTypes: professionalInstructions ? [...sources.map((source) => source.mimeType), "text/plain"] : sources.map((source) => source.mimeType),
     }),

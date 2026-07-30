@@ -11,6 +11,7 @@ import { ensureDatabase } from "@/app/lib/server/database";
 import { jsonError } from "@/app/lib/server/http";
 import { recordAiUsage } from "@/app/features/ai/server/usage";
 import type { AiPromptMode, AiTargetId } from "@/app/features/ai/types";
+import { FREEFORM_SCHEMA_TARGET } from "@/app/features/ai/targets";
 
 async function updateRunStatus(id: string, status: string) {
   const db = await ensureDatabase();
@@ -35,7 +36,7 @@ export async function POST(request: Request) {
   if (!isAiTarget(requestedTarget)) return jsonError("Tipo de borrador no permitido.");
   if (!isAiProviderId(providerId)) return jsonError("Proveedor de IA no permitido.");
   const promptMode = promptModeValue as AiPromptMode;
-  const target: AiTargetId = promptMode === "free" ? "informe_medico" : requestedTarget;
+  const target: AiTargetId = promptMode === "free" ? FREEFORM_SCHEMA_TARGET : requestedTarget;
   let resolvedPromptId = "free-user-prompt";
   let resolvedPromptVersion = `${PROMPT_ENGINE_VERSION}:free:r1`;
   let resolvedPromptName = "Prompt libre";
@@ -79,6 +80,7 @@ export async function POST(request: Request) {
         model,
         sources,
         target,
+        promptMode,
         promptInstructions,
         professionalInstructions: userInstructions.trim() || undefined,
         onProgress: (progress) => emit({ type: "status", ...progress }),

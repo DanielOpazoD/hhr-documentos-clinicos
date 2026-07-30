@@ -9,7 +9,7 @@ import { telegastroPrompt } from "./prompts/telegastro-prompt";
 import { telenephrologyPrompt } from "./prompts/telenephrology-prompt";
 import { telerheumatologyPrompt } from "./prompts/telerheumatology-prompt";
 
-export const PROMPT_ENGINE_VERSION = "clinical-draft-v6";
+export const PROMPT_ENGINE_VERSION = "clinical-draft-v7";
 
 const builtInDefinitions: Array<Pick<AiPromptProfile, "id" | "name" | "target" | "instructions">> = [
   {
