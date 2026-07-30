@@ -1,6 +1,7 @@
 import NextImage from "next/image";
 import { useLayoutEffect, useRef, useState, type CSSProperties } from "react";
-import { ArrowDown, ArrowUp, GripVertical, Minus, MoreHorizontal, Plus, Trash2 } from "@/app/components/Icons";
+import { ArrowDown, ArrowUp, GripVertical, MoreHorizontal, Plus, Trash2 } from "@/app/components/Icons";
+import { TypographyControl } from "./DocumentTypographyControl";
 import { formatStoredDate } from "./formatters";
 import { patientFullName } from "./identity";
 import type { PlacedSignature, SignatureAssetKind } from "./types";
@@ -10,11 +11,16 @@ type Props = Pick<
   DocumentWorkspace,
   | "addSection"
   | "documentFontSize"
+  | "signoffFontSize"
   | "documentTitle"
   | "canDecreaseDocumentFontSize"
   | "canIncreaseDocumentFontSize"
+  | "canDecreaseSignoffFontSize"
+  | "canIncreaseSignoffFontSize"
   | "decreaseDocumentFontSize"
   | "increaseDocumentFontSize"
+  | "decreaseSignoffFontSize"
+  | "increaseSignoffFontSize"
   | "issueDate"
   | "moveSection"
   | "moveSignature"
@@ -38,11 +44,16 @@ type Props = Pick<
 export function DocumentPreview({
   addSection,
   documentFontSize,
+  signoffFontSize,
   documentTitle,
   canDecreaseDocumentFontSize,
   canIncreaseDocumentFontSize,
+  canDecreaseSignoffFontSize,
+  canIncreaseSignoffFontSize,
   decreaseDocumentFontSize,
   increaseDocumentFontSize,
+  decreaseSignoffFontSize,
+  increaseSignoffFontSize,
   issueDate,
   moveSection,
   moveSignature,
@@ -64,7 +75,10 @@ export function DocumentPreview({
   onEditRequest,
 }: Props) {
   const [editingTitle, setEditingTitle] = useState(false);
-  const paperStyle = { "--document-font-size": `${documentFontSize}px` } as CSSProperties;
+  const paperStyle = {
+    "--document-font-size": `${documentFontSize}px`,
+    "--signoff-font-size": `${signoffFontSize}px`,
+  } as CSSProperties;
   return (
     <section id="document-preview" className="paper-panel">
       <div className="paper-toolbar print-hide">
@@ -73,10 +87,25 @@ export function DocumentPreview({
           {templateId !== "receta_externa" ? (
             <button type="button" className="paper-add-section" onClick={addSection}><Plus size={13} /> Agregar sección</button>
           ) : null}
-          <div className="document-type-control" role="group" aria-label="Tamaño global de letra">
-            <button type="button" aria-label="Disminuir tamaño de letra" disabled={!canDecreaseDocumentFontSize} onClick={decreaseDocumentFontSize}><Minus size={12} /></button>
-            <output aria-live="polite">{documentFontSize}</output>
-            <button type="button" aria-label="Aumentar tamaño de letra" disabled={!canIncreaseDocumentFontSize} onClick={increaseDocumentFontSize}><Plus size={12} /></button>
+          <div className="typography-tools" aria-label="Tipografía del documento">
+            <TypographyControl
+              label="Tamaño del contenido"
+              value={documentFontSize}
+              kind="body"
+              canDecrease={canDecreaseDocumentFontSize}
+              canIncrease={canIncreaseDocumentFontSize}
+              onDecrease={decreaseDocumentFontSize}
+              onIncrease={increaseDocumentFontSize}
+            />
+            <TypographyControl
+              label="Tamaño de firma y fecha"
+              value={signoffFontSize}
+              kind="signoff"
+              canDecrease={canDecreaseSignoffFontSize}
+              canIncrease={canIncreaseSignoffFontSize}
+              onDecrease={decreaseSignoffFontSize}
+              onIncrease={increaseSignoffFontSize}
+            />
           </div>
         </div>
       </div>

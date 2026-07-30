@@ -457,12 +457,14 @@ test("keeps the clinical studios usable from mobile through desktop", async () =
   assert.match(documentStudio, /imageCenterY - imageHeight \/ 2/);
   assert.doesNotMatch(documentStudio, /left \+ width, 746/);
   assert.match(documentStudio, /availableLines/);
-  assert.match(documentStudio, /Tamaño global de letra/);
+  assert.match(documentStudio, /Tamaño del contenido/);
+  assert.match(documentStudio, /Tamaño de firma y fecha/);
   const commandBarSource = await readFile(new URL("../app/features/documents/DocumentCommandBar.tsx", import.meta.url), "utf8");
   const previewSource = await readFile(new URL("../app/features/documents/DocumentPreview.tsx", import.meta.url), "utf8");
   assert.doesNotMatch(commandBarSource, /Revisar|Finalizar|document-title|save-state|Tamaño global de letra/);
   assert.match(previewSource, /className="paper-toolbar print-hide"/);
-  assert.match(previewSource, /aria-label="Tamaño global de letra"/);
+  assert.match(previewSource, /label="Tamaño del contenido"/);
+  assert.match(previewSource, /label="Tamaño de firma y fecha"/);
   assert.doesNotMatch(previewSource, />Texto<\/span>/);
   assert.match(previewSource, /minHeight=\{26\}/);
   assert.match(previewSource, /rows=\{1\}/);
@@ -483,6 +485,8 @@ test("keeps the clinical studios usable from mobile through desktop", async () =
   assert.doesNotMatch(documentStudioSource, /document-workspace-shell">\s*<DocumentLibrary/);
   assert.match(documentStudio, /DOCUMENT_FONT_SIZE_DEFAULT = 16/);
   assert.match(documentStudio, /hhr-document-font-size-v1/);
+  assert.match(documentStudio, /hhr-document-signoff-font-size-v1/);
+  assert.match(documentStudio, /localStorage\.setItem\(SIGNOFF_STORAGE_KEY, String\(initialSignoffSize\)\)/);
   assert.match(documentStudio, /browser storage is blocked or full/);
   assert.match(documentStudio, /signatureAssets/);
   assert.match(documentStudio, /normalizeStoredSignatureY/);
@@ -504,7 +508,7 @@ test("keeps the clinical studios usable from mobile through desktop", async () =
   assert.match(styles, /\.professional-editor/);
   assert.match(styles, /\.professional-editor-sidebar/);
   assert.match(styles, /\.studio-page \.document-command-bar, \.studio-page \.document-status-actions \{ display: contents; \}/);
-  assert.match(styles, /\.studio-page \.header-actions \.button \{ flex: 0 0 auto; white-space: nowrap; \}/);
+  assert.match(styles, /\.studio-page \.header-actions \.button \{ min-height: 36px; flex: 0 0 auto; padding-inline: 12px; white-space: nowrap; \}/);
   assert.match(styles, /\.studio-page \.header-actions \{ width: 100%; display: flex; justify-content: flex-end; gap: 6px; \}/);
   assert.match(styles, /\.professional-editor-mobile/);
   assert.doesNotMatch(styles, /\.document-editor-layout > \.mobile-hidden/);
