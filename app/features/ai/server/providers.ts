@@ -127,6 +127,7 @@ export async function generateDraftWithProvider(input: {
   sources: AiSourceInput[];
   target: AiTargetId;
   promptInstructions: string;
+  professionalInstructions?: string;
   onProgress?: AiProgressReporter;
 }): Promise<{ output: OpenAiOutput; provider: ProviderConfig; usage: AiTokenUsage }> {
   if (input.providerId === "openai" && input.model && !isOpenAiModel(input.model)) {
@@ -141,6 +142,7 @@ export async function generateDraftWithProvider(input: {
       sources: input.sources,
       target: input.target,
       promptInstructions: input.promptInstructions,
+      professionalInstructions: input.professionalInstructions,
       onProgress: input.onProgress,
     });
     return { ...result, provider };
@@ -156,6 +158,7 @@ export async function generateDraftWithProvider(input: {
     sources: input.sources,
     target: input.target,
     promptInstructions: input.promptInstructions,
+    professionalInstructions: input.professionalInstructions,
     onProgress: input.onProgress,
   });
   return { ...result, provider };

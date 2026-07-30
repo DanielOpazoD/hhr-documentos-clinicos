@@ -77,6 +77,7 @@ test("requires an authenticated owner outside the local preview", async () => {
     ["/api/files", "GET"],
     ["/api/signatures", "GET"],
     ["/api/ai/prompts", "GET"],
+    ["/api/ai/prompts/from-documents", "POST"],
     ["/api/ai/providers", "GET"],
     ["/api/ai/usage", "GET"],
     ["/api/integrations/google-drive/config", "GET"],
@@ -122,6 +123,8 @@ test("preserves document ownership, concurrency and recovery over HTTP", async (
   assert.deepEqual(fetched.document.content, originalContent);
   assert.equal(fetched.document.status, "Borrador");
   await jsonResponse(await ownedFetch(ownerB, `/api/documents?id=${documentId}`), 404);
+  const promptOwnership = await jsonResponse(await jsonRequest(ownerB, "/api/ai/prompts/from-documents", "POST", { ids: [documentId] }), 404);
+  assert.match(promptOwnership.error, /no están disponibles/);
 
   await new Promise((resolve) => setTimeout(resolve, 5));
   const reviewed = await jsonResponse(await jsonRequest(ownerA, "/api/documents", "POST", {

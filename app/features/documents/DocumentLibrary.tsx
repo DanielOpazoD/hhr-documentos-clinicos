@@ -1,9 +1,12 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { FilePlus2, FileText, Search, Trash2 } from "@/app/components/Icons";
+import { FilePlus2, FileText, Search, Sparkles, Trash2 } from "@/app/components/Icons";
 import { documentTemplates } from "@/app/lib/catalog";
+import { createPromptProfile, proposePromptProfileFromDocuments } from "@/app/features/ai/prompt-client";
+import type { AiPromptInput, AiPromptProposal } from "@/app/features/ai/prompt-types";
 import { formatUpdated } from "./formatters";
+import { PromptProposalDialog } from "./PromptProposalDialog";
 import type { DocumentWorkspace } from "./use-document-workspace";
 
 type Props = Pick<
@@ -42,14 +45,20 @@ export function DocumentLibrary({
   const [selectionMode, setSelectionMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(() => new Set());
   const [confirmBulkDelete, setConfirmBulkDelete] = useState(false);
+  const [confirmPromptCreation, setConfirmPromptCreation] = useState(false);
+  const [promptBusy, setPromptBusy] = useState(false);
+  const [promptProposal, setPromptProposal] = useState<AiPromptProposal | null>(null);
+  const [promptSaveError, setPromptSaveError] = useState<string | null>(null);
+  const [promptFeedback, setPromptFeedback] = useState<{ kind: "success" | "error"; text: string } | null>(null);
   const [mobileLibraryOpen, setMobileLibraryOpen] = useState(false);
 
   useEffect(() => {
-    if (!confirmDeleteId && !confirmBulkDelete && !selectionMode && !mobileLibraryOpen && !newMenuOpen) return;
+    if (!confirmDeleteId && !confirmBulkDelete && !confirmPromptCreation && !selectionMode && !mobileLibraryOpen && !newMenuOpen) return;
     const cancel = (event: KeyboardEvent) => {
       if (event.key !== "Escape") return;
       if (confirmDeleteId) setConfirmDeleteId(null);
       else if (confirmBulkDelete) setConfirmBulkDelete(false);
+      else if (confirmPromptCreation) setConfirmPromptCreation(false);
       else {
         setSelectionMode(false);
         setSelectedIds(new Set());
@@ -59,7 +68,7 @@ export function DocumentLibrary({
     };
     window.addEventListener("keydown", cancel);
     return () => window.removeEventListener("keydown", cancel);
-  }, [confirmBulkDelete, confirmDeleteId, mobileLibraryOpen, newMenuOpen, selectionMode, setNewMenuOpen]);
+  }, [confirmBulkDelete, confirmDeleteId, confirmPromptCreation, mobileLibraryOpen, newMenuOpen, selectionMode, setNewMenuOpen]);
 
   const allSelected = filteredDocuments.length > 0 && filteredDocuments.every((document) => selectedIds.has(document.id));
   const libraryExpanded = mobileLibraryOpen || newMenuOpen;
@@ -68,11 +77,54 @@ export function DocumentLibrary({
     if (next.has(id)) next.delete(id);
     else next.add(id);
     setConfirmBulkDelete(false);
+    setConfirmPromptCreation(false);
     return next;
   });
 
+  async function createPromptFromSelection() {
+    if (!selectedIds.size || promptBusy) return;
+    if (!confirmPromptCreation) {
+      setConfirmBulkDelete(false);
+      setConfirmPromptCreation(true);
+      setPromptFeedback(null);
+      return;
+    }
+    setPromptBusy(true);
+    setPromptFeedback(null);
+    try {
+      const proposal = await proposePromptProfileFromDocuments([...selectedIds]);
+      setPromptProposal(proposal);
+      setPromptSaveError(null);
+    } catch (cause) {
+      setPromptFeedback({ kind: "error", text: cause instanceof Error ? cause.message : "No se pudo crear la plantilla." });
+    } finally {
+      setPromptBusy(false);
+      setConfirmPromptCreation(false);
+    }
+  }
+
+  async function savePromptProposal(input: AiPromptInput) {
+    if (promptBusy) return;
+    setPromptBusy(true);
+    setPromptSaveError(null);
+    try {
+      const result = await createPromptProfile(input);
+      if (!result.prompt) throw new Error("No se pudo recuperar la plantilla guardada.");
+      window.dispatchEvent(new CustomEvent("hhr:ai-prompts-changed"));
+      setPromptFeedback({ kind: "success", text: `Plantilla «${result.prompt.name}» guardada en Mis plantillas.` });
+      setPromptProposal(null);
+      setSelectedIds(new Set());
+      setSelectionMode(false);
+    } catch (cause) {
+      setPromptSaveError(cause instanceof Error ? cause.message : "No se pudo guardar la plantilla.");
+    } finally {
+      setPromptBusy(false);
+    }
+  }
+
   return (
     <aside className="document-library print-hide">
+      {promptProposal ? <PromptProposalDialog proposal={promptProposal} busy={promptBusy} error={promptSaveError} onClose={() => { setPromptProposal(null); setPromptSaveError(null); }} onSave={(input) => void savePromptProposal(input)} /> : null}
       <div className="document-library-mobile-actions">
         <button className="button primary full" disabled={saving} onClick={() => {
           const nextOpen = !newMenuOpen;
@@ -118,9 +170,11 @@ export function DocumentLibrary({
               setSelectionMode((current) => !current);
               setSelectedIds(new Set());
               setConfirmBulkDelete(false);
+              setConfirmPromptCreation(false);
             }}>{selectionMode ? "Cancelar" : "Seleccionar"}</button>
           ) : null}
         </div>
+        {promptFeedback ? <p className={`document-library-feedback ${promptFeedback.kind}`} role={promptFeedback.kind === "error" ? "alert" : "status"}>{promptFeedback.text}</p> : null}
 
         {storedDocuments.length ? (
           <>
@@ -134,6 +188,7 @@ export function DocumentLibrary({
                 if (selectionMode) {
                   setSelectedIds(new Set());
                   setConfirmBulkDelete(false);
+                  setConfirmPromptCreation(false);
                 }
               }}
               placeholder="Buscar…"
@@ -148,16 +203,28 @@ export function DocumentLibrary({
                   onChange={() => {
                     setSelectedIds(allSelected ? new Set() : new Set(filteredDocuments.map((document) => document.id)));
                     setConfirmBulkDelete(false);
+                    setConfirmPromptCreation(false);
                   }}
                 />
                 Todos visibles
               </label>
               <span>{selectedIds.size} seleccionados</span>
               <button
+                disabled={!selectedIds.size || promptBusy || deletingDocumentIds.size > 0}
+                className={confirmPromptCreation ? "confirm-ai" : "create-ai"}
+                title="OpenAI recibirá sólo la estructura anonimizada de los documentos, nunca su texto clínico, para proponer una plantilla reutilizable."
+                onClick={() => void createPromptFromSelection()}
+              >
+                <Sparkles size={12} /> {promptBusy ? "Creando…" : confirmPromptCreation ? `Confirmar con IA (${selectedIds.size})` : "Crear plantilla IA"}
+              </button>
+              <button
                 disabled={!selectedIds.size || deletingDocumentIds.size > 0}
                 className={confirmBulkDelete ? "confirm" : ""}
                 onClick={() => {
-                  if (!confirmBulkDelete) return setConfirmBulkDelete(true);
+                  if (!confirmBulkDelete) {
+                    setConfirmPromptCreation(false);
+                    return setConfirmBulkDelete(true);
+                  }
                   const ids = [...selectedIds];
                   setConfirmBulkDelete(false);
                   void deleteDocuments(ids).then((deleted) => {

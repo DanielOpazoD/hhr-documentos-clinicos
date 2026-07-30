@@ -17,6 +17,25 @@ const emptyResult: AiImportResult = {
   providerName: "",
   model: "",
   promptVersion: "",
+  promptTrace: {
+    mode: "profile",
+    profileId: "",
+    profileName: "",
+    profileRevision: null,
+    version: "",
+    userInstructions: "",
+    effectiveInstructions: "",
+    generatedAt: "",
+  },
+  originalOutput: {
+    documentKind: "",
+    patient: { firstNames: "", lastNames: "", rut: "", birthDate: "" },
+    signer: { name: "", rut: "", specialty: "" },
+    sections: [],
+    processingSummary: "",
+    missingInformation: [],
+    safetyNotice: "",
+  },
   sections: [],
   patient: { firstNames: "", lastNames: "", rut: "", birthDate: "" },
   signer: { name: "", rut: "", specialty: "" },
@@ -82,7 +101,7 @@ export function useAiStudio() {
 
   useEffect(() => {
     let active = true;
-    void fetchPromptProfiles()
+    const refreshPrompts = () => void fetchPromptProfiles()
       .then((profiles) => {
         if (!active) return;
         setPromptProfiles(profiles);
@@ -93,7 +112,12 @@ export function useAiStudio() {
       .finally(() => {
         if (active) setPromptsLoading(false);
       });
-    return () => { active = false; };
+    refreshPrompts();
+    window.addEventListener("hhr:ai-prompts-changed", refreshPrompts);
+    return () => {
+      active = false;
+      window.removeEventListener("hhr:ai-prompts-changed", refreshPrompts);
+    };
   }, []);
 
   const resolvedPromptId = useMemo(() => {

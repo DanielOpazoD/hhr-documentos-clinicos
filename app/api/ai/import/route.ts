@@ -1,5 +1,5 @@
 import { isAiTarget } from "@/app/features/ai/server/prompt";
-import { composePromptInstructions } from "@/app/features/ai/server/prompt-composition";
+import { composePromptInstructions, PROFESSIONAL_INSTRUCTION_SOURCE } from "@/app/features/ai/server/prompt-composition";
 import { resolvePromptProfile } from "@/app/features/ai/server/prompt-store";
 import { PROMPT_ENGINE_VERSION, promptVersion } from "@/app/features/ai/prompt-catalog";
 import { generateDraftWithProvider, isAiProviderId } from "@/app/features/ai/server/providers";
@@ -38,6 +38,8 @@ export async function POST(request: Request) {
   const target: AiTargetId = promptMode === "free" ? "informe_medico" : requestedTarget;
   let resolvedPromptId = "free-user-prompt";
   let resolvedPromptVersion = `${PROMPT_ENGINE_VERSION}:free:r1`;
+  let resolvedPromptName = "Prompt libre";
+  let resolvedPromptRevision: number | null = null;
   let promptInstructions: string;
   try {
     if (promptMode === "free") {
@@ -45,6 +47,8 @@ export async function POST(request: Request) {
     } else {
       const prompt = await resolvePromptProfile(owner, target, promptId || undefined);
       resolvedPromptId = prompt.id;
+      resolvedPromptName = prompt.name;
+      resolvedPromptRevision = prompt.revision;
       resolvedPromptVersion = `${promptVersion(prompt)}${userInstructions.trim() ? ":supplemented" : ""}`;
       promptInstructions = composePromptInstructions({
         mode: promptMode,
@@ -76,6 +80,7 @@ export async function POST(request: Request) {
         sources,
         target,
         promptInstructions,
+        professionalInstructions: userInstructions.trim() || undefined,
         onProgress: (progress) => emit({ type: "status", ...progress }),
       });
       await updateRunStatus(id, "completado");
@@ -104,14 +109,39 @@ export async function POST(request: Request) {
         outputTokens: usage.outputTokens,
       });
       emit({ type: "status", stage: "completed", label: "Borrador listo", detail: "Identidad, contenido y fuentes preparados para revisión" });
+      const generatedAt = new Date().toISOString();
+      const resultSources = [
+        ...sources.map((source) => source.sourceName),
+        ...(userInstructions.trim() ? [PROFESSIONAL_INSTRUCTION_SOURCE] : []),
+      ];
+      const originalOutput = {
+        documentKind: result.documentKind,
+        patient: result.patient,
+        signer: result.signer,
+        sections: result.sections,
+        processingSummary: result.processingSummary,
+        missingInformation: result.missingInformation,
+        safetyNotice: result.safetyNotice,
+      };
       emit({ type: "result", result: {
         runId: id,
         documentKind: result.documentKind,
-        sources: sources.map((source) => source.sourceName),
+        sources: resultSources,
         providerId: provider.id,
         providerName: provider.name,
         model: provider.model,
         promptVersion: resolvedPromptVersion,
+        promptTrace: {
+          mode: promptMode,
+          profileId: resolvedPromptId,
+          profileName: resolvedPromptName,
+          profileRevision: resolvedPromptRevision,
+          version: resolvedPromptVersion,
+          userInstructions: userInstructions.trim(),
+          effectiveInstructions: promptInstructions,
+          generatedAt,
+        },
+        originalOutput,
         sections: result.sections,
         patient: result.patient,
         signer: result.signer,

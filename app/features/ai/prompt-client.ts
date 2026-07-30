@@ -1,4 +1,4 @@
-import type { AiPromptImprovement, AiPromptInput, AiPromptProfile } from "./prompt-types";
+import type { AiPromptImprovement, AiPromptInput, AiPromptProfile, AiPromptProposal } from "./prompt-types";
 
 async function promptResponse(response: Response): Promise<{ prompts: AiPromptProfile[]; prompt?: AiPromptProfile }> {
   const data = await response.json().catch(() => ({ error: "No se pudo leer la respuesta." })) as {
@@ -21,6 +21,21 @@ export async function createPromptProfile(input: AiPromptInput) {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(input),
   }));
+}
+
+export async function proposePromptProfileFromDocuments(ids: string[]): Promise<AiPromptProposal> {
+  const response = await fetch("/api/ai/prompts/from-documents", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ ids }),
+  });
+  const data = await response.json().catch(() => ({ error: "No se pudo leer la respuesta." })) as {
+    proposal?: AiPromptInput;
+    summary?: string;
+    error?: string;
+  };
+  if (!response.ok || !data.proposal || !data.summary) throw new Error(data.error ?? "No se pudo crear la propuesta.");
+  return { ...data.proposal, summary: data.summary };
 }
 
 export async function updatePromptProfile(id: string, input: AiPromptInput) {

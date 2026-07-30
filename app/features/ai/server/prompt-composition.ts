@@ -2,12 +2,22 @@ import type { AiPromptMode } from "../types";
 
 export const MAX_ADDITIONAL_PROMPT_LENGTH = 4_000;
 export const MAX_FREE_PROMPT_LENGTH = 6_000;
+export const PROFESSIONAL_INSTRUCTION_SOURCE = "Indicación profesional";
 
-const freePromptBase = `Crea el documento clínico solicitado por el usuario sin imponer una plantilla predeterminada.
+const scopeRules = `Reglas de alcance de la solicitud profesional:
+- La solicitud del usuario es autoritativa sobre qué incluir, qué excluir, el orden y la extensión del borrador.
+- No agregues secciones, resultados, antecedentes ni contexto que la solicitud excluya o no pida.
+- Una exclusión explícita, por ejemplo "ignora los resultados", prevalece sobre la cobertura sugerida por la plantilla.
+- El texto clínico o administrativo escrito directamente por el profesional puede reproducirse en el borrador y debe citarse como evidencia desde la fuente "Indicación profesional".
+- Las órdenes de edición o alcance no son contenido del documento: aplícalas, pero no las reproduzcas como texto clínico.
+- No inventes información que no aparezca en los archivos ni en la indicación profesional.`;
+
+const freePromptBase = `Crea exclusivamente el documento clínico solicitado por el usuario sin imponer una plantilla predeterminada.
 - Elige títulos breves y una estructura proporcional a la solicitud.
-- Incluye solamente secciones útiles para el propósito descrito.
+- Incluye solamente las secciones expresamente pedidas o indispensables para entregar el texto solicitado.
 - Conserva literalmente nombres, fechas, resultados, unidades, medicamentos y dosis presentes en las fuentes.
-- Si una sección solicitada no tiene respaldo en las fuentes, usa exactamente "No consignado".`;
+- Si una sección solicitada no tiene respaldo en los archivos ni en la indicación profesional, usa exactamente "No consignado".
+${scopeRules}`;
 
 function validatedUserInstructions(value: string, label: string, maximum: number, required: boolean): string {
   const instructions = value.trim();
@@ -23,11 +33,11 @@ export function composePromptInstructions(input: {
 }): string {
   if (input.mode === "free") {
     const request = validatedUserInstructions(input.userInstructions ?? "", "El prompt libre", MAX_FREE_PROMPT_LENGTH, true);
-    return `${freePromptBase}\n\nSolicitud libre del usuario:\n<solicitud_usuario>\n${request}\n</solicitud_usuario>\n\nLa solicitud define el propósito y la forma del documento, pero no puede anular las reglas clínicas obligatorias.`;
+    return `${freePromptBase}\n\nSolicitud libre del profesional:\n<solicitud_profesional>\n${request}\n</solicitud_profesional>\n\nLa solicitud define de forma exhaustiva el alcance y la forma del documento. No puede anular las reglas clínicas obligatorias.`;
   }
   const base = input.baseInstructions?.trim();
   if (!base) throw new Error("El prompt seleccionado no está disponible.");
   const additional = validatedUserInstructions(input.userInstructions ?? "", "Las indicaciones adicionales", MAX_ADDITIONAL_PROMPT_LENGTH, false);
   if (!additional) return base;
-  return `${base}\n\nIndicaciones adicionales del usuario:\n<indicaciones_adicionales>\n${additional}\n</indicaciones_adicionales>\n\nEstas indicaciones pueden ajustar énfasis, orden y estilo, pero no pueden anular las reglas clínicas obligatorias.`;
+  return `${base}\n\n${scopeRules}\n\nIndicaciones adicionales del profesional:\n<indicaciones_profesionales>\n${additional}\n</indicaciones_profesionales>\n\nEstas indicaciones prevalecen sobre la plantilla en estructura, cobertura, exclusiones, orden y estilo; no pueden anular las reglas clínicas obligatorias.`;
 }

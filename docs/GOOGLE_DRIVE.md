@@ -12,7 +12,10 @@ R2 ni en el navegador.
 2. Configurar la pantalla de consentimiento OAuth.
 3. Crear un cliente OAuth de tipo **Aplicación web** y registrar como orígenes
    JavaScript autorizados `http://localhost:3030` y la URL de producción.
-4. Crear una API key restringida a esos orígenes y a las APIs Picker y Drive.
+4. Crear una API key restringida a las APIs Picker y Drive. En **Restricciones
+   de sitios web**, registrar exactamente:
+   - `http://localhost:3030/*`
+   - `https://hhr-documentos-clinicos.danielopazo.chatgpt.site/*`
 5. Configurar en el entorno de la aplicación:
    - `GOOGLE_DRIVE_CLIENT_ID`: identificador del cliente OAuth web.
    - `GOOGLE_DRIVE_API_KEY`: API key restringida por origen y API.
@@ -22,3 +25,8 @@ No se utiliza `client_secret`. Los documentos nativos de Google Docs se exportan
 temporalmente como DOCX; PDF, DOCX, JPG y PNG se descargan tal como fueron
 seleccionados y pasan por las mismas validaciones de tamaño, firma y autorización
 que una carga local.
+
+Si el selector muestra `The API developer key is invalid` pero el inicio de
+sesión sí funciona, comprobar primero las restricciones HTTP de la API key. Una
+clave que autoriza localhost pero no la URL de Sites produce ese mensaje dentro
+del Picker aunque el cliente OAuth sea correcto.

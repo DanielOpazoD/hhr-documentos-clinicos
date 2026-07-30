@@ -46,6 +46,28 @@ export function AiProvenance({ aiMetadata, sections }: Props) {
           {aiMetadata.safetyNotice ? (
             <section><strong>Nota de generación</strong><p><span>{aiMetadata.safetyNotice}</span></p></section>
           ) : null}
+          {aiMetadata.promptTrace ? (
+            <details className="ai-prompt-audit">
+              <summary>Revisar solicitud y salida original</summary>
+              <div>
+                <section>
+                  <strong>Entrada utilizada</strong>
+                  <p><small>{aiMetadata.promptTrace.mode === "free" ? "Prompt libre" : aiMetadata.promptTrace.profileName}{aiMetadata.promptTrace.profileRevision ? ` · versión ${aiMetadata.promptTrace.profileRevision}` : ""}</small></p>
+                  <pre>{aiMetadata.promptTrace.userInstructions || aiMetadata.promptTrace.effectiveInstructions}</pre>
+                </section>
+                <section>
+                  <strong>Salida original de la IA</strong>
+                  {aiMetadata.originalOutput ? <>
+                    <p><b>Paciente</b><span>{[aiMetadata.originalOutput.patient.firstNames, aiMetadata.originalOutput.patient.lastNames].filter(Boolean).join(" ") || "No consignado"}{aiMetadata.originalOutput.patient.rut ? ` · ${aiMetadata.originalOutput.patient.rut}` : ""}{aiMetadata.originalOutput.patient.birthDate ? ` · ${aiMetadata.originalOutput.patient.birthDate}` : ""}</span></p>
+                    <p><b>Firmante</b><span>{aiMetadata.originalOutput.signer.name || "No consignado"}{aiMetadata.originalOutput.signer.specialty ? ` · ${aiMetadata.originalOutput.signer.specialty}` : ""}</span></p>
+                  </> : null}
+                  {aiMetadata.originalOutput?.sections.map((section, index) => (
+                    <p key={`${section.key ?? section.title}-${index}`}><b>{section.title}</b><span>{section.text}</span></p>
+                  )) ?? <p><span>La salida original no está disponible para este documento anterior.</span></p>}
+                </section>
+              </div>
+            </details>
+          ) : null}
           {aiMetadata.promptVersion ? <small>Prompt {aiMetadata.promptVersion}</small> : null}
         </div>
       </details>

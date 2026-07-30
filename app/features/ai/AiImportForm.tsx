@@ -11,6 +11,9 @@ export function AiImportForm({ controller }: { controller: AiStudioController })
   const inputRef = useRef<HTMLInputElement>(null);
   const totalMegabytes = controller.files.reduce((total, file) => total + file.size, 0) / 1024 / 1024;
   const selectedTarget = getTargetDefinition(controller.target);
+  const targetProfiles = controller.promptProfiles.filter((item) => item.target === controller.target);
+  const customProfiles = targetProfiles.filter((item) => !item.builtIn);
+  const baseProfiles = targetProfiles.filter((item) => item.builtIn);
   const instructionsReady = controller.promptMode === "free"
     ? Boolean(controller.freePrompt.trim())
     : Boolean(controller.selectedPromptId);
@@ -129,16 +132,16 @@ export function AiImportForm({ controller }: { controller: AiStudioController })
           {controller.target === "traslado_salvador" ? <div className="official-template-note"><FileText size={16} /><span><strong>Formulario oficial</strong><small>La IA completa sus 18 campos y descarga una copia del Word original.</small></span></div> : null}
           <div className="prompt-picker">
             <label htmlFor="ai-prompt">Prompt · {selectedTarget.name}</label>
-            <div><select id="ai-prompt" value={controller.selectedPromptId} disabled={controller.processing || controller.promptsLoading} onChange={(event) => controller.setSelectedPromptId(event.target.value)}>{controller.promptProfiles.filter((item) => item.target === controller.target).map((item) => <option key={item.id} value={item.id}>{item.name}{item.builtIn ? " · base" : ` · v${item.revision}`}</option>)}</select><Link href="/configuracion?tab=ia">Configurar</Link></div>
+            <div><select id="ai-prompt" value={controller.selectedPromptId} disabled={controller.processing || controller.promptsLoading} onChange={(event) => controller.setSelectedPromptId(event.target.value)}>{customProfiles.length ? <optgroup label="Mis plantillas">{customProfiles.map((item) => <option key={item.id} value={item.id}>{item.name} · v{item.revision}</option>)}</optgroup> : null}<optgroup label="Plantillas HHR">{baseProfiles.map((item) => <option key={item.id} value={item.id}>{item.name} · base</option>)}</optgroup></select><Link href="/configuracion?tab=ia">Configurar</Link></div>
           </div>
           <label className="ai-instructions-field" htmlFor="ai-additional-instructions">
-            <span><strong>Indicaciones adicionales</strong><small>Opcional · complementan la plantilla sin modificarla.</small></span>
-            <textarea id="ai-additional-instructions" value={controller.additionalInstructions} maxLength={4_000} disabled={controller.processing} placeholder="Ej.: prioriza la evolución renal y conserva una conclusión breve." onChange={(event) => controller.setAdditionalInstructions(event.target.value)} />
+            <span><strong>Indicaciones adicionales</strong><small>Opcional · mandan sobre alcance, exclusiones y estilo.</small></span>
+            <textarea id="ai-additional-instructions" value={controller.additionalInstructions} maxLength={4_000} disabled={controller.processing} placeholder="Ej.: usa solo la identificación del paciente, ignora los resultados y redacta únicamente el certificado indicado." onChange={(event) => controller.setAdditionalInstructions(event.target.value)} />
             <em>{controller.additionalInstructions.length}/4.000</em>
           </label>
         </> : <label className="ai-instructions-field free" htmlFor="ai-free-prompt">
           <span><strong>¿Qué documento necesita?</strong><small>La IA propone la estructura a partir de su solicitud y de los archivos.</small></span>
-          <textarea id="ai-free-prompt" value={controller.freePrompt} maxLength={6_000} disabled={controller.processing} placeholder="Ej.: redacta un informe breve que resuma los hallazgos del formulario y deje visibles los datos que faltan." onChange={(event) => controller.setFreePrompt(event.target.value)} />
+          <textarea id="ai-free-prompt" value={controller.freePrompt} maxLength={6_000} disabled={controller.processing} placeholder="Ej.: toma solo la identificación del paciente, ignora los resultados y redacta el siguiente certificado: …" onChange={(event) => controller.setFreePrompt(event.target.value)} />
           <em>{controller.freePrompt.length}/6.000</em>
         </label>}
         <button

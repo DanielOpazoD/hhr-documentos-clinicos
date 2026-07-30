@@ -4,6 +4,7 @@ import { parseClinicalOutput } from "./clinical-output";
 import { extractLocalSource, getPdfPageCount } from "./source-extraction";
 import type { AiTokenUsage } from "../usage-types";
 import { supportsReasoning } from "./openai-models";
+import { PROFESSIONAL_INSTRUCTION_SOURCE } from "./prompt-composition";
 
 export type OpenAiOutput = {
   documentKind: string;
@@ -100,9 +101,11 @@ export async function generateClinicalDraft(input: {
   sources: AiSourceInput[];
   target: AiTargetId;
   promptInstructions: string;
+  professionalInstructions?: string;
   onProgress?: AiProgressReporter;
 }): Promise<{ output: OpenAiOutput; usage: AiTokenUsage }> {
   const schema = outputSchema(input.target);
+  const professionalInstructions = input.professionalInstructions?.trim() ?? "";
   await input.onProgress?.({ stage: "reading", label: "Leyendo documentos", detail: `Preparando ${input.sources.length} fuente${input.sources.length === 1 ? "" : "s"}` });
   const sourceTexts = await Promise.all(input.sources.map((source) =>
     extractLocalSource(source.file, source.mimeType).catch(() => null),
@@ -112,6 +115,7 @@ export async function generateClinicalDraft(input: {
       ? getPdfPageCount(source.file).catch(() => null)
       : Promise.resolve(null),
   ));
+  const instructionSourceIndex = input.sources.length;
   const content = (await Promise.all(input.sources.map(async (source, index) => {
     const original = await sourceContent(source.file, source.sourceName, source.mimeType);
     const extractedText = sourceTexts[index];
@@ -128,6 +132,10 @@ export async function generateClinicalDraft(input: {
   }))).flat();
   await input.onProgress?.({ stage: "analyzing", label: "Identificando datos clínicos", detail: "Contrastando identidad, fechas y hallazgos entre las fuentes" });
   await input.onProgress?.({ stage: "drafting", label: "Redactando el borrador", detail: "Organizando la información sin completar datos ausentes" });
+  const professionalContent = professionalInstructions ? [{
+    type: "input_text",
+    text: `${PROFESSIONAL_INSTRUCTION_SOURCE.toUpperCase()} · source_index ${instructionSourceIndex} · page null:\n${professionalInstructions}\n\nEsta fuente define el alcance solicitado. Usa sus exclusiones como reglas y sus declaraciones textuales como contenido respaldado. Cita únicamente fragmentos literales de esta fuente; no cites como contenido las órdenes de edición.`,
+  }] : [];
   const response = await fetch("https://api.openai.com/v1/responses", {
     method: "POST",
     headers: {
@@ -145,7 +153,8 @@ export async function generateClinicalDraft(input: {
           role: "user",
           content: [
             ...content,
-            { type: "input_text", text: `Analiza las ${input.sources.length} fuentes como un solo caso y prepara el borrador de tipo: ${input.target}. Los marcadores HHR_PAGE_N representan páginas cuando existe texto extraído. En toda fuente PDF, incluso escaneada, usa el número de página real del PDF; reserva page null solo para DOCX e imágenes independientes.` },
+            ...professionalContent,
+            { type: "input_text", text: `Analiza las ${input.sources.length} fuentes documentales como un solo caso y prepara el borrador de tipo: ${input.target}. ${professionalInstructions ? `La fuente ${instructionSourceIndex} es la indicación profesional y manda sobre el alcance: no añadas contenido excluido o no solicitado.` : ""} Los marcadores HHR_PAGE_N representan páginas cuando existe texto extraído. En toda fuente PDF, incluso escaneada, usa el número de página real del PDF; reserva page null para DOCX, imágenes independientes y la indicación profesional.` },
           ],
         },
       ],
@@ -175,9 +184,9 @@ export async function generateClinicalDraft(input: {
   await input.onProgress?.({ stage: "verifying", label: "Verificando el borrador", detail: "Comprobando identidad, citas y campos pendientes" });
   const output = parseClinicalOutput(outputText, {
     target: input.target,
-    sourceTexts,
-    sourceMimeTypes: input.sources.map((source) => source.mimeType),
-    sourcePageCounts,
+    sourceTexts: professionalInstructions ? [...sourceTexts, professionalInstructions] : sourceTexts,
+    sourceMimeTypes: professionalInstructions ? [...input.sources.map((source) => source.mimeType), "text/plain"] : input.sources.map((source) => source.mimeType),
+    sourcePageCounts: professionalInstructions ? [...sourcePageCounts, null] : sourcePageCounts,
   });
   const reasoningSummary = extractReasoningSummary(payload);
   return {
