@@ -44,7 +44,14 @@ export function GoogleDrivePicker({
 
   return (
     <div className={compact ? "drive-picker-control compact" : "drive-picker-control"}>
-      <button type="button" className="button secondary" disabled={disabled || busy || !config?.configured || fileCount >= 8} onClick={() => void openPicker()}>
+      <button
+        type="button"
+        className="button secondary"
+        aria-label={compact ? "Google Drive. Acceso puntual; no se guarda la sesión" : undefined}
+        title={compact ? "Acceso puntual; no se guarda la sesión" : undefined}
+        disabled={disabled || busy || !config?.configured || fileCount >= 8}
+        onClick={() => void openPicker()}
+      >
         {busy ? <Loader2 size={15} className="spin" /> : <FolderOpen size={15} />}
         {busy ? "Importando…" : compact ? "Drive" : "Google Drive"}
       </button>

@@ -219,6 +219,7 @@ export function useAiStudio() {
       setIdentityConfirmed(false);
       setResult(preparedResult);
       setDraftHasChanges(true);
+      return preparedResult;
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "No se pudo conectar con el servicio de IA.");
       return null;

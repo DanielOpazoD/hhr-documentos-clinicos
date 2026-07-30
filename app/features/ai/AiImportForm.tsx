@@ -52,7 +52,7 @@ export function AiImportForm({ controller }: Props) {
           }}
         />
 
-        <div className="ai-composer-context" aria-label="Contexto de generación">
+        <div className="ai-composer-context" role="group" aria-label="Contexto de generación">
           <label>
             <span>Documento</span>
             <select
@@ -156,7 +156,7 @@ export function AiImportForm({ controller }: Props) {
           />
 
           {controller.files.length ? (
-            <div className="ai-composer-files" aria-label="Fuentes adjuntas">
+            <div className="ai-composer-files" role="group" aria-label="Fuentes adjuntas">
               {controller.files.map((file, index) => (
                 <span key={`${file.name}-${file.size}-${file.lastModified}`}>
                   <FileText size={14} />
