@@ -24,3 +24,7 @@ export type AiPromptImprovement = {
   instructions: string;
   summary: string;
 };
+
+export type AiPromptProposal = AiPromptInput & {
+  summary: string;
+};

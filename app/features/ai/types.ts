@@ -43,6 +43,27 @@ export type AiSection = {
   evidenceStale?: boolean;
 };
 
+export type AiPromptTrace = {
+  mode: AiPromptMode;
+  profileId: string;
+  profileName: string;
+  profileRevision: number | null;
+  version: string;
+  userInstructions: string;
+  effectiveInstructions: string;
+  generatedAt: string;
+};
+
+export type AiGenerationSnapshot = {
+  documentKind: string;
+  patient: AiPatient;
+  signer: AiSigner;
+  sections: AiSection[];
+  processingSummary: string;
+  missingInformation: string[];
+  safetyNotice: string;
+};
+
 export type AiImportResult = {
   documentKind: string;
   sources: string[];
@@ -50,6 +71,8 @@ export type AiImportResult = {
   providerName: string;
   model: string;
   promptVersion: string;
+  promptTrace: AiPromptTrace;
+  originalOutput: AiGenerationSnapshot;
   sections: AiSection[];
   patient: AiPatient;
   signer: AiSigner;

@@ -2,8 +2,9 @@ import { parseClinicalOutput } from "./clinical-output";
 import { outputSchema, systemPrompt } from "./prompt";
 import { extractLocalSource } from "./source-extraction";
 import type { OpenAiOutput } from "./openai-responses";
-import type { AiProgressReporter, AiSourceInput, AiTargetId } from "../types";
+import type { AiProgressReporter, AiPromptMode, AiSourceInput, AiTargetId } from "../types";
 import type { AiTokenUsage } from "../usage-types";
+import { PROFESSIONAL_INSTRUCTION_SOURCE } from "./prompt-composition";
 
 const LOCAL_CONTEXT_TOKENS = 16_384;
 const LOCAL_OUTPUT_TOKENS = 3_800;
@@ -15,22 +16,33 @@ function localOutputTokens(target: AiTargetId): number {
   return target === "traslado_salvador" ? 5_500 : LOCAL_OUTPUT_TOKENS;
 }
 
-function requestInstructions(target: AiTargetId) {
+function requestInstructions(
+  target: AiTargetId,
+  professionalInstructions = "",
+  instructionSourceIndex = -1,
+  promptMode: AiPromptMode = "profile",
+) {
   const absentFields = target === "traslado_salvador"
     ? 'Incluye exactamente los 18 campos; cuando falte un dato, usa "No consignado" y evidence vacío.'
     : "No crees secciones para datos ausentes.";
-  return `Prepara el borrador de tipo ${target} integrando todas las fuentes. Responde exclusivamente con el JSON solicitado. Los marcadores HHR_PAGE_N delimitan páginas; usa el índice indicado para source_index y no reproduzcas marcadores internos. Usa page null en DOCX e imágenes, y un número solamente cuando exista un marcador HHR_PAGE_N. ${absentFields}`;
+  const requestedDocument = promptMode === "free"
+    ? "Prepara exclusivamente el documento descrito en la indicación profesional"
+    : `Prepara el borrador de tipo ${target}`;
+  return `${requestedDocument} integrando todas las fuentes. ${professionalInstructions ? `La fuente ${instructionSourceIndex} es la indicación profesional y manda sobre inclusiones y exclusiones; no agregues contenido no solicitado.` : ""} Responde exclusivamente con el JSON solicitado. Los marcadores HHR_PAGE_N delimitan páginas; usa el índice indicado para source_index y no reproduzcas marcadores internos. Usa page null en DOCX, imágenes y la indicación profesional, y un número solamente cuando exista un marcador HHR_PAGE_N. ${absentFields}`;
 }
 
 function estimatedRequestTokens(
   sources: Array<AiSourceInput & { extractedText: string | null }>,
   target: AiTargetId,
   promptInstructions: string,
+  professionalInstructions = "",
+  promptMode: AiPromptMode = "profile",
 ) {
   const schema = outputSchema(target);
-  const textCharacters = systemPrompt(target, promptInstructions).length
+  const textCharacters = systemPrompt(target, promptInstructions, promptMode).length
     + JSON.stringify(schema).length
-    + requestInstructions(target).length
+    + requestInstructions(target, professionalInstructions, sources.length, promptMode).length
+    + professionalInstructions.length
     + sources.reduce((total, source, index) => total
       + `FUENTE ${index + 1} · source_index ${index}: ${source.sourceName}`.length
       + (source.extractedText?.length ?? 0), 0);
@@ -53,10 +65,12 @@ function toBase64(buffer: ArrayBuffer): string {
 async function messageContent(
   sources: Array<AiSourceInput & { extractedText: string | null }>,
   target: AiTargetId,
+  professionalInstructions = "",
+  promptMode: AiPromptMode = "profile",
 ) {
   const content: Array<Record<string, unknown>> = [{
     type: "text",
-    text: requestInstructions(target),
+    text: requestInstructions(target, professionalInstructions, sources.length, promptMode),
   }];
   for (let index = 0; index < sources.length; index += 1) {
     const source = sources[index];
@@ -68,6 +82,12 @@ async function messageContent(
       content.push({ type: "image_url", image_url: { url: `data:${source.mimeType};base64,${toBase64(buffer)}` } });
     }
   }
+  if (professionalInstructions) {
+    content.push({
+      type: "text",
+      text: `${PROFESSIONAL_INSTRUCTION_SOURCE.toUpperCase()} · source_index ${sources.length} · page null:\n${professionalInstructions}\n\nEsta fuente define el alcance y puede respaldar texto aportado literalmente por el profesional. No conviertas sus órdenes de edición en contenido clínico.`,
+    });
+  }
   return content;
 }
 
@@ -77,7 +97,9 @@ export async function generateLocalClinicalDraft(input: {
   model: string;
   sources: AiSourceInput[];
   target: AiTargetId;
+  promptMode?: AiPromptMode;
   promptInstructions: string;
+  professionalInstructions?: string;
   onProgress?: AiProgressReporter;
 }): Promise<{ output: OpenAiOutput; usage: AiTokenUsage }> {
   await input.onProgress?.({ stage: "reading", label: "Leyendo documentos", detail: `Extrayendo texto e imágenes de ${input.sources.length} fuente${input.sources.length === 1 ? "" : "s"}` });
@@ -86,10 +108,11 @@ export async function generateLocalClinicalDraft(input: {
     const extractedText = await extractLocalSource(source.file, source.mimeType);
     sources.push({ ...source, extractedText });
   }
-  if (estimatedRequestTokens(sources, input.target, input.promptInstructions) > LOCAL_CONTEXT_TOKENS) {
+  const professionalInstructions = input.professionalInstructions?.trim() ?? "";
+  if (estimatedRequestTokens(sources, input.target, input.promptInstructions, professionalInstructions, input.promptMode) > LOCAL_CONTEXT_TOKENS) {
     throw new Error("El conjunto de documentos supera el contexto seguro de Gemma local. Reduzca la cantidad o use OpenAI.");
   }
-  const content = await messageContent(sources, input.target);
+  const content = await messageContent(sources, input.target, professionalInstructions, input.promptMode);
   const schema = outputSchema(input.target);
   await input.onProgress?.({ stage: "analyzing", label: "Identificando datos clínicos", detail: "Contrastando identidad, fechas y hallazgos entre las fuentes" });
   await input.onProgress?.({ stage: "drafting", label: "Redactando el borrador", detail: "Organizando la información sin completar datos ausentes" });
@@ -105,7 +128,7 @@ export async function generateLocalClinicalDraft(input: {
       temperature: 0.1,
       max_tokens: localOutputTokens(input.target),
       messages: [
-        { role: "system", content: systemPrompt(input.target, input.promptInstructions) },
+        { role: "system", content: systemPrompt(input.target, input.promptInstructions, input.promptMode) },
         { role: "user", content },
       ],
       response_format: {
@@ -130,8 +153,9 @@ export async function generateLocalClinicalDraft(input: {
   return {
     output: parseClinicalOutput(contentText, {
       target: input.target,
-      sourceTexts: sources.map((source) => source.extractedText),
-      sourceMimeTypes: sources.map((source) => source.mimeType),
+      promptMode: input.promptMode,
+      sourceTexts: professionalInstructions ? [...sources.map((source) => source.extractedText), professionalInstructions] : sources.map((source) => source.extractedText),
+      sourceMimeTypes: professionalInstructions ? [...sources.map((source) => source.mimeType), "text/plain"] : sources.map((source) => source.mimeType),
     }),
     usage: {
       inputTokens,

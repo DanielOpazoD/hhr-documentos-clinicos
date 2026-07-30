@@ -99,6 +99,8 @@ export async function saveAiDraft(
           providerName: result.providerName,
           model: result.model,
           promptVersion: result.promptVersion,
+          promptTrace: result.promptTrace,
+          originalOutput: result.originalOutput,
           evidence: Object.fromEntries(result.sections.map((section, index) => [section.key ?? `ia-${index + 1}`, section.evidence])),
           editedSectionIds: result.sections.flatMap((section, index) => section.evidenceStale ? [section.key ?? `ia-${index + 1}`] : []),
           missingInformation: result.missingInformation,
