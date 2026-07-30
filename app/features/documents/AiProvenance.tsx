@@ -13,13 +13,15 @@ export function AiProvenance({ aiMetadata, sections }: Props) {
 
   return (
     <aside className="ai-document-origin print-hide">
-      <div>
-        <Sparkles size={14} />
-        <span><strong>{aiMetadata.providerName ?? "IA documental"}</strong><small>{aiMetadata.sources?.join(" · ") ?? aiMetadata.source ?? "Documento importado"}</small></span>
-        <em>{aiMetadata.model}</em>
-      </div>
-      <details>
-        <summary>Ver trazabilidad</summary>
+      <details className="ai-provenance-disclosure">
+        <summary>
+          <Sparkles size={14} />
+          <span>
+            <strong>{aiMetadata.providerName ?? "IA documental"}</strong>
+            <small>{aiMetadata.sources?.length ?? (aiMetadata.source ? 1 : 0)} fuente{(aiMetadata.sources?.length ?? (aiMetadata.source ? 1 : 0)) === 1 ? "" : "s"} · Trazabilidad</small>
+          </span>
+          <em>{aiMetadata.model}</em>
+        </summary>
         <div className="ai-provenance-details">
           {sections.map((section) => {
             const evidence = evidenceBySection[section.id]?.filter((item) => item.excerpt.trim() && item.status !== "no_encontrado") ?? [];

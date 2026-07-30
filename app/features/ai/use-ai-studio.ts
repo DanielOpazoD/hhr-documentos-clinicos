@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { fetchAiProviders, importWithAi, saveAiDraft } from "./client";
 import { fetchPromptProfiles } from "./prompt-client";
 import { defaultClinicalSigner, FREEFORM_SCHEMA_TARGET, getTargetName } from "./targets";
@@ -46,6 +46,8 @@ const emptyResult: AiImportResult = {
 };
 
 export function useAiStudio() {
+  const processingRef = useRef(false);
+  const savingRef = useRef(false);
   const [files, setFiles] = useState<File[]>([]);
   const [target, setTarget] = useState<AiTargetId>("epicrisis");
   const [provider, setProvider] = useState<AiProviderId>("openai");
@@ -185,7 +187,8 @@ export function useAiStudio() {
   }, [processing]);
 
   async function analyze() {
-    if (!files.length || !processingAuthorized) return;
+    if (!files.length || !processingAuthorized || processingRef.current) return null;
+    processingRef.current = true;
     const generationTarget: AiTargetId = promptMode === "free" ? FREEFORM_SCHEMA_TARGET : target;
     const userInstructions = promptMode === "free" ? freePrompt : additionalInstructions;
     setElapsedSeconds(0);
@@ -204,29 +207,35 @@ export function useAiStudio() {
         userInstructions,
         processingAuthorized,
       }, setProgress);
-      setResult({
+      const preparedResult: AiImportResult = {
         ...nextResult,
         signer: generationTarget === "traslado_salvador" ? defaultClinicalSigner : {
           name: nextResult.signer.name || defaultClinicalSigner.name,
           rut: nextResult.signer.rut || defaultClinicalSigner.rut,
           specialty: nextResult.signer.specialty || defaultClinicalSigner.specialty,
         },
-      });
+      };
       setDraftContext({ target: generationTarget, promptMode });
       setIdentityConfirmed(false);
+      setResult(preparedResult);
       setDraftHasChanges(true);
+      return preparedResult;
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "No se pudo conectar con el servicio de IA.");
+      return null;
     } finally {
+      processingRef.current = false;
       setProcessing(false);
     }
   }
 
   async function createDraft() {
+    if (savingRef.current) return null;
     if (!identityConfirmed) {
       setError("Revise y confirme los datos de identidad antes de guardar.");
-      return;
+      return null;
     }
+    savingRef.current = true;
     setSaving(true);
     setError(null);
     try {
@@ -235,11 +244,15 @@ export function useAiStudio() {
       const title = savedPromptMode === "free"
         ? result.documentKind.trim() || "Documento con IA"
         : getTargetName(savedTarget);
-      setCreatedId(await saveAiDraft(result, savedTarget, title, savedPromptMode, createdId ?? undefined));
+      const documentId = await saveAiDraft(result, savedTarget, title, savedPromptMode, createdId ?? undefined);
+      setCreatedId(documentId);
       setDraftHasChanges(false);
+      return documentId;
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "No se pudo guardar el borrador.");
+      return null;
     } finally {
+      savingRef.current = false;
       setSaving(false);
     }
   }

@@ -66,12 +66,13 @@ export function DocumentStudio() {
   }, [closeSignaturePanel]);
 
   const openGeneratedDocument = useCallback(async (id: string) => {
-    if (!(await openDocument(id))) return;
+    if (!(await openDocument(id))) return false;
     setAssistantVisibility(false, false);
     const url = new URL(window.location.href);
     url.searchParams.set("document", id);
     url.searchParams.delete("assistant");
     window.history.replaceState({}, "", `${url.pathname}${url.search}`);
+    return true;
   }, [openDocument, setAssistantVisibility]);
 
   const editFromPreview = useCallback((fieldId: string) => {

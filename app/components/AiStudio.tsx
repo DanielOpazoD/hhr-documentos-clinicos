@@ -9,7 +9,7 @@ import { useAiStudio } from "@/app/features/ai/use-ai-studio";
 type Props = {
   active?: boolean;
   embedded?: boolean;
-  onOpenDocument?: (id: string) => void | Promise<void>;
+  onOpenDocument?: (id: string) => boolean | void | Promise<boolean | void>;
 };
 
 export function AiStudio({ active = true, embedded = false, onOpenDocument }: Props) {
