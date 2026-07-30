@@ -679,7 +679,10 @@ input:disabled { color: #6b7f84; background: #f5f7f7; }
   html, body { background: #fff !important; }
   .print-hide, .sidebar, .mobile-bar, .mobile-nav, .page-header, .catalog-tabs, .document-topbar, .editor-panel { display: none !important; }
   .app-shell, .main-area, .page-wrap, .document-workspace-shell, .document-main, .editor-layout, .paper-panel { display: block !important; width: 100% !important; margin: 0 !important; padding: 0 !important; border: 0 !important; background: #fff !important; }
-  .clinical-paper { width: 100% !important; min-height: 250mm !important; padding: 0 0 28mm !important; box-shadow: none !important; break-inside: avoid; }
+  .clinical-paper { width: 100% !important; min-height: 0 !important; padding: 0 !important; box-shadow: none !important; break-inside: auto; }
+  .clinical-paper.prescription-paper { min-height: 250mm !important; padding-bottom: 28mm !important; }
+  .signature-placement-zone { margin-top: 16px; }
+  .signing-assets-canvas { min-height: 220px; }
   .prescription-warning { right: 0; bottom: 10mm; left: 0; }
   .clinical-paper section, .paper-signatures, .signature-block { break-inside: avoid; }
   .preview-edit-target { padding: 0 !important; outline: 0 !important; box-shadow: none !important; }
