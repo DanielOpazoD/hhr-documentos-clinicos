@@ -1,5 +1,5 @@
 import type { Dispatch, SetStateAction } from "react";
-import { SIGNATURE_Y_DEFAULT_PERCENT } from "@/app/lib/document-layout";
+import { defaultImagePlacement } from "@/app/lib/document-layout";
 import type { PlacedSignature, SignatureRecord, SignerData } from "./types";
 
 export function applySignatureProfile(
@@ -12,5 +12,5 @@ export function applySignatureProfile(
     rut: profile.professionalRut,
     specialty: profile.specialty,
   });
-  setPlacedSignature({ ...profile, x: 50, y: SIGNATURE_Y_DEFAULT_PERCENT, width: 28 });
+  setPlacedSignature({ ...profile, ...defaultImagePlacement(profile.kind) });
 }

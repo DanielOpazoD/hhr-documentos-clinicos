@@ -90,6 +90,7 @@ export const documentFiles = sqliteTable("document_files", {
 export const signatures = sqliteTable("signatures", {
   id: text("id").primaryKey(),
   ownerEmail: text("owner_email").notNull(),
+  kind: text("kind").notNull().default("signature"),
   professionalName: text("professional_name").notNull(),
   professionalRut: text("professional_rut").notNull(),
   specialty: text("specialty").notNull(),
@@ -101,7 +102,7 @@ export const signatures = sqliteTable("signatures", {
 }, (table) => [
   index("signatures_owner_updated_idx").on(table.ownerEmail, table.updatedAt),
   uniqueIndex("signatures_owner_default_idx")
-    .on(table.ownerEmail)
+    .on(table.ownerEmail, table.kind)
     .where(sql`"is_default" = 1`),
 ]);
 

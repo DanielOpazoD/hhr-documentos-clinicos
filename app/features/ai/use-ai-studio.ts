@@ -4,13 +4,14 @@ import { useEffect, useMemo, useState } from "react";
 import { fetchAiProviders, importWithAi, saveAiDraft } from "./client";
 import { fetchPromptProfiles } from "./prompt-client";
 import { defaultClinicalSigner, getTargetName } from "./targets";
-import type { AiImportResult, AiPatient, AiProgress, AiProviderId, AiProviderInfo, AiSection, AiSigner, AiTargetId } from "./types";
+import type { AiImportResult, AiPatient, AiProgress, AiPromptMode, AiProviderId, AiProviderInfo, AiSection, AiSigner, AiTargetId } from "./types";
 import type { AiPromptProfile } from "./prompt-types";
 
 const AI_SELECTION_STORAGE_KEY = "hhr.ai-selection.v1";
 type StoredAiSelection = { provider?: AiProviderId; model?: string };
 
 const emptyResult: AiImportResult = {
+  documentKind: "",
   sources: [],
   providerId: "openai",
   providerName: "",
@@ -34,6 +35,9 @@ export function useAiStudio() {
   const [promptProfiles, setPromptProfiles] = useState<AiPromptProfile[]>([]);
   const [promptsLoading, setPromptsLoading] = useState(true);
   const [selectedPromptId, setSelectedPromptId] = useState("");
+  const [promptMode, setPromptMode] = useState<AiPromptMode>("profile");
+  const [additionalInstructions, setAdditionalInstructions] = useState("");
+  const [freePrompt, setFreePrompt] = useState("");
   const [processingAuthorized, setProcessingAuthorized] = useState(false);
   const [result, setResult] = useState<AiImportResult>(emptyResult);
   const [processing, setProcessing] = useState(false);
@@ -44,6 +48,7 @@ export function useAiStudio() {
   const [error, setError] = useState<string | null>(null);
   const [createdId, setCreatedId] = useState<string | null>(null);
   const [draftHasChanges, setDraftHasChanges] = useState(false);
+  const [draftContext, setDraftContext] = useState<{ target: AiTargetId; promptMode: AiPromptMode } | null>(null);
 
   useEffect(() => {
     let active = true;
@@ -122,21 +127,33 @@ export function useAiStudio() {
 
   async function analyze() {
     if (!files.length || !processingAuthorized) return;
+    const generationTarget: AiTargetId = promptMode === "free" ? "informe_medico" : target;
+    const userInstructions = promptMode === "free" ? freePrompt : additionalInstructions;
     setElapsedSeconds(0);
     setProcessing(true);
     setProgress({ stage: "preparing", label: "Preparando archivos", detail: "Validando formatos y tamaños" });
     setError(null);
     setCreatedId(null);
     try {
-      const nextResult = await importWithAi(files, target, provider, model, resolvedPromptId, processingAuthorized, setProgress);
+      const nextResult = await importWithAi({
+        files,
+        target: generationTarget,
+        provider,
+        model,
+        promptId: promptMode === "free" ? "" : resolvedPromptId,
+        promptMode,
+        userInstructions,
+        processingAuthorized,
+      }, setProgress);
       setResult({
         ...nextResult,
-        signer: target === "traslado_salvador" ? defaultClinicalSigner : {
+        signer: generationTarget === "traslado_salvador" ? defaultClinicalSigner : {
           name: nextResult.signer.name || defaultClinicalSigner.name,
           rut: nextResult.signer.rut || defaultClinicalSigner.rut,
           specialty: nextResult.signer.specialty || defaultClinicalSigner.specialty,
         },
       });
+      setDraftContext({ target: generationTarget, promptMode });
       setIdentityConfirmed(false);
       setDraftHasChanges(true);
     } catch (cause) {
@@ -154,7 +171,12 @@ export function useAiStudio() {
     setSaving(true);
     setError(null);
     try {
-      setCreatedId(await saveAiDraft(result, target, getTargetName(target), createdId ?? undefined));
+      const savedTarget = draftContext?.target ?? target;
+      const savedPromptMode = draftContext?.promptMode ?? promptMode;
+      const title = savedPromptMode === "free"
+        ? result.documentKind.trim() || "Documento con IA"
+        : getTargetName(savedTarget);
+      setCreatedId(await saveAiDraft(result, savedTarget, title, savedPromptMode, createdId ?? undefined));
       setDraftHasChanges(false);
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "No se pudo guardar el borrador.");
@@ -190,7 +212,7 @@ export function useAiStudio() {
       return {
         ...current,
         patient,
-        sections: target === "traslado_salvador" ? current.sections.map((section) => {
+        sections: draftContext?.target === "traslado_salvador" ? current.sections.map((section) => {
           if (section.key === "full_name") return { ...section, text: fullName || "No consignado", evidenceStale: true };
           if (section.key === "rut") return { ...section, text: patient.rut.trim() || "No consignado", evidenceStale: true };
           return section;
@@ -230,6 +252,7 @@ export function useAiStudio() {
     setResult(emptyResult);
     setCreatedId(null);
     setDraftHasChanges(false);
+    setDraftContext(null);
     setError(null);
     setProgress(null);
     setIdentityConfirmed(false);
@@ -257,6 +280,12 @@ export function useAiStudio() {
     promptsLoading,
     selectedPromptId: resolvedPromptId,
     setSelectedPromptId,
+    promptMode,
+    setPromptMode,
+    additionalInstructions,
+    setAdditionalInstructions,
+    freePrompt,
+    setFreePrompt,
     selectedProvider,
     processingAuthorized,
     setProcessingAuthorized,
@@ -270,6 +299,11 @@ export function useAiStudio() {
     error,
     createdId,
     draftHasChanges,
+    draftTarget: draftContext?.target ?? target,
+    draftPromptMode: draftContext?.promptMode ?? promptMode,
+    draftTitle: draftContext?.promptMode === "free"
+      ? result.documentKind.trim() || "Documento con IA"
+      : getTargetName(draftContext?.target ?? target),
     analyze,
     createDraft,
     updateSection,

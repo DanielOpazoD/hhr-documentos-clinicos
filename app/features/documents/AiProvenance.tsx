@@ -12,7 +12,7 @@ export function AiProvenance({ aiMetadata, sections }: Props) {
     : evidence ?? {};
 
   return (
-    <aside className="ai-document-origin">
+    <aside className="ai-document-origin print-hide">
       <div>
         <Sparkles size={14} />
         <span><strong>{aiMetadata.providerName ?? "IA documental"}</strong><small>{aiMetadata.sources?.join(" · ") ?? aiMetadata.source ?? "Documento importado"}</small></span>

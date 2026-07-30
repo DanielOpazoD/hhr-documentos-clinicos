@@ -18,3 +18,9 @@ export type AiPromptInput = {
   instructions: string;
   makeDefault?: boolean;
 };
+
+export type AiPromptImprovement = {
+  name: string;
+  instructions: string;
+  summary: string;
+};

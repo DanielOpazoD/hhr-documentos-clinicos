@@ -4,9 +4,11 @@ import { patientFullName } from "./identity";
 import type { DocumentSection, PatientData, PlacedSignature, SignerData } from "./types";
 
 type DocumentPdfInput = {
+  documentFontSize: number;
   issueDate: string;
   patient: PatientData;
   placedSignature: PlacedSignature | null;
+  placedStamp: PlacedSignature | null;
   sections: DocumentSection[];
   signer: SignerData;
   templateId: string;
@@ -24,12 +26,10 @@ export async function downloadDocumentPdf(input: DocumentPdfInput) {
         body: `Nombre: ${patientFullName(input.patient) || "—"}\nRUT: ${input.patient.rut || "—"}\nFecha de nacimiento: ${formatStoredDate(input.patient.birthDate) || "—"}`,
       },
       ...input.sections.map((section) => ({ title: section.title, body: section.body })),
-      ...(!input.placedSignature && input.signer.name ? [{
-        title: "Profesional firmante",
-        body: `${input.signer.name}\n${input.signer.specialty}${input.signer.rut ? `\nRUT: ${input.signer.rut}` : ""}`,
-      }] : []),
     ],
-    signature: input.placedSignature ?? undefined,
+    signatureAssets: [input.placedSignature, input.placedStamp].filter((asset): asset is PlacedSignature => Boolean(asset)),
+    signer: input.signer,
+    fontSize: input.documentFontSize,
     date: formatStoredDate(input.issueDate),
     footer: input.templateId === "receta_externa" ? "RECETA MÉDICA EXTERNA" : "Hospital Hanga Roa",
   });

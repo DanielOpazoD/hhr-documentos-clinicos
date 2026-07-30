@@ -1,99 +1,48 @@
 import { useRef } from "react";
-import { FilePlus2, Pencil, UploadCloud, X } from "@/app/components/Icons";
+import { FileImage, Minus, Pencil, Plus, UploadCloud, X } from "@/app/components/Icons";
+import {
+  SIGNING_IMAGE_WIDTH_MAX_PERCENT,
+  SIGNING_IMAGE_WIDTH_MIN_PERCENT,
+  SIGNING_IMAGE_WIDTH_STEP_PERCENT,
+} from "@/app/lib/document-layout";
 import { SignatureImageEditor } from "./SignatureImageEditor";
 import { SignatureProfileSelector } from "./SignatureProfileSelector";
 import { DEFAULT_SIGNATURE_IMAGE_SETTINGS } from "./prepare-signature";
+import type { PlacedSignature, SignatureAssetKind } from "./types";
 import type { DocumentWorkspace } from "./use-document-workspace";
 
-type Props = Pick<
-  DocumentWorkspace,
-  | "attachSignature"
-  | "markSignatureDirty"
-  | "makeDefaultSignature"
-  | "removeSignatureProfile"
-  | "placedSignature"
-  | "saveSignature"
-  | "setPlacedSignature"
-  | "setSignatureForm"
-  | "setSignatureFormOpen"
-  | "signatureBusy"
-  | "signatureDeleteId"
-  | "signatureError"
-  | "signatureForm"
-  | "signatureFormOpen"
-  | "signatureImageSettings"
-  | "signatures"
-  | "setSignatureDeleteId"
-  | "setSignatureImageSettings"
-  | "signer"
-  | "updateSigner"
->;
-
-export function SignatureEditor({
-  attachSignature,
-  markSignatureDirty,
-  makeDefaultSignature,
-  removeSignatureProfile,
-  placedSignature,
-  saveSignature,
-  setPlacedSignature,
-  setSignatureForm,
-  setSignatureFormOpen,
-  signatureBusy,
-  signatureDeleteId,
-  signatureError,
-  signatureForm,
-  signatureFormOpen,
-  signatureImageSettings,
-  signatures,
-  setSignatureDeleteId,
-  setSignatureImageSettings,
-  signer,
-  updateSigner,
-}: Props) {
+export function SignatureEditor({ onClose, workspace }: { onClose: () => void; workspace: DocumentWorkspace }) {
+  const {
+    makeDefaultSignature, openSignatureForm, placedSignature, placedStamp,
+    removeSignatureProfile, saveSignature, setSignatureDeleteId,
+    setSignatureForm, setSignatureImageSettings,
+    signatureBusy, signatureDeleteId, signatureError, signatureForm,
+    signatureFormKind, signatureFormOpen, signatureImageSettings, signatures,
+    signer,
+  } = workspace;
   const inputRef = useRef<HTMLInputElement>(null);
-
-  function setHorizontalPosition(x: number) {
-    setPlacedSignature((current) => current ? { ...current, x } : current);
-    markSignatureDirty();
-  }
+  const formLabel = signatureFormKind === "stamp" ? "timbre" : "firma";
 
   return (
     <div className="editor-section signature-editor">
-      <div className="editor-section-title">
-        <h2>Profesional firmante</h2>
-        <button className="text-button" onClick={() => setSignatureFormOpen(!signatureFormOpen)}>
-          {signatureFormOpen ? <X size={14} /> : <FilePlus2 size={14} />}
-          {signatureFormOpen ? "Cerrar" : "Agregar imagen"}
-        </button>
+      <div className="editor-section-title signature-heading">
+        <div><h2>Firma y timbre</h2></div>
+        <button className="text-button signature-panel-close" onClick={onClose}><X size={14} /> Cerrar</button>
       </div>
 
-      <div className="signer-fields">
-        <label>Nombre y apellido<input value={signer.name} onChange={(event) => updateSigner("name", event.target.value)} /></label>
-        <label>RUT<input value={signer.rut} onChange={(event) => updateSigner("rut", event.target.value)} /></label>
-        <label>Especialidad<input value={signer.specialty} onChange={(event) => updateSigner("specialty", event.target.value)} /></label>
+      <div className="signing-assets">
+        <AssetControl kind="signature" placed={placedSignature} workspace={workspace} />
+        <AssetControl kind="stamp" placed={placedStamp} workspace={workspace} />
       </div>
 
-      {signatures.length ? (
-        <SignatureProfileSelector
-          attachSignature={attachSignature}
-          makeDefaultSignature={makeDefaultSignature}
-          removeSignatureProfile={removeSignatureProfile}
-          placedSignature={placedSignature}
-          signatureBusy={signatureBusy}
-          signatureDeleteId={signatureDeleteId}
-          signatures={signatures}
-          setSignatureDeleteId={setSignatureDeleteId}
-          updateSigner={updateSigner}
-        />
-      ) : signatureFormOpen ? null : (
-        <button className="empty-signature" onClick={() => setSignatureFormOpen(true)}>
-          <Pencil size={18} /> Adjuntar imagen de firma
-        </button>
-      )}
-
-      {signatureFormOpen ? (
+      {!signatureFormOpen ? (
+        <div className="signature-add-actions">
+          <button onClick={() => openSignatureForm("signature")}><Pencil size={15} /> Agregar firma</button>
+          <button onClick={() => openSignatureForm("stamp")}><FileImage size={15} /> Agregar timbre</button>
+        </div>
+      ) : (
         <div className="signature-form">
+          <strong>Nueva imagen de {formLabel}</strong>
           <input
             ref={inputRef}
             hidden
@@ -108,52 +57,96 @@ export function SignatureEditor({
           />
           <button className="signature-file-button" onClick={() => inputRef.current?.click()}>
             <UploadCloud size={17} />
-            {signatureForm.file ? "Cambiar foto" : "Elegir foto de la firma"}
+            {signatureForm.file ? "Cambiar imagen" : `Elegir imagen de ${formLabel}`}
           </button>
           {signatureForm.file ? (
             <SignatureImageEditor
               file={signatureForm.file}
+              label={formLabel}
               settings={signatureImageSettings}
               onChange={setSignatureImageSettings}
             />
           ) : null}
-          <button className="button primary" disabled={signatureBusy || !signer.name.trim()} onClick={() => void saveSignature(signer)}>
-            {signatureBusy ? "Guardando…" : "Guardar y usar"}
+          <button className="button primary" disabled={signatureBusy || !signer.name.trim() || !signatureForm.file} onClick={() => void saveSignature(signer)}>
+            {signatureBusy ? "Guardando…" : `Guardar y usar ${formLabel}`}
           </button>
         </div>
-      ) : null}
+      )}
 
       {signatureError ? <p className="form-error">{signatureError}</p> : null}
 
-      {placedSignature ? (
-        <div className="signature-position-controls">
-          <span>La firma se agrega después del contenido. Puede moverla horizontalmente.</span>
-          <div>
-            <button onClick={() => setHorizontalPosition(24)}>Izquierda</button>
-            <button onClick={() => setHorizontalPosition(50)}>Centro</button>
-            <button onClick={() => setHorizontalPosition(76)}>Derecha</button>
-            <button onClick={() => { setPlacedSignature(null); markSignatureDirty(); }}>Quitar</button>
-          </div>
-          <label>
-            Tamaño
+      {(placedSignature || placedStamp) ? (
+        <p className="signature-placement-help">En la vista previa, arrastre cada imagen desde su tirador cuadrado. Ambas se mueven de forma independiente.</p>
+      ) : null}
+
+      <SignatureProfileSelector
+        makeDefaultSignature={makeDefaultSignature}
+        removeSignatureProfile={removeSignatureProfile}
+        signatureBusy={signatureBusy}
+        signatureDeleteId={signatureDeleteId}
+        signatures={signatures}
+        setSignatureDeleteId={setSignatureDeleteId}
+      />
+    </div>
+  );
+}
+
+function AssetControl({ kind, placed, workspace }: { kind: SignatureAssetKind; placed: PlacedSignature | null; workspace: DocumentWorkspace }) {
+  const label = kind === "stamp" ? "Timbre" : "Firma";
+  const assetLabel = label.toLowerCase();
+  const assets = workspace.signatures.filter((asset) => asset.kind === kind);
+  return (
+    <section className="signing-asset-control">
+      <div><strong>{label}</strong><span>{placed ? "Incluido" : "Sin imagen"}</span></div>
+      <select
+        aria-label={`Imagen de ${label.toLowerCase()}`}
+        value={placed?.id ?? ""}
+        onChange={(event) => {
+          const asset = assets.find((item) => item.id === event.target.value);
+          if (!asset) {
+            workspace.removePlacedImage(kind);
+            return;
+          }
+          if (kind === "signature") workspace.loadSignerProfile({
+            name: asset.professionalName,
+            rut: asset.professionalRut,
+            specialty: asset.specialty,
+          });
+          workspace.attachSignature(asset);
+        }}
+      >
+        <option value="">Sin {label.toLowerCase()}</option>
+        {assets.map((asset) => <option key={asset.id} value={asset.id}>{asset.professionalName}{asset.isDefault ? " · Predeterminado" : ""}</option>)}
+      </select>
+      {placed ? (
+        <div className="signature-size-control">
+          <div className="signature-size-heading"><span>Tamaño</span><output>{placed.width}%</output></div>
+          <div className="signature-size-adjuster">
+            <button
+              type="button"
+              aria-label={`Reducir tamaño de ${assetLabel}`}
+              disabled={placed.width <= SIGNING_IMAGE_WIDTH_MIN_PERCENT}
+              onClick={() => workspace.updatePlacedImage(kind, { width: placed.width - SIGNING_IMAGE_WIDTH_STEP_PERCENT })}
+            ><Minus size={14} /></button>
             <input
+              aria-label={`Tamaño de ${assetLabel}`}
               type="range"
-              min="18"
-              max="42"
-              value={placedSignature.width}
-              onChange={(event) => {
-                const width = Number(event.target.value);
-                setPlacedSignature((current) => current ? {
-                  ...current,
-                  width,
-                  x: Math.max(width / 2, Math.min(100 - width / 2, current.x)),
-                } : current);
-                markSignatureDirty();
-              }}
+              min={SIGNING_IMAGE_WIDTH_MIN_PERCENT}
+              max={SIGNING_IMAGE_WIDTH_MAX_PERCENT}
+              step="2"
+              value={placed.width}
+              onChange={(event) => workspace.updatePlacedImage(kind, { width: Number(event.target.value) })}
             />
-          </label>
+            <button
+              type="button"
+              aria-label={`Aumentar tamaño de ${assetLabel}`}
+              disabled={placed.width >= SIGNING_IMAGE_WIDTH_MAX_PERCENT}
+              onClick={() => workspace.updatePlacedImage(kind, { width: placed.width + SIGNING_IMAGE_WIDTH_STEP_PERCENT })}
+            ><Plus size={14} /></button>
+          </div>
+          <button className="text-button danger" onClick={() => workspace.removePlacedImage(kind)}>Quitar</button>
         </div>
       ) : null}
-    </div>
+    </section>
   );
 }

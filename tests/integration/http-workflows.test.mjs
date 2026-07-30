@@ -54,7 +54,7 @@ test("serves the critical private application routes", async () => {
   const routes = [
     ["/", "<title>Inicio · HHR-documentos</title>"],
     ["/documentos", "<title>Documentos · HHR-documentos</title>"],
-    ["/ia", "<title>Asistente IA · HHR-documentos</title>"],
+    ["/ia", "<title>Documentos · HHR-documentos</title>"],
   ];
 
   for (const [path, title] of routes) {
@@ -62,6 +62,13 @@ test("serves the critical private application routes", async () => {
     assert.equal(response.status, 200, path);
     assert.match(await response.text(), new RegExp(title));
   }
+});
+
+test("redirects the legacy AI entry into the unified document workspace", async () => {
+  const response = await app.fetchPreview("/ia", { redirect: "manual" });
+  assert.equal(response.status, 307);
+  const location = new URL(response.headers.get("location"));
+  assert.equal(`${location.pathname}${location.search}`, "/documentos?assistant=1");
 });
 
 test("requires an authenticated owner outside the local preview", async () => {
@@ -72,6 +79,7 @@ test("requires an authenticated owner outside the local preview", async () => {
     ["/api/ai/prompts", "GET"],
     ["/api/ai/providers", "GET"],
     ["/api/ai/usage", "GET"],
+    ["/api/integrations/google-drive/config", "GET"],
     ["/api/mobile-sessions", "POST"],
   ];
 
@@ -235,18 +243,23 @@ test("keeps files and signatures private across D1 and R2", async () => {
   assert.deepEqual(deletedFile.deletedIds, [fileId]);
   await jsonResponse(await ownedFetch(ownerA, `/api/files/${fileId}`), 404);
 
-  async function createSignature(name) {
+  async function createSignature(name, kind = "signature") {
     const form = new FormData();
     form.set("file", new File([imageBytes], `${name}.png`, { type: "image/png" }));
     form.set("professionalName", `Profesional ${name}`);
     form.set("specialty", "Especialidad sintética");
+    form.set("kind", kind);
     return jsonResponse(await ownedFetch(ownerA, "/api/signatures", { method: "POST", body: form }), 201);
   }
 
   const firstSignature = (await createSignature("Prueba Uno")).signature;
   const secondSignature = (await createSignature("Prueba Dos")).signature;
+  const stamp = (await createSignature("Timbre", "stamp")).signature;
   assert.equal(firstSignature.isDefault, true);
   assert.equal(secondSignature.isDefault, false);
+  assert.equal(firstSignature.kind, "signature");
+  assert.equal(stamp.kind, "stamp");
+  assert.equal(stamp.isDefault, true);
   const otherSignatures = await jsonResponse(await ownedFetch(ownerB, "/api/signatures"), 200);
   assert.deepEqual(otherSignatures.signatures, []);
 
@@ -259,15 +272,17 @@ test("keeps files and signatures private across D1 and R2", async () => {
   await jsonResponse(await jsonRequest(ownerA, `/api/signatures/${secondSignature.id}`, "PATCH", { isDefault: true }), 200);
   const defaulted = await jsonResponse(await ownedFetch(ownerA, "/api/signatures"), 200);
   assert.equal(defaulted.signatures.find((signature) => signature.id === secondSignature.id).isDefault, true);
-  assert.equal(defaulted.signatures.filter((signature) => signature.isDefault).length, 1);
+  assert.equal(defaulted.signatures.filter((signature) => signature.isDefault).length, 2);
+  assert.equal(defaulted.signatures.filter((signature) => signature.kind === "signature" && signature.isDefault).length, 1);
+  assert.equal(defaulted.signatures.filter((signature) => signature.kind === "stamp" && signature.isDefault).length, 1);
 
   await jsonResponse(await ownedFetch(ownerB, `/api/signatures/${secondSignature.id}`, { method: "DELETE" }), 404);
   await jsonResponse(await ownedFetch(ownerA, `/api/signatures/${secondSignature.id}`, { method: "DELETE" }), 200);
   const replacement = await jsonResponse(await ownedFetch(ownerA, "/api/signatures"), 200);
-  assert.equal(replacement.signatures.length, 1);
-  assert.equal(replacement.signatures[0].id, firstSignature.id);
-  assert.equal(replacement.signatures[0].isDefault, true);
+  assert.equal(replacement.signatures.length, 2);
+  assert.equal(replacement.signatures.find((signature) => signature.id === firstSignature.id).isDefault, true);
   await jsonResponse(await ownedFetch(ownerA, `/api/signatures/${firstSignature.id}`, { method: "DELETE" }), 200);
+  await jsonResponse(await ownedFetch(ownerA, `/api/signatures/${stamp.id}`, { method: "DELETE" }), 200);
 });
 
 test("keeps exactly one mobile capture session active per owner", async () => {

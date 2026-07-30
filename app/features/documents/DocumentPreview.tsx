@@ -1,98 +1,317 @@
 import NextImage from "next/image";
+import { useLayoutEffect, useRef, useState, type CSSProperties } from "react";
+import { ArrowDown, ArrowUp, GripVertical, Minus, MoreHorizontal, Plus, Trash2 } from "@/app/components/Icons";
 import { formatStoredDate } from "./formatters";
 import { patientFullName } from "./identity";
+import type { PlacedSignature, SignatureAssetKind } from "./types";
 import type { DocumentWorkspace } from "./use-document-workspace";
 
 type Props = Pick<
   DocumentWorkspace,
+  | "addSection"
+  | "documentFontSize"
+  | "documentTitle"
+  | "canDecreaseDocumentFontSize"
+  | "canIncreaseDocumentFontSize"
+  | "decreaseDocumentFontSize"
+  | "increaseDocumentFontSize"
   | "issueDate"
-  | "mobileView"
+  | "moveSection"
   | "moveSignature"
   | "patient"
   | "placedSignature"
+  | "placedStamp"
+  | "removeSection"
   | "sections"
   | "signer"
   | "status"
+  | "startSignatureMove"
+  | "updatePlacedImage"
   | "templateId"
   | "version"
   | "visibleTitle"
->;
+  | "markDirty"
+  | "setDocumentTitle"
+  | "updateSection"
+> & { onEditRequest: (fieldId: string) => void };
 
 export function DocumentPreview({
+  addSection,
+  documentFontSize,
+  documentTitle,
+  canDecreaseDocumentFontSize,
+  canIncreaseDocumentFontSize,
+  decreaseDocumentFontSize,
+  increaseDocumentFontSize,
   issueDate,
-  mobileView,
+  moveSection,
   moveSignature,
   patient,
   placedSignature,
+  placedStamp,
+  removeSection,
   sections,
   signer,
   status,
+  startSignatureMove,
+  updatePlacedImage,
   templateId,
   version,
   visibleTitle,
+  markDirty,
+  setDocumentTitle,
+  updateSection,
+  onEditRequest,
 }: Props) {
+  const [editingTitle, setEditingTitle] = useState(false);
+  const paperStyle = { "--document-font-size": `${documentFontSize}px` } as CSSProperties;
   return (
-    <section id="document-preview" className={`paper-panel ${mobileView === "preview" ? "mobile-visible" : "mobile-hidden"}`}>
+    <section id="document-preview" className="paper-panel">
       <div className="paper-toolbar print-hide">
         <span><span className={`status-pill ${status.toLowerCase()}`}>{status}</span> v{version}</span>
+        <div className="paper-toolbar-actions">
+          {templateId !== "receta_externa" ? (
+            <button type="button" className="paper-add-section" onClick={addSection}><Plus size={13} /> Agregar sección</button>
+          ) : null}
+          <div className="document-type-control" role="group" aria-label="Tamaño global de letra">
+            <button type="button" aria-label="Disminuir tamaño de letra" disabled={!canDecreaseDocumentFontSize} onClick={decreaseDocumentFontSize}><Minus size={12} /></button>
+            <output aria-live="polite">{documentFontSize}</output>
+            <button type="button" aria-label="Aumentar tamaño de letra" disabled={!canIncreaseDocumentFontSize} onClick={increaseDocumentFontSize}><Plus size={12} /></button>
+          </div>
+        </div>
       </div>
-      <article className={`clinical-paper document-paper ${templateId === "receta_externa" ? "prescription-paper" : ""}`}>
+      <article style={paperStyle} className={`clinical-paper document-paper ${templateId === "receta_externa" ? "prescription-paper" : ""}`}>
         <div className="paper-brand">
           <div><span>Servicio de Salud Metropolitano Oriente</span><strong>Hospital Hanga Roa</strong></div>
           <NextImage src="/hhr-logo.svg" alt="Hospital Hanga Roa" width={54} height={54} />
         </div>
-        <h2>{visibleTitle.toUpperCase()}</h2>
+        <h2>
+          {editingTitle ? (
+            <input
+              id="document-title"
+              className="paper-title-input"
+              aria-label="Título del documento"
+              autoFocus
+              value={documentTitle}
+              onBlur={() => setEditingTitle(false)}
+              onChange={(event) => {
+                setDocumentTitle(event.target.value);
+                markDirty();
+              }}
+              onKeyDown={(event) => {
+                if (event.key === "Enter" || event.key === "Escape") event.currentTarget.blur();
+              }}
+            />
+          ) : (
+            <button type="button" className="preview-edit-target paper-title-edit" onClick={() => setEditingTitle(true)}>{visibleTitle.toUpperCase()}</button>
+          )}
+        </h2>
         <div className="paper-rule" />
         <section>
           <div className="paper-patient-lines">
-            <p><b>Nombre:</b> {patientFullName(patient) || "—"}</p>
-            <p><b>RUT:</b> {patient.rut || "—"}</p>
-            <p><b>Fecha de nacimiento:</b> {formatStoredDate(patient.birthDate) || "—"}</p>
+            <p><b>Nombre:</b> <button type="button" className="preview-edit-target" onClick={() => onEditRequest("patient-first-names")}>{patientFullName(patient) || "—"}</button></p>
+            <p><b>RUT:</b> <button type="button" className="preview-edit-target" onClick={() => onEditRequest("patient-rut")}>{patient.rut || "—"}</button></p>
+            <p><b>Fecha de nacimiento:</b> <button type="button" className="preview-edit-target" onClick={() => onEditRequest("patient-birth-date")}>{formatStoredDate(patient.birthDate) || "—"}</button></p>
           </div>
         </section>
-        {sections.map((section) => (
-          <section className={section.id === "prescripcion" ? "paper-prescription" : undefined} key={section.id}>
-            <h3>{section.title}</h3>
-            {section.body
-              ? section.body.split("\n").map((line, index) => <p key={index}>{line || " "}</p>)
-              : <p className={`paper-empty ${section.id === "prescripcion" ? "prescription-empty" : ""}`}>{section.id === "prescripcion" ? " " : "—"}</p>}
+        {sections.map((section, index) => (
+          <section className={`paper-editable-section${section.id === "prescripcion" ? " paper-prescription" : ""}`} key={section.id}>
+            <div className="paper-section-heading">
+              {section.id === "prescripcion" ? (
+                <h3>Rp.</h3>
+              ) : (
+                <AutoGrowingTextarea
+                  id={`section-title-${section.id}`}
+                  className="paper-section-title-input print-hide"
+                  label={`Título de la sección ${index + 1}`}
+                  minHeight={26}
+                  rows={1}
+                  resizeKey={documentFontSize}
+                  value={section.title}
+                  placeholder="Título de la sección"
+                  onChange={(value) => updateSection(section.id, { title: value })}
+                />
+              )}
+              {section.id !== "prescripcion" ? <h3 className="paper-section-title-print print-only">{section.title}</h3> : null}
+              {section.id !== "prescripcion" ? (
+                <SectionActions
+                  canMoveDown={index < sections.length - 1}
+                  canMoveUp={index > 0}
+                  index={index}
+                  label={section.title || `sección ${index + 1}`}
+                  onMove={moveSection}
+                  onRemove={() => removeSection(section.id)}
+                />
+              ) : null}
+            </div>
+            <AutoGrowingTextarea
+              id={`section-${section.id}`}
+              className={`paper-section-body print-hide${!section.body ? " paper-empty" : ""}`}
+              label={section.id === "prescripcion" ? "Prescripción" : `Contenido de ${section.title || `sección ${index + 1}`}`}
+              resizeKey={documentFontSize}
+              value={section.body}
+              placeholder={section.id === "prescripcion" ? "Escriba el o los fármacos e indicaciones" : "Escriba aquí…"}
+              onChange={(value) => updateSection(section.id, { body: value })}
+            />
+            <div className={`paper-section-body-print print-only${!section.body ? " paper-empty" : ""}`}>{section.body || (section.id === "prescripcion" ? " " : "—")}</div>
           </section>
         ))}
-        {placedSignature ? (
-          <div className="signature-placement-zone">
-            <div
-              className="placed-signature"
-              style={{ left: `${placedSignature.x}%`, width: `${placedSignature.width}%` }}
-              onPointerDown={(event) => {
-                event.currentTarget.setPointerCapture(event.pointerId);
-                event.preventDefault();
-              }}
-              onPointerMove={moveSignature}
-            >
-              <span className="signature-drag-handle print-hide">Mover</span>
-              <NextImage
-                src={placedSignature.imageUrl}
-                alt={`Firma de ${placedSignature.professionalName}`}
-                width={220}
-                height={90}
-                draggable={false}
-                unoptimized
-              />
-              <strong>{placedSignature.professionalName}</strong>
-              {placedSignature.specialty ? <span>{placedSignature.specialty}</span> : null}
-              {placedSignature.professionalRut ? <span>RUT: {placedSignature.professionalRut}</span> : null}
-            </div>
+        <div className="signature-placement-zone">
+          <div className="signing-assets-canvas">
+            {placedSignature ? <PlacedImage asset={placedSignature} kind="signature" moveSignature={moveSignature} startSignatureMove={startSignatureMove} updatePlacedImage={updatePlacedImage} /> : null}
+            {placedStamp ? <PlacedImage asset={placedStamp} kind="stamp" moveSignature={moveSignature} startSignatureMove={startSignatureMove} updatePlacedImage={updatePlacedImage} /> : null}
           </div>
-        ) : signer.name ? (
-          <div className="document-signer">
-            <strong>{signer.name}</strong>
-            {signer.specialty ? <span>{signer.specialty}</span> : null}
-            {signer.rut ? <span>RUT: {signer.rut}</span> : null}
+          <div className="document-signoff">
+            {signer.name ? (
+              <button type="button" className="document-signer preview-edit-target" onClick={() => onEditRequest("professional-name")}>
+                <strong>{signer.name}</strong>
+                {signer.specialty ? <span>{signer.specialty}</span> : null}
+                {signer.rut ? <span>RUT: {signer.rut}</span> : null}
+              </button>
+            ) : null}
+            <button type="button" className="paper-date preview-edit-target" onClick={() => onEditRequest("document-issue-date")}>Fecha: {formatStoredDate(issueDate)}</button>
           </div>
-        ) : null}
+        </div>
         {templateId === "receta_externa" ? <div className="prescription-warning">RECETA MÉDICA EXTERNA</div> : null}
-        <p className="paper-date">Fecha: {formatStoredDate(issueDate)}</p>
       </article>
     </section>
+  );
+}
+
+function SectionActions({
+  canMoveDown,
+  canMoveUp,
+  index,
+  label,
+  onMove,
+  onRemove,
+}: {
+  canMoveDown: boolean;
+  canMoveUp: boolean;
+  index: number;
+  label: string;
+  onMove: DocumentWorkspace["moveSection"];
+  onRemove: () => void;
+}) {
+  const closeMenu = (target: EventTarget & HTMLButtonElement) => {
+    target.closest("details")?.removeAttribute("open");
+  };
+  return (
+    <details className="section-actions-menu paper-section-actions print-hide">
+      <summary aria-label={`Opciones de ${label}`}><MoreHorizontal size={16} /></summary>
+      <div>
+        <button type="button" disabled={!canMoveUp} onClick={(event) => { onMove(index, -1); closeMenu(event.currentTarget); }}><ArrowUp size={14} /> Mover arriba</button>
+        <button type="button" disabled={!canMoveDown} onClick={(event) => { onMove(index, 1); closeMenu(event.currentTarget); }}><ArrowDown size={14} /> Mover abajo</button>
+        <button type="button" className="section-delete" onClick={(event) => { onRemove(); closeMenu(event.currentTarget); }}><Trash2 size={14} /> Eliminar</button>
+      </div>
+    </details>
+  );
+}
+
+function AutoGrowingTextarea({
+  className,
+  id,
+  label,
+  minHeight = 76,
+  onChange,
+  placeholder,
+  resizeKey,
+  rows,
+  value,
+}: {
+  className: string;
+  id: string;
+  label: string;
+  minHeight?: number;
+  onChange: (value: string) => void;
+  placeholder: string;
+  resizeKey: number;
+  rows?: number;
+  value: string;
+}) {
+  const ref = useRef<HTMLTextAreaElement>(null);
+  useLayoutEffect(() => {
+    const textarea = ref.current;
+    if (!textarea) return;
+    const resize = () => {
+      textarea.style.height = "auto";
+      textarea.style.height = `${Math.max(minHeight, textarea.scrollHeight)}px`;
+    };
+    resize();
+    let lastWidth = textarea.clientWidth;
+    const observer = new ResizeObserver(([entry]) => {
+      const nextWidth = entry.contentRect.width;
+      if (nextWidth === lastWidth) return;
+      lastWidth = nextWidth;
+      resize();
+    });
+    observer.observe(textarea);
+    return () => observer.disconnect();
+  }, [minHeight, resizeKey, value]);
+  return (
+    <textarea
+      ref={ref}
+      id={id}
+      className={className}
+      aria-label={label}
+      rows={rows}
+      value={value}
+      placeholder={placeholder}
+      onChange={(event) => onChange(event.target.value)}
+    />
+  );
+}
+
+function PlacedImage({
+  asset,
+  kind,
+  moveSignature,
+  startSignatureMove,
+  updatePlacedImage,
+}: {
+  asset: PlacedSignature;
+  kind: SignatureAssetKind;
+  moveSignature: DocumentWorkspace["moveSignature"];
+  startSignatureMove: DocumentWorkspace["startSignatureMove"];
+  updatePlacedImage: DocumentWorkspace["updatePlacedImage"];
+}) {
+  const label = kind === "stamp" ? "timbre" : "firma";
+  return (
+    <div
+      className={`placed-signature placed-asset-${kind}`}
+      style={{ left: `${asset.x}%`, top: `${asset.y}%`, width: `${asset.width}%` }}
+    >
+      <button
+        type="button"
+        className="signature-drag-handle print-hide"
+        aria-keyshortcuts="ArrowUp ArrowDown ArrowLeft ArrowRight"
+        aria-label={`Mover ${label}; use las flechas del teclado`}
+        title={`Arrastrar ${label} o mover con las flechas`}
+        onKeyDown={(event) => {
+          const step = event.shiftKey ? 5 : 1;
+          const movement = {
+            ArrowDown: { y: asset.y + step },
+            ArrowLeft: { x: asset.x - step },
+            ArrowRight: { x: asset.x + step },
+            ArrowUp: { y: asset.y - step },
+          }[event.key];
+          if (!movement) return;
+          event.preventDefault();
+          updatePlacedImage(kind, movement);
+        }}
+        onPointerDown={(event) => startSignatureMove(kind, event)}
+        onPointerMove={(event) => moveSignature(kind, event)}
+      >
+        <GripVertical size={14} />
+      </button>
+      <NextImage
+        src={asset.imageUrl}
+        alt={`${kind === "stamp" ? "Timbre" : "Firma"} de ${asset.professionalName}`}
+        width={220}
+        height={90}
+        draggable={false}
+        unoptimized
+      />
+    </div>
   );
 }

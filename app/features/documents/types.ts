@@ -10,6 +10,7 @@ export type DocumentSection = {
 export type PatientData = {
   firstNames: string;
   lastNames: string;
+  fullName?: string;
   rut: string;
   birthDate: string;
 };
@@ -19,6 +20,8 @@ export type SignerData = {
   rut: string;
   specialty: string;
 };
+
+export type SignatureAssetKind = "signature" | "stamp";
 
 export type StoredDocument = {
   id: string;
@@ -33,6 +36,7 @@ export type StoredDocument = {
 
 export type SignatureRecord = {
   id: string;
+  kind: SignatureAssetKind;
   professionalName: string;
   professionalRut: string;
   specialty: string;
@@ -71,6 +75,7 @@ export type StoredContent = {
   signer?: Partial<SignerData>;
   issueDate?: string;
   signature?: Omit<PlacedSignature, "imageUrl" | "isDefault"> & { imageUrl?: string };
+  stamp?: Omit<PlacedSignature, "imageUrl" | "isDefault"> & { imageUrl?: string };
   ai?: StoredAiMetadata;
 };
 

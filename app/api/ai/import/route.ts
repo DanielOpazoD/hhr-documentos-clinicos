@@ -1,6 +1,7 @@
 import { isAiTarget } from "@/app/features/ai/server/prompt";
+import { composePromptInstructions } from "@/app/features/ai/server/prompt-composition";
 import { resolvePromptProfile } from "@/app/features/ai/server/prompt-store";
-import { promptVersion } from "@/app/features/ai/prompt-catalog";
+import { PROMPT_ENGINE_VERSION, promptVersion } from "@/app/features/ai/prompt-catalog";
 import { generateDraftWithProvider, isAiProviderId } from "@/app/features/ai/server/providers";
 import { importSources } from "@/app/features/ai/server/import-request";
 import { progressStream } from "@/app/features/ai/server/progress-stream";
@@ -9,6 +10,7 @@ import { requestOwner } from "@/app/lib/server/auth";
 import { ensureDatabase } from "@/app/lib/server/database";
 import { jsonError } from "@/app/lib/server/http";
 import { recordAiUsage } from "@/app/features/ai/server/usage";
+import type { AiPromptMode, AiTargetId } from "@/app/features/ai/types";
 
 async function updateRunStatus(id: string, status: string) {
   const db = await ensureDatabase();
@@ -20,20 +22,39 @@ export async function POST(request: Request) {
   if (!owner) return jsonError("Autenticación requerida.", 401);
 
   const form = await request.formData();
-  const target = String(form.get("target") ?? "resumen");
+  const requestedTarget = String(form.get("target") ?? "informe_medico");
   const providerId = String(form.get("provider") ?? "openai");
   const model = String(form.get("model") ?? "gpt-5-mini");
   const promptId = String(form.get("promptId") ?? "").trim();
+  const promptModeValue = String(form.get("promptMode") ?? "profile");
+  const userInstructions = String(form.get("userInstructions") ?? "");
   const processingAuthorized = form.get("processingAuthorized") === "true";
 
   if (!processingAuthorized) return jsonError("Confirme que tiene autorización para procesar el archivo.");
-  if (!isAiTarget(target)) return jsonError("Tipo de borrador no permitido.");
+  if (promptModeValue !== "profile" && promptModeValue !== "free") return jsonError("Modo de prompt no permitido.");
+  if (!isAiTarget(requestedTarget)) return jsonError("Tipo de borrador no permitido.");
   if (!isAiProviderId(providerId)) return jsonError("Proveedor de IA no permitido.");
-  let prompt;
-  try { prompt = await resolvePromptProfile(owner, target, promptId || undefined); } catch (error) {
+  const promptMode = promptModeValue as AiPromptMode;
+  const target: AiTargetId = promptMode === "free" ? "informe_medico" : requestedTarget;
+  let resolvedPromptId = "free-user-prompt";
+  let resolvedPromptVersion = `${PROMPT_ENGINE_VERSION}:free:r1`;
+  let promptInstructions: string;
+  try {
+    if (promptMode === "free") {
+      promptInstructions = composePromptInstructions({ mode: promptMode, userInstructions });
+    } else {
+      const prompt = await resolvePromptProfile(owner, target, promptId || undefined);
+      resolvedPromptId = prompt.id;
+      resolvedPromptVersion = `${promptVersion(prompt)}${userInstructions.trim() ? ":supplemented" : ""}`;
+      promptInstructions = composePromptInstructions({
+        mode: promptMode,
+        baseInstructions: prompt.instructions,
+        userInstructions,
+      });
+    }
+  } catch (error) {
     return jsonError(error instanceof Error ? error.message : "Prompt no disponible.");
   }
-  const resolvedPromptVersion = promptVersion(prompt);
   let sources: Awaited<ReturnType<typeof importSources>>;
   try { sources = await importSources(form); } catch (error) {
     return jsonError(error instanceof Error ? error.message : "No se pudieron validar los archivos.");
@@ -44,7 +65,7 @@ export async function POST(request: Request) {
   const db = await ensureDatabase();
   await db.prepare(
     "INSERT INTO ai_import_runs (id, owner_email, source_name, target_type, status, created_at) VALUES (?, ?, ?, ?, 'procesando', ?)",
-  ).bind(id, owner, sourceLabel, target, new Date().toISOString()).run();
+  ).bind(id, owner, sourceLabel, promptMode === "free" ? "libre" : target, new Date().toISOString()).run();
 
   return progressStream(async (emit) => {
     emit({ type: "status", stage: "preparing", label: "Preparando archivos", detail: `${sources.length} fuente${sources.length === 1 ? "" : "s"} lista${sources.length === 1 ? "" : "s"} para analizar` });
@@ -54,7 +75,7 @@ export async function POST(request: Request) {
         model,
         sources,
         target,
-        promptInstructions: prompt.instructions,
+        promptInstructions,
         onProgress: (progress) => emit({ type: "status", ...progress }),
       });
       await updateRunStatus(id, "completado");
@@ -70,8 +91,10 @@ export async function POST(request: Request) {
         target,
         provider: provider.id,
         model: provider.model,
-        promptId: prompt.id,
+        promptId: resolvedPromptId,
         promptVersion: resolvedPromptVersion,
+        promptMode,
+        supplemented: promptMode === "profile" && Boolean(userInstructions.trim()),
         mimeTypes: sources.map((source) => source.mimeType),
         totalSize: sources.reduce((total, source) => total + source.file.size, 0),
         store: false,
@@ -83,6 +106,7 @@ export async function POST(request: Request) {
       emit({ type: "status", stage: "completed", label: "Borrador listo", detail: "Identidad, contenido y fuentes preparados para revisión" });
       emit({ type: "result", result: {
         runId: id,
+        documentKind: result.documentKind,
         sources: sources.map((source) => source.sourceName),
         providerId: provider.id,
         providerName: provider.name,
@@ -101,8 +125,9 @@ export async function POST(request: Request) {
         sourceNames: sources.map((source) => source.sourceName),
         target,
         provider: providerId,
-        promptId: prompt.id,
+        promptId: resolvedPromptId,
         promptVersion: resolvedPromptVersion,
+        promptMode,
       });
       throw error;
     }

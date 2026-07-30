@@ -62,8 +62,12 @@ test("ships the clinical routes, storage bindings and source templates", async (
     "../app/api/signatures/[id]/route.ts",
     "../app/api/ai/prompts/route.ts",
     "../app/api/ai/prompts/[id]/route.ts",
+    "../app/api/ai/prompts/improve/route.ts",
+    "../app/api/integrations/google-drive/config/route.ts",
     "../app/api/ai/usage/route.ts",
     "../public/templates/laboratorio.pdf",
+    "../public/templates/serologia-hepatitis-chagas.pdf",
+    "../public/templates/serologia-vdrl-mha-tp.pdf",
     "../public/templates/imagenologia.pdf",
     "../public/templates/encuesta-imagenologia.pdf",
     "../public/templates/consentimiento.pdf",
@@ -249,9 +253,11 @@ test("serializes terminal mobile snapshots and keeps scanner polling server-auth
   );
 });
 
-test("uses byte-identical PDFs from origin/main/Formularios", async () => {
+test("uses byte-identical original clinical PDFs", async () => {
   const expected = new Map([
     ["laboratorio.pdf", "0fabdedcf24914f00af09a99b30b7f4d4f7a66509671996dc771ff1c31219921"],
+    ["serologia-hepatitis-chagas.pdf", "2c1253bd29397b98a3d465827b05032ba0e40f2c6949e993d56fe73e4e918e88"],
+    ["serologia-vdrl-mha-tp.pdf", "4f19c383b9e8d448860cf852782ca2da6c89e5ef965a8023d47c71a3d331bc5b"],
     ["imagenologia.pdf", "8561373bdbf0160dd0afb8e129148976513be83e403907a057ae3ef2a929c0c9"],
     ["encuesta-imagenologia.pdf", "dc59fb93bff9a2e3d9cd460e4767fa9aa07f31bd4c2186c3c5aa925bbe87cc0d"],
     ["consentimiento.pdf", "aa4f2679a437020e82f10f794ad9b74c812cd76c0e22f5a2ae1c7df875509cb2"],
@@ -261,23 +267,32 @@ test("uses byte-identical PDFs from origin/main/Formularios", async () => {
     assert.equal(createHash("sha256").update(bytes).digest("hex"), digest, fileName);
   }
 
-  const studio = await readFile(new URL("../app/components/FormsStudio.tsx", import.meta.url), "utf8");
+  const [studio, catalog] = await Promise.all([
+    readFile(new URL("../app/components/FormsStudio.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/lib/catalog.ts", import.meta.url), "utf8"),
+  ]);
   assert.match(studio, /className="official-pdf-frame"/);
   assert.match(studio, /forms-navigation/);
   assert.match(studio, /Descargar/);
+  assert.match(catalog, /serologia-hepatitis-chagas\.pdf/);
+  assert.match(catalog, /serologia-vdrl-mha-tp\.pdf/);
   assert.doesNotMatch(studio, /GitHub|origin\/main|SHA-256|Sin campos inventados|Cómo utilizarlo/);
   assert.doesNotMatch(studio, /clinical-paper|downloadClinicalPdf|Prestaciones solicitadas/);
 });
 
 test("keeps the clinical studios usable from mobile through desktop", async () => {
   const documentModules = [
+    "../app/components/AppFrame.tsx",
     "../app/components/DocumentStudio.tsx",
+    "../app/components/AiStudio.tsx",
+    "../app/features/ai/AiDraftResult.tsx",
     "../app/features/documents/DocumentCommandBar.tsx",
     "../app/features/documents/DocumentHistoryDialog.tsx",
     "../app/features/documents/DocumentLibrary.tsx",
     "../app/features/documents/AiProvenance.tsx",
     "../app/features/documents/ai-metadata.ts",
     "../app/features/documents/PatientEditor.tsx",
+    "../app/features/documents/ProfessionalEditor.tsx",
     "../app/features/documents/DocumentPreview.tsx",
     "../app/features/documents/document-pdf.ts",
     "../app/lib/document-layout.ts",
@@ -285,13 +300,13 @@ test("keeps the clinical studios usable from mobile through desktop", async () =
     "../app/features/documents/SignatureImageEditor.tsx",
     "../app/features/documents/SignatureProfileSelector.tsx",
     "../app/features/documents/prepare-signature.ts",
-    "../app/features/documents/SectionsEditor.tsx",
     "../app/features/documents/templates.ts",
     "../app/features/documents/use-document-keyboard.ts",
     "../app/features/documents/use-document-identity.ts",
     "../app/features/documents/use-document-workspace.ts",
     "../app/features/documents/use-document-history.ts",
     "../app/features/documents/use-document-persistence.ts",
+    "../app/features/documents/use-document-typography.ts",
     "../app/features/documents/use-signature-workspace.ts",
     "../app/features/documents/api.ts",
     "../app/features/documents/document-version.ts",
@@ -309,29 +324,53 @@ test("keeps the clinical studios usable from mobile through desktop", async () =
   const documentStudio = moduleSources.join("\n");
   const styles = `${globalStyles}\n${responsiveStyles}`;
 
-  assert.match(documentStudio, /aria-label="Vista del documento"/);
-  assert.match(documentStudio, /aria-controls="document-editor"/);
-  assert.match(documentStudio, /aria-controls="document-preview"/);
+  assert.doesNotMatch(documentStudio, /aria-label="Vista del documento"|aria-controls="document-editor"/);
+  assert.match(documentStudio, /id="document-preview"/);
   assert.match(documentStudio, /patient-manual-grid/);
   assert.match(documentStudio, /Fecha de nacimiento/);
-  assert.match(documentStudio, /Profesional firmante/);
-  assert.match(documentStudio, /Especialidad/);
+  assert.match(documentStudio, /Firma y timbre/);
+  assert.match(documentStudio, /Nombre médico/);
+  assert.match(documentStudio, />Especialidad</);
   assert.doesNotMatch(documentStudio, /Previsión/);
-  assert.match(documentStudio, /Perfil profesional/);
-  assert.match(documentStudio, /Predeterminado/);
+  assert.match(documentStudio, /Administrar imágenes guardadas/);
+  assert.match(documentStudio, /Predeterminada/);
   assert.match(documentStudio, /makeDefaultSignature/);
   assert.match(documentStudio, /removeSignatureProfile/);
   assert.match(documentStudio, /deleteSignature/);
-  assert.match(documentStudio, /Eliminar perfil/);
-  assert.match(documentStudio, /La firma se agrega después del contenido/);
+  assert.match(documentStudio, /Eliminar esta imagen/);
+  assert.doesNotMatch(documentStudio, /Las imágenes se administran y posicionan por separado/);
+  assert.match(documentStudio, /professional-editor/);
+  assert.match(documentStudio, /document-professional-slot/);
+  assert.match(documentStudio, /createPortal/);
+  assert.match(documentStudio, /variant="sidebar"/);
+  assert.match(documentStudio, /variant="mobile"/);
+  assert.match(documentStudio, /Nombre, RUT y especialidad/);
+  assert.match(documentStudio, /onEditRequest/);
+  assert.doesNotMatch(documentStudio, /Seleccione un campo para editar/);
+  assert.match(documentStudio, /patient-first-names/);
+  assert.match(documentStudio, /Nombre completo/);
+  assert.match(documentStudio, /updatePatientName/);
+  assert.match(documentStudio, /patient\.fullName \?\? patientFullName\(patient\)/);
+  assert.doesNotMatch(await readFile(new URL("../app/features/documents/PatientEditor.tsx", import.meta.url), "utf8"), /patient-last-names|>Nombres<|>Apellidos</);
+  assert.match(documentStudio, /section-title-/);
+  assert.match(documentStudio, /<h3>Rp\.<\/h3>/);
   assert.match(documentStudio, /signature-placement-zone/);
+  assert.match(documentStudio, /signing-assets-canvas/);
+  assert.match(documentStudio, /aria-keyshortcuts="ArrowUp ArrowDown ArrowLeft ArrowRight"/);
+  assert.match(documentStudio, /updatePlacedImage\(kind, movement\)/);
+  assert.match(documentStudio, /document-signoff/);
   assert.match(documentStudio, /Fondo blanco automático/);
   assert.match(documentStudio, /renderSignatureImage/);
   assert.match(documentStudio, /brightness/);
   assert.match(documentStudio, /saturation/);
   assert.match(documentStudio, /addSection/);
   assert.match(documentStudio, /removeSection/);
-  assert.match(documentStudio, /section-title-input/);
+  assert.match(documentStudio, /paper-section-title-input/);
+  assert.match(documentStudio, /paper-section-body/);
+  assert.match(documentStudio, /paper-add-section/);
+  assert.match(documentStudio, /section-actions-menu/);
+  assert.doesNotMatch(documentStudio, /role="menuitem"|role="menu"/);
+  assert.match(documentStudio, /Mover arriba/);
   assert.match(documentStudio, /Nueva sección/);
   assert.match(documentStudio, /recent-document-list/);
   assert.match(documentStudio, /aria-keyshortcuts="Control\+N Meta\+N"/);
@@ -339,7 +378,24 @@ test("keeps the clinical studios usable from mobile through desktop", async () =
   assert.match(documentStudio, /aria-controls="document-library-content"/);
   assert.match(documentStudio, /aria-expanded=\{libraryExpanded\}/);
   assert.match(documentStudio, /hidden=\{!libraryExpanded\}/);
+  assert.match(documentStudio, /aria-controls="document-ai-assistant"/);
+  assert.match(documentStudio, /aria-label=\{assistantOpen \? "Volver al editor" : "Usar IA"\}/);
+  assert.match(documentStudio, /signature-settings-panel/);
+  assert.match(documentStudio, /aria-label="Configurar firma y timbre"/);
+  assert.match(documentStudio, /signaturePanelRef\.current\?\.focus\(\)/);
+  assert.match(documentStudio, /trigger\.focus\(\)/);
+  assert.match(documentStudio, /professionalSlot && !assistantOpen/);
+  assert.match(documentStudio, /signaturePanelOpen && !assistantOpen/);
+  assert.doesNotMatch(await readFile(new URL("../app/components/DocumentStudio.tsx", import.meta.url), "utf8"), /Descargar PDF|studio-download-button/);
+  assert.match(documentStudio, /Redacte manualmente o genere un borrador con IA/);
+  assert.match(documentStudio, /<AiStudio active=\{assistantOpen\} embedded/);
+  assert.match(documentStudio, /Continuar en el editor/);
+  assert.match(documentStudio, /url\.searchParams\.set\("document", id\)/);
   assert.match(documentStudio, />Guardar<\/span>/);
+  assert.match(documentStudio, />Imprimir<\/span>/);
+  assert.match(documentStudio, />Historial<\/span>/);
+  assert.match(documentStudio, /aria-label="Imprimir documento"/);
+  assert.match(documentStudio, /aria-label="Ver historial del documento"/);
   assert.match(documentStudio, /event\.key === "Escape"/);
   assert.match(documentStudio, /event\.key === "Enter"/);
   assert.match(documentStudio, /id: "prescripcion", title: "Rp\."/);
@@ -372,30 +428,87 @@ test("keeps the clinical studios usable from mobile through desktop", async () =
   assert.match(documentStudio, /Object\.fromEntries/);
   assert.match(documentStudio, /editedSectionIds/);
   assert.match(documentStudio, /legacyInsurance/);
-  assert.match(documentStudio, /if \(placedSignature\) setPlacedSignature\(null\)/);
-  assert.match(documentStudio, /professionalName: (?:snapshot\.)?placedSignature\.professionalName/);
+  assert.match(documentStudio, /placedStamp/);
+  assert.match(documentStudio, /storedPlacement\(snapshot\.placedSignature\)/);
+  assert.match(documentStudio, /storedPlacement\(snapshot\.placedStamp\)/);
+  assert.match(documentStudio, /asset\.kind === removed\.kind/);
+  assert.match(documentStudio, /kind === "signature"\) workspace\.loadSignerProfile/);
   assert.match(documentStudio, /Servicio de Salud Metropolitano Oriente/);
   assert.match(documentStudio, /date: formatStoredDate\(input\.issueDate\)/);
   assert.doesNotMatch(await readFile(new URL("../app/features/documents/DocumentPreview.tsx", import.meta.url), "utf8"), /<h3>Paciente<\/h3>/);
-  assert.doesNotMatch(await readFile(new URL("../app/features/documents/PatientEditor.tsx", import.meta.url), "utf8"), /<h2>Paciente<\/h2>/);
+  assert.match(await readFile(new URL("../app/features/documents/PatientEditor.tsx", import.meta.url), "utf8"), /aria-labelledby="patient-editor-title"/);
   assert.match(await readFile(new URL("../app/features/documents/document-pdf.ts", import.meta.url), "utf8"), /title: "",\s*body: `Nombre:/);
-  assert.match(documentStudio, /SIGNATURE_Y_MAX_PERCENT = 70/);
+  assert.match(documentStudio, /SIGNATURE_Y_MAX_PERCENT = 67/);
   assert.match(documentStudio, /defaultProfileApplied\.current = true/);
+  assert.match(documentStudio, /Boolean\(defaultProfile \|\| defaultStamp\)/);
   assert.match(documentStudio, /markSignatureDirty/);
   assert.match(documentStudio, /workspaceEpoch/);
   assert.match(documentStudio, /flushPendingSave/);
   assert.match(documentStudio, /savePromise/);
   assert.match(documentStudio, /dirtyRef/);
-  assert.match(documentStudio, /Math\.max\(width \/ 2, Math\.min\(100 - width \/ 2, current\.x\)\)/);
+  assert.match(documentStudio, /Math\.min\(100 - half, Math\.max\(half/);
+  assert.match(documentStudio, /dragOffsets/);
   assert.match(documentStudio, /event\.currentTarget\.value = ""/);
   assert.match(documentStudio, /signatureBlockHeight/);
+  assert.match(documentStudio, /SIGNING_IMAGE_WIDTH_MAX_PERCENT = 72/);
+  assert.match(documentStudio, /Aumentar tamaño de/);
+  assert.match(documentStudio, /splitTextToSize\(options\.signer\.name, signoffWidth\)/);
+  assert.match(documentStudio, /signoffCursorY/);
+  assert.match(documentStudio, /imageCenterY - imageHeight \/ 2/);
+  assert.doesNotMatch(documentStudio, /left \+ width, 746/);
+  assert.match(documentStudio, /availableLines/);
+  assert.match(documentStudio, /Tamaño global de letra/);
+  const commandBarSource = await readFile(new URL("../app/features/documents/DocumentCommandBar.tsx", import.meta.url), "utf8");
+  const previewSource = await readFile(new URL("../app/features/documents/DocumentPreview.tsx", import.meta.url), "utf8");
+  assert.doesNotMatch(commandBarSource, /Revisar|Finalizar|document-title|save-state|Tamaño global de letra/);
+  assert.match(previewSource, /className="paper-toolbar print-hide"/);
+  assert.match(previewSource, /aria-label="Tamaño global de letra"/);
+  assert.doesNotMatch(previewSource, />Texto<\/span>/);
+  assert.match(previewSource, /minHeight=\{26\}/);
+  assert.match(previewSource, /rows=\{1\}/);
+  assert.match(previewSource, /paper-title-input/);
+  assert.match(previewSource, /setEditingTitle\(true\)/);
+  assert.match(previewSource, /onChange=\{\(value\) => updateSection\(section\.id, \{ body: value \}\)\}/);
+  assert.match(previewSource, /Math\.max\(minHeight, textarea\.scrollHeight\)/);
+  assert.match(previewSource, /new ResizeObserver/);
+  assert.match(previewSource, /resizeKey=\{documentFontSize\}/);
+  assert.match(previewSource, /Escriba el o los fármacos e indicaciones/);
+  assert.match(previewSource, /paper-section-title-print print-only/);
+  assert.match(previewSource, /paper-section-body-print print-only/);
+  assert.match(previewSource, /Opciones de \$\{label\}/);
+  assert.doesNotMatch(previewSource, /paper-edit-hint|onEditRequest\("document-title"\)/);
+  const documentStudioSource = await readFile(new URL("../app/components/DocumentStudio.tsx", import.meta.url), "utf8");
+  assert.doesNotMatch(documentStudioSource, /DocumentEditor|SectionsEditor|studio-view-switch/);
+  assert.match(documentStudioSource, /document-header-context[\s\S]*<DocumentLibrary/);
+  assert.doesNotMatch(documentStudioSource, /document-workspace-shell">\s*<DocumentLibrary/);
+  assert.match(documentStudio, /DOCUMENT_FONT_SIZE_DEFAULT = 16/);
+  assert.match(documentStudio, /hhr-document-font-size-v1/);
+  assert.match(documentStudio, /browser storage is blocked or full/);
+  assert.match(documentStudio, /signatureAssets/);
+  assert.match(documentStudio, /normalizeStoredSignatureY/);
   assert.equal(moduleSources.filter((source) => source.split("\n").length > 350).length, 0);
   assert.match(styles, /@media \(max-width: 1240px\)/);
-  assert.match(styles, /\.simplified-studio \.document-editor-layout \{ grid-template-columns: 1fr; \}/);
-  assert.match(styles, /\.document-editor-layout > \.mobile-hidden \{ display: none; \}/);
+  assert.match(styles, /\.paper-editable-section/);
+  assert.match(styles, /\.paper-section-title-input/);
+  assert.match(styles, /\.paper-section-body/);
+  assert.match(styles, /\.paper-section-title-print \{[^}]*white-space: pre-wrap;/);
+  assert.match(styles, /\.paper-section-actions \{ opacity: 1; \}/);
+  assert.match(styles, /@media \(hover: none\), \(pointer: coarse\)/);
+  assert.match(styles, /\.print-only \{ display: block !important; \}/);
+  assert.match(styles, /\.clinical-paper \.paper-date/);
+  assert.match(styles, /\.preview-edit-target/);
+  assert.match(styles, /\.document-signer\.preview-edit-target/);
+  assert.match(styles, /\.professional-editor/);
+  assert.match(styles, /\.professional-editor-sidebar/);
+  assert.match(styles, /\.studio-page \.document-command-bar, \.studio-page \.document-status-actions \{ display: contents; \}/);
+  assert.match(styles, /\.studio-page \.header-actions \.button \{ flex: 0 0 auto; white-space: nowrap; \}/);
+  assert.match(styles, /\.studio-page \.header-actions \{ width: 100%; display: flex; justify-content: flex-end; gap: 6px; \}/);
+  assert.match(styles, /\.professional-editor-mobile/);
+  assert.doesNotMatch(styles, /\.document-editor-layout > \.mobile-hidden/);
   assert.match(styles, /\.page-header > \*, \.hero-row > \*.*min-width: 0;/);
   assert.match(layout, /styles\/responsive-focus\.css/);
   assert.match(dashboard, /card-link-label/);
+  assert.match(dashboard, /\/documentos\?assistant=1/);
   assert.match(responsiveStyles, /\.dashboard-page \.action-card/);
   assert.match(responsiveStyles, /\.document-library-content\[hidden\]/);
   assert.match(responsiveStyles, /padding-bottom: calc\(78px \+ env\(safe-area-inset-bottom\)\)/);
@@ -467,6 +580,8 @@ test("offers isolated OpenAI and local Gemma providers", async () => {
     "../app/features/ai/server/prompt.ts",
     "../app/features/ai/server/openai-responses.ts",
     "../app/features/ai/server/clinical-output.ts",
+    "../app/features/ai/server/clinical-evidence.ts",
+    "../app/features/ai/server/prompt-composition.ts",
     "../app/features/ai/server/local-lm-studio.ts",
     "../app/features/ai/server/source-extraction.ts",
     "../app/features/ai/server/import-request.ts",
@@ -485,10 +600,12 @@ test("offers isolated OpenAI and local Gemma providers", async () => {
     "../app/features/ai/prompt-types.ts",
     "../app/features/ai/server/prompt-store.ts",
     "../app/features/ai/server/prompt-validation.ts",
+    "../app/features/ai/server/prompt-improvement.ts",
     "../app/api/ai/providers/route.ts",
     "../app/api/ai/import/route.ts",
     "../app/api/ai/prompts/route.ts",
     "../app/api/ai/prompts/[id]/route.ts",
+    "../app/api/ai/prompts/improve/route.ts",
   ].map((path) => readFile(new URL(path, import.meta.url), "utf8")));
   const source = modules.join("\n");
   assert.match(source, /hhr-gemma-local/);
@@ -505,7 +622,7 @@ test("offers isolated OpenAI and local Gemma providers", async () => {
   assert.match(source, /supportsReasoning/);
   assert.match(source, /hhr\.ai-selection\.v1/);
   assert.match(source, /localStorage\.setItem/);
-  assert.match(source, /form\.set\("model", model\)/);
+  assert.match(source, /form\.set\("model", input\.model\)/);
   assert.match(source, /Modelo de OpenAI no permitido/);
   assert.match(source, /Privado · sin salir del equipo/);
   assert.match(source, /getResolvedPDFJS/);
@@ -530,10 +647,17 @@ test("offers isolated OpenAI and local Gemma providers", async () => {
   assert.match(source, /clinical-draft-v5/);
   assert.match(source, /promptId/);
   assert.match(source, /promptInstructions/);
+  assert.match(source, /Prompt libre/);
+  assert.match(source, /Indicaciones adicionales/);
+  assert.match(source, /form\.set\("promptMode", input\.promptMode\)/);
+  assert.match(source, /composePromptInstructions/);
   assert.match(source, /Los prompts base no se pueden eliminar/);
+  assert.match(source, /Mejorar con IA/);
+  assert.match(source, /prompt_improvement/);
+  assert.match(source, /Propuesta aplicada; revísela antes de guardar/);
   assert.doesNotMatch(source, /merged\.slice\(0, 8\)/);
   assert.match(source, /En toda fuente PDF, incluso escaneada, usa el número de página real del PDF/);
-  assert.match(source, /sourceMimeType === "application\/pdf"\s*\? pageNumber === null/);
+  assert.match(source, /source\.mimeType === "application\/pdf"/);
   assert.match(source, /MAX_IMAGE_PIXELS/);
   assert.match(source, /El DOCX contiene imágenes incrustadas/);
   assert.match(source, /documentId \? \{ id: documentId \}/);
@@ -541,14 +665,37 @@ test("offers isolated OpenAI and local Gemma providers", async () => {
   assert.match(source, /Configuración local inválida/);
   assert.match(source, /source_index/);
   assert.match(source, /const original = await sourceContent/);
-  assert.match(source, /sourceIndex >= sourceCount/);
+  assert.match(source, /sourceIndex >= sources\.length/);
   assert.match(source, /pagesWithoutText/);
   assert.match(source, /getPdfPageCount/);
-  assert.match(source, /invalidPage/);
+  assert.match(source, /sanitizeEvidenceCandidates/);
   assert.match(source, /Paciente identificado/);
   assert.match(source, /Profesional firmante/);
   assert.match(source, /disabled=\{controller\.processing\}/);
   assert.doesNotMatch(source, /0\.0\.0\.0/);
+});
+
+test("integrates Google Drive through a scoped, ephemeral picker", async () => {
+  const [picker, control, importForm, connections, configRoute, environment, example, documentation] = await Promise.all([
+    readFile(new URL("../app/features/integrations/google-drive.ts", import.meta.url), "utf8"),
+    readFile(new URL("../app/features/ai/GoogleDrivePicker.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/features/ai/AiImportForm.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/components/Connections.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/api/integrations/google-drive/config/route.ts", import.meta.url), "utf8"),
+    readFile(new URL("../app/lib/server/environment.ts", import.meta.url), "utf8"),
+    readFile(new URL("../.env.example", import.meta.url), "utf8"),
+    readFile(new URL("../docs/GOOGLE_DRIVE.md", import.meta.url), "utf8"),
+  ]);
+  const source = [picker, control, importForm, connections, configRoute, environment, example, documentation].join("\n");
+  assert.match(source, /https:\/\/www\.googleapis\.com\/auth\/drive\.file/);
+  assert.match(source, /setIncludeFolders\(true\)/);
+  assert.match(source, /MULTISELECT_ENABLED/);
+  assert.match(source, /GoogleDrivePicker/);
+  assert.match(source, /GOOGLE_DRIVE_CLIENT_ID/);
+  assert.match(source, /GOOGLE_DRIVE_API_KEY/);
+  assert.match(source, /GOOGLE_DRIVE_APP_ID/);
+  assert.match(source, /no se guarda la sesión/i);
+  assert.doesNotMatch(source, /GOOGLE_DRIVE_CLIENT_SECRET|localStorage|sessionStorage/);
 });
 
 test("organizes, archives and deletes stored files through owned server routes", async () => {

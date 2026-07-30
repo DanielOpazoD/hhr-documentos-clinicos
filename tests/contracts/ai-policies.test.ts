@@ -14,6 +14,8 @@ import {
   validateSourceContents,
   type SourceDescriptor,
 } from "../../app/features/ai/server/source-policy.ts";
+import { protectUnsupportedSection, sanitizeEvidenceCandidates } from "../../app/features/ai/server/clinical-evidence.ts";
+import { composePromptInstructions } from "../../app/features/ai/server/prompt-composition.ts";
 
 const DOCX_MIME_TYPE = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
 
@@ -93,5 +95,65 @@ test("rejects spoofed source metadata and accepts authentic file signatures", as
   await assert.rejects(
     validateSourceContents([malformedDocx], validateSourceBatch([malformedDocx])),
     /no coincide con su formato/,
+  );
+});
+
+test("replaces unsupported clinical text instead of rejecting the entire draft", () => {
+  assert.deepEqual(protectUnsupportedSection({
+    title: "Diagnóstico",
+    text: "Neumonía",
+    evidence: [],
+    declaresAbsence: false,
+  }), {
+    text: "No consignado",
+    evidence: [],
+    unsupportedTitle: "Diagnóstico",
+  });
+
+  assert.equal(protectUnsupportedSection({
+    title: "Diagnóstico",
+    text: "Neumonía",
+    evidence: [{ excerpt: "Diagnóstico: neumonía", status: "explicito" }],
+    declaresAbsence: false,
+  }).unsupportedTitle, null);
+});
+
+test("discards malformed evidence instead of rejecting the complete draft", () => {
+  const evidence = sanitizeEvidenceCandidates([
+    { source_index: 7, page: null, excerpt: "Fuente inexistente", status: "explicito" },
+    { source_index: 0, page: null, excerpt: "Dato verificable", status: "explicito" },
+    { source_index: 1, page: 3, excerpt: "Página inexistente", status: "ambiguo" },
+    { source_index: 1, page: 2, excerpt: "Dato PDF", status: "explicito" },
+  ], [
+    { mimeType: "image/png" },
+    { mimeType: "application/pdf", extractedPages: new Set([1, 2]), pageCount: 2 },
+  ]);
+  assert.deepEqual(evidence, [
+    { source_index: 0, page: null, excerpt: "Dato verificable", status: "explicito" },
+    { source_index: 1, page: 2, excerpt: "Dato PDF", status: "explicito" },
+  ]);
+  assert.deepEqual(sanitizeEvidenceCandidates("invalid", []), []);
+});
+
+test("supports bounded free prompts and optional template refinements", () => {
+  const supplemented = composePromptInstructions({
+    mode: "profile",
+    baseInstructions: "Plantilla clínica base",
+    userInstructions: "Prioriza la evolución renal.",
+  });
+  assert.match(supplemented, /Plantilla clínica base/);
+  assert.match(supplemented, /Prioriza la evolución renal/);
+  assert.match(supplemented, /no pueden anular las reglas clínicas obligatorias/);
+
+  const free = composePromptInstructions({
+    mode: "free",
+    userInstructions: "Crea un resumen breve del formulario.",
+  });
+  assert.match(free, /sin imponer una plantilla predeterminada/);
+  assert.match(free, /Crea un resumen breve del formulario/);
+  assert.throws(() => composePromptInstructions({ mode: "free", userInstructions: "  " }), /no puede estar vacío/);
+  assert.throws(
+    () => composePromptInstructions({ mode: "profile", baseInstructions: "Base", userInstructions: "x".repeat(4_001) }),
+    /hasta 4\.000 caracteres/,
   );
 });

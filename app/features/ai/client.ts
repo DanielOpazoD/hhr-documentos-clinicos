@@ -1,4 +1,4 @@
-import type { AiImportResult, AiProgress, AiProviderId, AiProviderInfo, AiTargetId } from "./types";
+import type { AiImportResult, AiProgress, AiPromptMode, AiProviderId, AiProviderInfo, AiTargetId } from "./types";
 import { documentTemplateForAiTarget } from "./targets";
 
 async function responseData<T>(response: Response): Promise<T> {
@@ -12,21 +12,27 @@ async function responseData<T>(response: Response): Promise<T> {
 }
 
 export async function importWithAi(
-  files: File[],
-  target: AiTargetId,
-  provider: AiProviderId,
-  model: string,
-  promptId: string,
-  processingAuthorized: boolean,
+  input: {
+    files: File[];
+    target: AiTargetId;
+    provider: AiProviderId;
+    model: string;
+    promptId: string;
+    promptMode: AiPromptMode;
+    userInstructions: string;
+    processingAuthorized: boolean;
+  },
   onProgress?: (progress: AiProgress) => void,
 ): Promise<AiImportResult> {
   const form = new FormData();
-  files.forEach((file) => form.append("files", file));
-  form.set("target", target);
-  form.set("provider", provider);
-  form.set("model", model);
-  form.set("promptId", promptId);
-  form.set("processingAuthorized", String(processingAuthorized));
+  input.files.forEach((file) => form.append("files", file));
+  form.set("target", input.target);
+  form.set("provider", input.provider);
+  form.set("model", input.model);
+  form.set("promptId", input.promptId);
+  form.set("promptMode", input.promptMode);
+  form.set("userInstructions", input.userInstructions);
+  form.set("processingAuthorized", String(input.processingAuthorized));
   const response = await fetch("/api/ai/import", { method: "POST", body: form });
   if (!response.ok) return responseData<AiImportResult>(response);
   if (!response.body) throw new Error("El servidor no inició el procesamiento.");
@@ -61,14 +67,20 @@ export async function fetchAiProviders(): Promise<AiProviderInfo[]> {
   return data.providers;
 }
 
-export async function saveAiDraft(result: AiImportResult, target: AiTargetId, title: string, documentId?: string) {
+export async function saveAiDraft(
+  result: AiImportResult,
+  target: AiTargetId,
+  title: string,
+  promptMode: AiPromptMode,
+  documentId?: string,
+) {
   const patientName = [result.patient.firstNames, result.patient.lastNames].filter(Boolean).join(" ");
   const response = await fetch("/api/documents", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       ...(documentId ? { id: documentId } : {}),
-      templateId: documentTemplateForAiTarget(target),
+      templateId: promptMode === "free" ? "documento_libre" : documentTemplateForAiTarget(target),
       title,
       patientName,
       patientRutMasked: result.patient.rut,

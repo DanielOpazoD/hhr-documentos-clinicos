@@ -118,12 +118,12 @@ function businessChecks() {
     },
     {
       check: "signatures.default_count",
-      requires: [["signatures", "is_default"]],
-      minimumMigration: "0005_schema_authority.sql",
+      requires: [["signatures", "is_default"], ["signatures", "kind"]],
+      minimumMigration: "0006_signing_assets.sql",
       sql: `SELECT COUNT(*) AS count FROM (
-         SELECT owner_email
+         SELECT owner_email, kind
          FROM signatures
-         GROUP BY owner_email
+         GROUP BY owner_email, kind
          HAVING SUM(CASE WHEN is_default = 1 THEN 1 ELSE 0 END) <> 1
        )`,
     },

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useLayoutEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { FilePlus2, FileText, Search, Trash2 } from "@/app/components/Icons";
 import { documentTemplates } from "@/app/lib/catalog";
 import { formatUpdated } from "./formatters";
@@ -42,19 +42,10 @@ export function DocumentLibrary({
   const [selectionMode, setSelectionMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(() => new Set());
   const [confirmBulkDelete, setConfirmBulkDelete] = useState(false);
-  const [isCompactViewport, setIsCompactViewport] = useState(false);
   const [mobileLibraryOpen, setMobileLibraryOpen] = useState(false);
 
-  useLayoutEffect(() => {
-    const media = window.matchMedia("(max-width: 520px)");
-    const updateViewport = () => setIsCompactViewport(media.matches);
-    updateViewport();
-    media.addEventListener("change", updateViewport);
-    return () => media.removeEventListener("change", updateViewport);
-  }, []);
-
   useEffect(() => {
-    if (!confirmDeleteId && !confirmBulkDelete && !selectionMode) return;
+    if (!confirmDeleteId && !confirmBulkDelete && !selectionMode && !mobileLibraryOpen && !newMenuOpen) return;
     const cancel = (event: KeyboardEvent) => {
       if (event.key !== "Escape") return;
       if (confirmDeleteId) setConfirmDeleteId(null);
@@ -62,14 +53,16 @@ export function DocumentLibrary({
       else {
         setSelectionMode(false);
         setSelectedIds(new Set());
+        setMobileLibraryOpen(false);
+        setNewMenuOpen(false);
       }
     };
     window.addEventListener("keydown", cancel);
     return () => window.removeEventListener("keydown", cancel);
-  }, [confirmBulkDelete, confirmDeleteId, selectionMode]);
+  }, [confirmBulkDelete, confirmDeleteId, mobileLibraryOpen, newMenuOpen, selectionMode, setNewMenuOpen]);
 
   const allSelected = filteredDocuments.length > 0 && filteredDocuments.every((document) => selectedIds.has(document.id));
-  const libraryExpanded = !isCompactViewport || mobileLibraryOpen || newMenuOpen;
+  const libraryExpanded = mobileLibraryOpen || newMenuOpen;
   const toggleSelection = (id: string) => setSelectedIds((current) => {
     const next = new Set(current);
     if (next.has(id)) next.delete(id);
@@ -82,8 +75,9 @@ export function DocumentLibrary({
     <aside className="document-library print-hide">
       <div className="document-library-mobile-actions">
         <button className="button primary full" disabled={saving} onClick={() => {
-          setMobileLibraryOpen(true);
-          setNewMenuOpen(!newMenuOpen);
+          const nextOpen = !newMenuOpen;
+          setMobileLibraryOpen(nextOpen);
+          setNewMenuOpen(nextOpen);
         }} aria-keyshortcuts="Control+N Meta+N">
           <FilePlus2 size={17} /> Nuevo documento
         </button>

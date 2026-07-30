@@ -1,6 +1,5 @@
 /* Focused responsive layer: keep primary clinical work ahead of secondary navigation. */
-.mobile-action-label,
-.document-library-toggle {
+.mobile-action-label {
   display: none;
 }
 
@@ -56,6 +55,10 @@
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+  }
+
+  .document-studio-header .document-header-context {
+    width: 100%;
   }
 }
 
@@ -148,10 +151,17 @@
   }
 
   .studio-page .compact-page-header {
-    align-items: center;
-    flex-direction: row;
-    gap: 12px;
+    align-items: stretch;
+    flex-direction: column;
+    gap: 9px;
     margin-bottom: 12px;
+  }
+
+  .studio-page .compact-page-header .document-header-context {
+    width: 100%;
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 8px;
   }
 
   .studio-page .compact-page-header h1 {
@@ -159,28 +169,19 @@
   }
 
   .studio-page .header-actions {
-    width: auto;
+    width: 100%;
     display: flex;
-    margin-left: auto;
+    justify-content: flex-end;
+    margin-left: 0;
   }
 
   .studio-page .header-actions .button {
     width: auto;
   }
 
-  .studio-print-button,
-  .desktop-action-label {
-    display: none;
-  }
-
-  .mobile-action-label {
-    display: inline;
-  }
-
-  .studio-download-button {
-    min-width: 64px;
+  .studio-print-button {
     min-height: 40px;
-    padding-inline: 11px;
+    padding-inline: 12px;
   }
 
   .document-workspace-shell {
@@ -188,8 +189,14 @@
   }
 
   .document-library {
+    width: 100%;
+    min-width: 0;
     gap: 8px;
     padding: 8px;
+  }
+
+  .document-library-content {
+    width: 100%;
   }
 
   .document-library-mobile-actions {
@@ -241,22 +248,32 @@
   }
 
   .document-command-bar {
-    gap: 9px;
-    padding: 11px 12px;
+    gap: 6px;
+    padding: 0;
   }
 
-  .document-title-field > span,
-  .save-state strong {
-    font-size: 10px;
+  .patient-editor {
+    grid-template-columns: 1fr;
+    gap: 8px;
+    padding: 10px;
   }
 
-  .document-title-field input {
+  .patient-manual-grid {
+    grid-template-columns: 1fr 1fr;
+    gap: 7px;
+  }
+
+  .patient-name-field {
+    grid-column: 1 / -1;
+  }
+
+  .patient-manual-grid label:last-child {
+    grid-column: auto;
+  }
+
+  .patient-manual-grid input {
     min-height: 40px;
-    font-size: 13px;
-  }
-
-  .save-state small {
-    font-size: 9px;
+    font-size: 11px;
   }
 
   .document-status-actions {
@@ -276,19 +293,13 @@
   }
 
   .document-save-button {
-    width: auto;
-    min-width: 88px;
+    width: 40px;
+    min-width: 40px;
+    padding-inline: 0;
   }
 
   .document-save-button > span {
-    display: inline;
+    display: none;
   }
 
-  .studio-view-switch {
-    margin-bottom: 10px;
-  }
-
-  .studio-view-switch button {
-    font-size: 12px;
-  }
 }

@@ -1,5 +1,6 @@
 import type {
   SaveDocumentInput,
+  SignatureAssetKind,
   SignatureForm,
   SignatureRecord,
   StoredDocument,
@@ -72,10 +73,11 @@ export async function listSignatures(signal?: AbortSignal): Promise<SignatureRec
   return data.signatures ?? [];
 }
 
-export async function createSignature(input: SignatureForm): Promise<SignatureRecord> {
-  if (!input.file) throw new Error("Seleccione una imagen de firma.");
+export async function createSignature(input: SignatureForm, kind: SignatureAssetKind): Promise<SignatureRecord> {
+  if (!input.file) throw new Error(`Seleccione una imagen de ${kind === "stamp" ? "timbre" : "firma"}.`);
   const form = new FormData();
   form.set("file", input.file);
+  form.set("kind", kind);
   form.set("professionalName", input.professionalName);
   form.set("professionalRut", input.professionalRut);
   form.set("specialty", input.specialty);

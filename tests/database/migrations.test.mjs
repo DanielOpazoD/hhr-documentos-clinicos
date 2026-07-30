@@ -202,6 +202,7 @@ function expectedUpgradeSnapshot(before) {
   }
   const signatureHadDefaultColumn = (expected.signatures ?? []).every((row) => "is_default" in row);
   for (const row of expected.signatures ?? []) {
+    if (!("kind" in row)) row.kind = "signature";
     if (!("is_default" in row)) row.is_default = 0;
     if (row.owner_email === "signer-b@hhr.test") row.is_default = 1;
     if (!signatureHadDefaultColumn && row.id === "signature-newer") row.is_default = 1;
@@ -262,6 +263,22 @@ for (const version of [1, 2, 3, 4]) {
   });
 }
 
+test("upgrades canonical migration 0005 to independent signing assets without losing records", async () => {
+  const path = join(temporaryRoot, "canonical-5.sqlite");
+  const db = await createLegacyDatabase(5, path);
+  try {
+    seedData(db, { legacy: false });
+    const before = businessSnapshot(db);
+    await applyPendingMigrations(db);
+    const expected = structuredClone(before);
+    for (const row of expected.signatures ?? []) row.kind = "signature";
+    assert.deepEqual(businessSnapshot(db), expected);
+    assert.equal((await verifyDatabase(db)).ok, true);
+  } finally {
+    db.close();
+  }
+});
+
 test("accepts request-time compatibility indexes only while 0005 is pending", async () => {
   const path = join(temporaryRoot, "pending-repaired.sqlite");
   const db = await createLegacyDatabase(4, path);
@@ -317,7 +334,7 @@ test("the integrity verifier detects schema and relational drift using counts on
       CREATE INDEX files_owner_created_idx ON files(owner_email, created_at DESC);
       DROP INDEX signatures_owner_default_idx;
       CREATE UNIQUE INDEX signatures_owner_default_idx
-        ON signatures(owner_email) WHERE is_default = 0;
+        ON signatures(owner_email, kind) WHERE is_default = 0;
       ALTER TABLE users ADD COLUMN unexpected_note TEXT;
       CREATE TABLE unexpected_table (id TEXT PRIMARY KEY);
       CREATE INDEX unexpected_documents_idx ON documents(title);

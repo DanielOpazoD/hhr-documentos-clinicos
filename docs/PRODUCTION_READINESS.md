@@ -29,7 +29,7 @@ La aplicación está preparada como un entorno privado funcional, pero no se dec
 - Recorridos de integración para autenticación, aislamiento por propietario, concurrencia y restauración documental, archivos, firmas, ciclo de vida y procedencia de sesiones móviles, y autorización de IA sin proveedores externos.
 - Gate de integración continua con verificación de build, migraciones, presupuesto de JavaScript/CSS e integración del runtime privado.
 - Esquema D1 administrado exclusivamente por migraciones versionadas; ninguna solicitud crea tablas, altera columnas o aplica compatibilidades históricas.
-- Pruebas de instalación vacía y actualización desde las cuatro versiones anteriores, con conservación de registros y rollback sobre una copia desechable.
+- Pruebas de instalación vacía y actualización desde las cinco versiones anteriores, con conservación de registros y rollback sobre una copia desechable.
 - Verificador privado de migraciones, índices, versiones documentales, relaciones huérfanas y firmas predeterminadas que solo emite conteos.
 
 ## Controles pendientes antes de uso clínico institucional
