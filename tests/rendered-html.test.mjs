@@ -425,7 +425,7 @@ test("keeps the clinical studios usable from mobile through desktop", async () =
   assert.match(documentStudio, /MAX_DOCUMENT_VERSIONS/);
   assert.match(documentStudio, /api\/signatures/);
   assert.match(documentStudio, /aiMetadata/);
-  assert.match(documentStudio, /Ver trazabilidad/);
+  assert.match(documentStudio, /Trazabilidad/);
   assert.match(documentStudio, /Object\.fromEntries/);
   assert.match(documentStudio, /editedSectionIds/);
   assert.match(documentStudio, /legacyInsurance/);
@@ -649,6 +649,11 @@ test("offers isolated OpenAI and local Gemma providers", async () => {
   assert.match(source, /form\.append\("files"/);
   assert.match(source, /application\/x-ndjson/);
   assert.match(source, /processing_summary/);
+  assert.doesNotMatch(source, /saveAiDraft\(preparedResult/);
+  assert.match(source, /const documentId = await controller\.createDraft\(\)/);
+  assert.match(source, /Guardar y abrir en el editor/);
+  assert.match(source, /return true/);
+  assert.match(source, /ai-composer-shell/);
   assert.match(source, /identityConfirmed/);
   assert.match(source, /Datos de identidad revisados/);
   assert.match(source, /LOCAL_CONTEXT_TOKENS/);
@@ -782,8 +787,10 @@ test("ships the eight reviewed clinical prompts as configurable defaults", async
   assert.match(prompts[4], /TELEGASTROENTEROLOGÍA/);
   assert.match(prompts[7], /Hospital del Salvador/);
   assert.match(importForm, /aiTargetGroups/);
-  assert.match(importForm, /Formulario oficial/);
-  assert.match(importForm, /La IA completa sus 18 campos/);
+  assert.match(importForm, /Documento libre/);
+  assert.match(importForm, /ai-composer-context/);
+  assert.match(importForm, /Word institucional/);
+  assert.doesNotMatch(importForm, /ai-target-catalog|ai-prompt-mode/);
   assert.match(promptSchema, /sectionSchema\(target/);
   assert.match(promptSchema, /minItems: hospitalSalvador \? hospitalSalvadorFields\.length : 1/);
   assert.match(promptSchema, /maxItems: hospitalSalvador \? hospitalSalvadorFields\.length : 12/);

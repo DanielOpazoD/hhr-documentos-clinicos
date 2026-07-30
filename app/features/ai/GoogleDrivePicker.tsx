@@ -6,10 +6,12 @@ import { FolderOpen, Loader2 } from "@/app/components/Icons";
 import { fetchGoogleDriveConfig, selectGoogleDriveFiles, type GoogleDriveConfig } from "@/app/features/integrations/google-drive";
 
 export function GoogleDrivePicker({
+  compact = false,
   disabled,
   fileCount,
   onFiles,
 }: {
+  compact?: boolean;
   disabled: boolean;
   fileCount: number;
   onFiles(files: File[]): void;
@@ -41,12 +43,13 @@ export function GoogleDrivePicker({
   }
 
   return (
-    <div className="drive-picker-control">
+    <div className={compact ? "drive-picker-control compact" : "drive-picker-control"}>
       <button type="button" className="button secondary" disabled={disabled || busy || !config?.configured || fileCount >= 8} onClick={() => void openPicker()}>
         {busy ? <Loader2 size={15} className="spin" /> : <FolderOpen size={15} />}
-        {busy ? "Importando…" : "Google Drive"}
+        {busy ? "Importando…" : compact ? "Drive" : "Google Drive"}
       </button>
-      {config && !config.configured ? <small>Requiere <Link href="/configuracion?tab=conexiones">configuración</Link></small> : <small>Acceso puntual; no se guarda la sesión</small>}
+      {!compact ? (config && !config.configured ? <small>Requiere <Link href="/configuracion?tab=conexiones">configuración</Link></small> : <small>Acceso puntual; no se guarda la sesión</small>) : null}
+      {compact && config && !config.configured ? <small><Link href="/configuracion?tab=conexiones">Configurar Drive</Link></small> : null}
       {error ? <p className="form-error" role="alert">{error}</p> : null}
     </div>
   );

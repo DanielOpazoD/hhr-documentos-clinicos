@@ -14,7 +14,7 @@ export function AiDraftResult({
   onOpenDocument,
 }: {
   controller: AiStudioController;
-  onOpenDocument?: (id: string) => void | Promise<void>;
+  onOpenDocument?: (id: string) => boolean | void | Promise<boolean | void>;
 }) {
   const [downloading, setDownloading] = useState(false);
   const [downloadError, setDownloadError] = useState<string | null>(null);
@@ -33,6 +33,11 @@ export function AiDraftResult({
     } finally {
       setDownloading(false);
     }
+  }
+
+  async function saveAndContinue() {
+    const documentId = await controller.createDraft();
+    if (documentId && onOpenDocument) await onOpenDocument(documentId);
   }
 
   return (
@@ -76,8 +81,8 @@ export function AiDraftResult({
               <Link className="button primary" href={`/documentos?document=${encodeURIComponent(controller.createdId)}`}><FileSearch size={16} /> Abrir en Documentos</Link>
             )
           ) : (
-            <button className="button primary" disabled={controller.saving || !controller.identityConfirmed} onClick={() => void controller.createDraft()}>
-              <FileSearch size={16} /> {controller.saving ? "Guardando…" : controller.createdId ? "Actualizar borrador" : "Guardar borrador"}
+            <button className="button primary" disabled={controller.saving || !controller.identityConfirmed} onClick={() => void saveAndContinue()}>
+              <FileSearch size={16} /> {controller.saving ? "Guardando…" : controller.createdId ? "Actualizar borrador" : onOpenDocument ? "Guardar y abrir en el editor" : "Guardar borrador"}
             </button>
           )}
         </div>
