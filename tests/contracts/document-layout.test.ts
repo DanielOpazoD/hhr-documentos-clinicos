@@ -3,12 +3,25 @@ import test from "node:test";
 import {
   clampSigningImageWidth,
   DOCUMENT_FONT_SIZE_DEFAULT,
+  SIGNOFF_FONT_SIZE_DEFAULT,
+  signoffFontSizeFromDocumentFontSize,
   defaultImagePlacement,
   normalizeStoredSignatureY,
 } from "../../app/lib/document-layout.ts";
 
 test("uses a legible 16 px document default", () => {
   assert.equal(DOCUMENT_FONT_SIZE_DEFAULT, 16);
+});
+
+test("keeps signature and date text compact but legible by default", () => {
+  assert.equal(SIGNOFF_FONT_SIZE_DEFAULT, 13);
+});
+
+test("migrates an existing document font preference to its former signoff size", () => {
+  assert.equal(signoffFontSizeFromDocumentFontSize(11), 10);
+  assert.equal(signoffFontSizeFromDocumentFontSize(14), 11);
+  assert.equal(signoffFontSizeFromDocumentFontSize(16), 13);
+  assert.equal(signoffFontSizeFromDocumentFontSize(Number.NaN), 13);
 });
 
 test("translates the previously ignored legacy signature y coordinate", () => {

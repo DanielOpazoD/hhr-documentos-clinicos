@@ -10,6 +10,15 @@ export const DOCUMENT_FONT_SIZE_MIN = 11;
 export const DOCUMENT_FONT_SIZE_MAX = 16;
 export const DOCUMENT_FONT_SIZE_DEFAULT = 16;
 
+export const SIGNOFF_FONT_SIZE_MIN = 10;
+export const SIGNOFF_FONT_SIZE_MAX = 16;
+export const SIGNOFF_FONT_SIZE_DEFAULT = 13;
+
+export function signoffFontSizeFromDocumentFontSize(value: number) {
+  if (!Number.isFinite(value)) return SIGNOFF_FONT_SIZE_DEFAULT;
+  return Math.min(SIGNOFF_FONT_SIZE_MAX, Math.max(SIGNOFF_FONT_SIZE_MIN, value - 3));
+}
+
 export function clampSignatureY(value: number) {
   return Math.min(SIGNATURE_Y_MAX_PERCENT, Math.max(SIGNATURE_Y_MIN_PERCENT, value));
 }

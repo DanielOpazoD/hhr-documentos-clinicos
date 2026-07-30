@@ -60,6 +60,7 @@ export {
   Star,
   Stethoscope,
   Trash2,
+  Type,
   UploadCloud,
   X,
   XCircle,
