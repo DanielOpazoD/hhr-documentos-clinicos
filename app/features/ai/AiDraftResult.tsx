@@ -18,6 +18,7 @@ export function AiDraftResult({
 }) {
   const [downloading, setDownloading] = useState(false);
   const [downloadError, setDownloadError] = useState<string | null>(null);
+  const [openError, setOpenError] = useState<string | null>(null);
 
   async function downloadOfficialWord() {
     if (!controller.identityConfirmed) {
@@ -35,9 +36,21 @@ export function AiDraftResult({
     }
   }
 
+  async function openSavedDraft(documentId: string) {
+    if (!onOpenDocument) return;
+    setOpenError(null);
+    try {
+      if (await onOpenDocument(documentId) === false) {
+        setOpenError("El borrador quedó guardado, pero no se pudo abrir. Puede volver a intentarlo.");
+      }
+    } catch {
+      setOpenError("El borrador quedó guardado, pero no se pudo abrir. Puede volver a intentarlo.");
+    }
+  }
+
   async function saveAndContinue() {
     const documentId = await controller.createDraft();
-    if (documentId && onOpenDocument) await onOpenDocument(documentId);
+    if (documentId) await openSavedDraft(documentId);
   }
 
   return (
@@ -76,7 +89,7 @@ export function AiDraftResult({
           ) : null}
           {controller.createdId && !controller.draftHasChanges ? (
             onOpenDocument ? (
-              <button className="button primary" onClick={() => void onOpenDocument(controller.createdId!)}><FileSearch size={16} /> Continuar en el editor</button>
+              <button className="button primary" onClick={() => void openSavedDraft(controller.createdId!)}><FileSearch size={16} /> Continuar en el editor</button>
             ) : (
               <Link className="button primary" href={`/documentos?document=${encodeURIComponent(controller.createdId)}`}><FileSearch size={16} /> Abrir en Documentos</Link>
             )
@@ -87,6 +100,7 @@ export function AiDraftResult({
           )}
         </div>
         {downloadError ? <p className="form-error">{downloadError}</p> : null}
+        {openError ? <p className="form-error" role="alert">{openError}</p> : null}
         {controller.error ? <p className="form-error">{controller.error}</p> : null}
         {controller.createdId ? <p className="ai-saved"><Check size={15} /> Guardado en Documentos</p> : null}
       </section>

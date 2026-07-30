@@ -652,6 +652,10 @@ test("offers isolated OpenAI and local Gemma providers", async () => {
   assert.doesNotMatch(source, /saveAiDraft\(preparedResult/);
   assert.match(source, /const documentId = await controller\.createDraft\(\)/);
   assert.match(source, /Guardar y abrir en el editor/);
+  assert.match(source, /processingRef\.current/);
+  assert.match(source, /savingRef\.current/);
+  assert.match(source, /El borrador quedó guardado, pero no se pudo abrir/);
+  assert.match(source, /type="submit"/);
   assert.match(source, /return true/);
   assert.match(source, /ai-composer-shell/);
   assert.match(source, /identityConfirmed/);

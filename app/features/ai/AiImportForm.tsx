@@ -128,8 +128,12 @@ export function AiImportForm({ controller }: Props) {
           </details>
         </div>
 
-        <div
+        <form
           className="ai-composer"
+          onSubmit={(event) => {
+            event.preventDefault();
+            void controller.analyze();
+          }}
           onDragOver={(event) => event.preventDefault()}
           onDrop={(event) => {
             event.preventDefault();
@@ -184,14 +188,14 @@ export function AiImportForm({ controller }: Props) {
               <GoogleDrivePicker compact disabled={controller.processing} fileCount={controller.files.length} onFiles={controller.addFiles} />
             </div>
             <button
+              type="submit"
               className="button primary ai-generate-action"
               disabled={!controller.files.length || !controller.processingAuthorized || !controller.selectedProvider?.available || !instructionsReady || controller.processing}
-              onClick={() => void controller.analyze()}
             >
               <Sparkles size={16} /> {controller.processing ? "Generando…" : "Generar"}<ArrowRight size={16} />
             </button>
           </footer>
-        </div>
+        </form>
 
         {controller.target === "traslado_salvador" && controller.promptMode === "profile" ? (
           <p className="ai-official-template-note"><FileText size={14} /> La IA completará los 18 campos del Word institucional.</p>

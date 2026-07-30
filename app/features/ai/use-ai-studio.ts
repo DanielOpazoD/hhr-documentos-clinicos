@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { fetchAiProviders, importWithAi, saveAiDraft } from "./client";
 import { fetchPromptProfiles } from "./prompt-client";
 import { defaultClinicalSigner, FREEFORM_SCHEMA_TARGET, getTargetName } from "./targets";
@@ -46,6 +46,8 @@ const emptyResult: AiImportResult = {
 };
 
 export function useAiStudio() {
+  const processingRef = useRef(false);
+  const savingRef = useRef(false);
   const [files, setFiles] = useState<File[]>([]);
   const [target, setTarget] = useState<AiTargetId>("epicrisis");
   const [provider, setProvider] = useState<AiProviderId>("openai");
@@ -185,7 +187,8 @@ export function useAiStudio() {
   }, [processing]);
 
   async function analyze() {
-    if (!files.length || !processingAuthorized) return null;
+    if (!files.length || !processingAuthorized || processingRef.current) return null;
+    processingRef.current = true;
     const generationTarget: AiTargetId = promptMode === "free" ? FREEFORM_SCHEMA_TARGET : target;
     const userInstructions = promptMode === "free" ? freePrompt : additionalInstructions;
     setElapsedSeconds(0);
@@ -220,15 +223,18 @@ export function useAiStudio() {
       setError(cause instanceof Error ? cause.message : "No se pudo conectar con el servicio de IA.");
       return null;
     } finally {
+      processingRef.current = false;
       setProcessing(false);
     }
   }
 
   async function createDraft() {
+    if (savingRef.current) return null;
     if (!identityConfirmed) {
       setError("Revise y confirme los datos de identidad antes de guardar.");
       return null;
     }
+    savingRef.current = true;
     setSaving(true);
     setError(null);
     try {
@@ -245,6 +251,7 @@ export function useAiStudio() {
       setError(cause instanceof Error ? cause.message : "No se pudo guardar el borrador.");
       return null;
     } finally {
+      savingRef.current = false;
       setSaving(false);
     }
   }
