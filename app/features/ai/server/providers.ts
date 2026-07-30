@@ -1,5 +1,5 @@
 import { appEnv } from "@/app/lib/server/environment";
-import type { AiProgressReporter, AiProviderId, AiProviderInfo, AiSourceInput, AiTargetId } from "../types";
+import type { AiProgressReporter, AiPromptMode, AiProviderId, AiProviderInfo, AiSourceInput, AiTargetId } from "../types";
 import type { OpenAiOutput } from "./openai-responses";
 import { generateClinicalDraft } from "./openai-responses";
 import { generateLocalClinicalDraft } from "./local-lm-studio";
@@ -126,7 +126,9 @@ export async function generateDraftWithProvider(input: {
   model?: string;
   sources: AiSourceInput[];
   target: AiTargetId;
+  promptMode?: AiPromptMode;
   promptInstructions: string;
+  professionalInstructions?: string;
   onProgress?: AiProgressReporter;
 }): Promise<{ output: OpenAiOutput; provider: ProviderConfig; usage: AiTokenUsage }> {
   if (input.providerId === "openai" && input.model && !isOpenAiModel(input.model)) {
@@ -140,7 +142,9 @@ export async function generateDraftWithProvider(input: {
       model: provider.model,
       sources: input.sources,
       target: input.target,
+      promptMode: input.promptMode,
       promptInstructions: input.promptInstructions,
+      professionalInstructions: input.professionalInstructions,
       onProgress: input.onProgress,
     });
     return { ...result, provider };
@@ -155,7 +159,9 @@ export async function generateDraftWithProvider(input: {
     model: provider.model,
     sources: input.sources,
     target: input.target,
+    promptMode: input.promptMode,
     promptInstructions: input.promptInstructions,
+    professionalInstructions: input.professionalInstructions,
     onProgress: input.onProgress,
   });
   return { ...result, provider };

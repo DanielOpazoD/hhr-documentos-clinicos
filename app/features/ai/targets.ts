@@ -1,5 +1,7 @@
 import type { AiTargetId } from "./types";
 
+export const FREEFORM_SCHEMA_TARGET: AiTargetId = "informe_medico";
+
 export type AiTargetDefinition = {
   id: AiTargetId;
   name: string;

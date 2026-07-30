@@ -289,6 +289,7 @@ test("keeps the clinical studios usable from mobile through desktop", async () =
     "../app/features/documents/DocumentCommandBar.tsx",
     "../app/features/documents/DocumentHistoryDialog.tsx",
     "../app/features/documents/DocumentLibrary.tsx",
+    "../app/features/documents/PromptProposalDialog.tsx",
     "../app/features/documents/AiProvenance.tsx",
     "../app/features/documents/ai-metadata.ts",
     "../app/features/documents/PatientEditor.tsx",
@@ -603,16 +604,22 @@ test("offers isolated OpenAI and local Gemma providers", async () => {
     "../app/features/ai/client.ts",
     "../app/features/ai/prompt-client.ts",
     "../app/features/ai/PromptManager.tsx",
+    "../app/features/documents/DocumentLibrary.tsx",
+    "../app/features/documents/PromptProposalDialog.tsx",
+    "../app/features/documents/AiProvenance.tsx",
     "../app/features/ai/prompt-catalog.ts",
     "../app/features/ai/prompt-types.ts",
     "../app/features/ai/server/prompt-store.ts",
     "../app/features/ai/server/prompt-validation.ts",
     "../app/features/ai/server/prompt-improvement.ts",
+    "../app/features/ai/server/prompt-from-documents.ts",
+    "../app/features/ai/server/prompt-source-policy.ts",
     "../app/api/ai/providers/route.ts",
     "../app/api/ai/import/route.ts",
     "../app/api/ai/prompts/route.ts",
     "../app/api/ai/prompts/[id]/route.ts",
     "../app/api/ai/prompts/improve/route.ts",
+    "../app/api/ai/prompts/from-documents/route.ts",
   ].map((path) => readFile(new URL(path, import.meta.url), "utf8")));
   const source = modules.join("\n");
   assert.match(source, /hhr-gemma-local/);
@@ -651,7 +658,7 @@ test("offers isolated OpenAI and local Gemma providers", async () => {
   assert.match(source, /Prompts de documentos/);
   assert.match(source, /Duplicar para editar/);
   assert.match(source, /Usar por defecto/);
-  assert.match(source, /clinical-draft-v5/);
+  assert.match(source, /clinical-draft-v7/);
   assert.match(source, /promptId/);
   assert.match(source, /promptInstructions/);
   assert.match(source, /Prompt libre/);
@@ -662,6 +669,15 @@ test("offers isolated OpenAI and local Gemma providers", async () => {
   assert.match(source, /Mejorar con IA/);
   assert.match(source, /prompt_improvement/);
   assert.match(source, /Propuesta aplicada; revísela antes de guardar/);
+  assert.match(source, /Crear plantilla IA/);
+  assert.match(source, /Mis plantillas/);
+  assert.match(source, /Nada se guarda hasta que usted confirme/);
+  assert.match(source, /assertProposalIsGeneric/);
+  assert.match(source, /nunca su texto clínico/);
+  assert.match(source, /MAX_SOURCE_CHARACTERS/);
+  assert.match(source, /Revisar solicitud y salida original/);
+  assert.match(source, /PROFESSIONAL_INSTRUCTION_SOURCE/);
+  assert.match(source, /originalOutput/);
   assert.doesNotMatch(source, /merged\.slice\(0, 8\)/);
   assert.match(source, /En toda fuente PDF, incluso escaneada, usa el número de página real del PDF/);
   assert.match(source, /source\.mimeType === "application\/pdf"/);
@@ -757,7 +773,7 @@ test("ships the eight reviewed clinical prompts as configurable defaults", async
   ]);
 
   assert.equal((catalog.match(/id: "builtin-/g) ?? []).length, 8);
-  assert.match(catalog, /clinical-draft-v5/);
+  assert.match(catalog, /clinical-draft-v7/);
   for (const target of ["epicrisis", "traslado_agudo", "informe_medico", "certificado", "tele_gastro", "tele_nefro", "tele_reumato", "traslado_salvador"]) {
     assert.match(targets, new RegExp(`id: "${target}"`));
   }

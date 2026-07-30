@@ -3,9 +3,10 @@
 import { useEffect, useMemo, useState } from "react";
 import { fetchAiProviders, importWithAi, saveAiDraft } from "./client";
 import { fetchPromptProfiles } from "./prompt-client";
-import { defaultClinicalSigner, getTargetName } from "./targets";
+import { defaultClinicalSigner, FREEFORM_SCHEMA_TARGET, getTargetName } from "./targets";
 import type { AiImportResult, AiPatient, AiProgress, AiPromptMode, AiProviderId, AiProviderInfo, AiSection, AiSigner, AiTargetId } from "./types";
 import type { AiPromptProfile } from "./prompt-types";
+import { AI_WORKFLOW_MEMORY_KEY, parseAiWorkflowMemory, serializeAiWorkflowMemory } from "./workflow-memory";
 
 const AI_SELECTION_STORAGE_KEY = "hhr.ai-selection.v1";
 type StoredAiSelection = { provider?: AiProviderId; model?: string };
@@ -17,6 +18,25 @@ const emptyResult: AiImportResult = {
   providerName: "",
   model: "",
   promptVersion: "",
+  promptTrace: {
+    mode: "profile",
+    profileId: "",
+    profileName: "",
+    profileRevision: null,
+    version: "",
+    userInstructions: "",
+    effectiveInstructions: "",
+    generatedAt: "",
+  },
+  originalOutput: {
+    documentKind: "",
+    patient: { firstNames: "", lastNames: "", rut: "", birthDate: "" },
+    signer: { name: "", rut: "", specialty: "" },
+    sections: [],
+    processingSummary: "",
+    missingInformation: [],
+    safetyNotice: "",
+  },
   sections: [],
   patient: { firstNames: "", lastNames: "", rut: "", birthDate: "" },
   signer: { name: "", rut: "", specialty: "" },
@@ -49,6 +69,27 @@ export function useAiStudio() {
   const [createdId, setCreatedId] = useState<string | null>(null);
   const [draftHasChanges, setDraftHasChanges] = useState(false);
   const [draftContext, setDraftContext] = useState<{ target: AiTargetId; promptMode: AiPromptMode } | null>(null);
+  const [workflowMemoryReady, setWorkflowMemoryReady] = useState(false);
+
+  useEffect(() => {
+    let active = true;
+    queueMicrotask(() => {
+      if (!active) return;
+      let saved: ReturnType<typeof parseAiWorkflowMemory> = null;
+      try {
+        saved = parseAiWorkflowMemory(window.localStorage.getItem(AI_WORKFLOW_MEMORY_KEY));
+      } catch {
+        // Algunos navegadores bloquean el almacenamiento local; el flujo sigue con valores seguros.
+      }
+      if (saved) {
+        setTarget(saved.target);
+        setPromptMode(saved.promptMode);
+        setSelectedPromptId(saved.selectedPromptId);
+      }
+      setWorkflowMemoryReady(true);
+    });
+    return () => { active = false; };
+  }, []);
 
   useEffect(() => {
     let active = true;
@@ -82,7 +123,7 @@ export function useAiStudio() {
 
   useEffect(() => {
     let active = true;
-    void fetchPromptProfiles()
+    const refreshPrompts = () => void fetchPromptProfiles()
       .then((profiles) => {
         if (!active) return;
         setPromptProfiles(profiles);
@@ -93,7 +134,12 @@ export function useAiStudio() {
       .finally(() => {
         if (active) setPromptsLoading(false);
       });
-    return () => { active = false; };
+    refreshPrompts();
+    window.addEventListener("hhr:ai-prompts-changed", refreshPrompts);
+    return () => {
+      active = false;
+      window.removeEventListener("hhr:ai-prompts-changed", refreshPrompts);
+    };
   }, []);
 
   const resolvedPromptId = useMemo(() => {
@@ -119,6 +165,19 @@ export function useAiStudio() {
   }, [model, provider, providersLoading, selectedProvider]);
 
   useEffect(() => {
+    if (!workflowMemoryReady) return;
+    try {
+      window.localStorage.setItem(AI_WORKFLOW_MEMORY_KEY, serializeAiWorkflowMemory({
+        promptMode,
+        target,
+        selectedPromptId: resolvedPromptId,
+      }));
+    } catch {
+      // La memoria del flujo es opcional y nunca contiene archivos, prompts ni datos clínicos.
+    }
+  }, [promptMode, resolvedPromptId, target, workflowMemoryReady]);
+
+  useEffect(() => {
     if (!processing) return;
     const startedAt = Date.now();
     const timer = window.setInterval(() => setElapsedSeconds(Math.floor((Date.now() - startedAt) / 1000)), 1000);
@@ -127,7 +186,7 @@ export function useAiStudio() {
 
   async function analyze() {
     if (!files.length || !processingAuthorized) return;
-    const generationTarget: AiTargetId = promptMode === "free" ? "informe_medico" : target;
+    const generationTarget: AiTargetId = promptMode === "free" ? FREEFORM_SCHEMA_TARGET : target;
     const userInstructions = promptMode === "free" ? freePrompt : additionalInstructions;
     setElapsedSeconds(0);
     setProcessing(true);

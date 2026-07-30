@@ -1,7 +1,8 @@
 import type { OpenAiOutput } from "./openai-responses";
 import { hospitalSalvadorFields, isHospitalSalvadorFieldKey } from "../hospital-salvador-fields";
-import type { AiTargetId } from "../types";
+import type { AiPromptMode, AiTargetId } from "../types";
 import { protectUnsupportedSection, sanitizeEvidenceCandidates } from "./clinical-evidence";
+import { normalizedDocumentKind, withoutRedundantIdentitySections } from "./document-hygiene";
 
 type RawClinicalOutput = {
   document_kind?: unknown;
@@ -54,6 +55,7 @@ export function parseClinicalOutput(
   raw: string,
   options: {
     target?: AiTargetId;
+    promptMode?: AiPromptMode;
     sourceTexts?: Array<string | null>;
     sourceMimeTypes?: string[];
     sourcePageCounts?: Array<number | null>;
@@ -75,7 +77,16 @@ export function parseClinicalOutput(
   const sourceTexts = options.sourceTexts ?? [];
   const pageSources = sourceTexts.map((sourceText) => normalizedPageSources(sourceText));
   const unsupportedSections: string[] = [];
-  for (const section of candidate.sections) {
+  const structuredPatientIdentity = {
+    firstNames: candidate.patient?.first_names,
+    lastNames: candidate.patient?.last_names,
+    rut: candidate.patient?.rut,
+    birthDate: candidate.patient?.birth_date,
+  };
+  const candidateSections = options.target === "traslado_salvador"
+    ? candidate.sections
+    : withoutRedundantIdentitySections(candidate.sections, structuredPatientIdentity);
+  for (const section of candidateSections) {
     if (!section || typeof section.title !== "string" || !section.title.trim() || typeof section.text !== "string" || !section.text.trim()) {
       throw new Error("El modelo devolvió una sección incompleta.");
     }
@@ -98,9 +109,9 @@ export function parseClinicalOutput(
     section.evidence = protectedSection.evidence;
   }
   if (options.target === "traslado_salvador") {
-    const keys = candidate.sections.map((section) => section.key);
+    const keys = candidateSections.map((section) => section.key);
     if (
-      candidate.sections.length !== hospitalSalvadorFields.length ||
+      candidateSections.length !== hospitalSalvadorFields.length ||
       new Set(keys).size !== hospitalSalvadorFields.length ||
       hospitalSalvadorFields.some((field) => !keys.includes(field.key))
     ) {
@@ -121,13 +132,13 @@ export function parseClinicalOutput(
   }
   const normalizedSources = sourceTexts.map((sourceText) => sourceText ? normalizedEvidenceText(sourceText) : null);
   const sourceSections = options.target === "traslado_salvador"
-    ? hospitalSalvadorFields.map((field) => candidate.sections!.find((section) => section.key === field.key) ?? {
+    ? hospitalSalvadorFields.map((field) => candidateSections.find((section) => section.key === field.key) ?? {
         key: field.key,
         title: field.label,
         text: "No consignado",
         evidence: [],
       })
-    : candidate.sections;
+    : candidateSections;
   const missingInformation = [...candidate.missing_information];
   for (const title of unsupportedSections) {
     const notice = `Sin evidencia verificable para la sección: ${title}.`;
@@ -137,7 +148,7 @@ export function parseClinicalOutput(
     ? `${candidate.processing_summary.trim()} ${unsupportedSections.length === 1 ? "Una sección sin evidencia se dejó como «No consignado» para revisión." : `${unsupportedSections.length} secciones sin evidencia se dejaron como «No consignado» para revisión.`}`.trim()
     : candidate.processing_summary.trim();
   return {
-    documentKind: candidate.document_kind,
+    documentKind: normalizedDocumentKind(candidate.document_kind, options.promptMode),
     patient: {
       firstNames: nullableText(candidate.patient.first_names),
       lastNames: nullableText(candidate.patient.last_names),
