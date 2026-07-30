@@ -580,6 +580,8 @@ test("offers isolated OpenAI and local Gemma providers", async () => {
     "../app/features/ai/server/prompt.ts",
     "../app/features/ai/server/openai-responses.ts",
     "../app/features/ai/server/clinical-output.ts",
+    "../app/features/ai/server/clinical-evidence.ts",
+    "../app/features/ai/server/prompt-composition.ts",
     "../app/features/ai/server/local-lm-studio.ts",
     "../app/features/ai/server/source-extraction.ts",
     "../app/features/ai/server/import-request.ts",
@@ -620,7 +622,7 @@ test("offers isolated OpenAI and local Gemma providers", async () => {
   assert.match(source, /supportsReasoning/);
   assert.match(source, /hhr\.ai-selection\.v1/);
   assert.match(source, /localStorage\.setItem/);
-  assert.match(source, /form\.set\("model", model\)/);
+  assert.match(source, /form\.set\("model", input\.model\)/);
   assert.match(source, /Modelo de OpenAI no permitido/);
   assert.match(source, /Privado · sin salir del equipo/);
   assert.match(source, /getResolvedPDFJS/);
@@ -645,13 +647,17 @@ test("offers isolated OpenAI and local Gemma providers", async () => {
   assert.match(source, /clinical-draft-v5/);
   assert.match(source, /promptId/);
   assert.match(source, /promptInstructions/);
+  assert.match(source, /Prompt libre/);
+  assert.match(source, /Indicaciones adicionales/);
+  assert.match(source, /form\.set\("promptMode", input\.promptMode\)/);
+  assert.match(source, /composePromptInstructions/);
   assert.match(source, /Los prompts base no se pueden eliminar/);
   assert.match(source, /Mejorar con IA/);
   assert.match(source, /prompt_improvement/);
   assert.match(source, /Propuesta aplicada; revísela antes de guardar/);
   assert.doesNotMatch(source, /merged\.slice\(0, 8\)/);
   assert.match(source, /En toda fuente PDF, incluso escaneada, usa el número de página real del PDF/);
-  assert.match(source, /sourceMimeType === "application\/pdf"\s*\? pageNumber === null/);
+  assert.match(source, /source\.mimeType === "application\/pdf"/);
   assert.match(source, /MAX_IMAGE_PIXELS/);
   assert.match(source, /El DOCX contiene imágenes incrustadas/);
   assert.match(source, /documentId \? \{ id: documentId \}/);
@@ -659,10 +665,10 @@ test("offers isolated OpenAI and local Gemma providers", async () => {
   assert.match(source, /Configuración local inválida/);
   assert.match(source, /source_index/);
   assert.match(source, /const original = await sourceContent/);
-  assert.match(source, /sourceIndex >= sourceCount/);
+  assert.match(source, /sourceIndex >= sources\.length/);
   assert.match(source, /pagesWithoutText/);
   assert.match(source, /getPdfPageCount/);
-  assert.match(source, /invalidPage/);
+  assert.match(source, /sanitizeEvidenceCandidates/);
   assert.match(source, /Paciente identificado/);
   assert.match(source, /Profesional firmante/);
   assert.match(source, /disabled=\{controller\.processing\}/);

@@ -7,7 +7,6 @@ import { AiIdentityEditor } from "./AiIdentityEditor";
 import { AiSectionEvidence } from "./AiSectionEvidence";
 import { HospitalSalvadorEditor } from "./HospitalSalvadorEditor";
 import { downloadHospitalSalvadorDocx } from "./hospital-salvador-docx.js";
-import { getTargetName } from "./targets";
 import type { AiStudioController } from "./use-ai-studio";
 
 export function AiDraftResult({
@@ -40,7 +39,7 @@ export function AiDraftResult({
     <div className="ai-result-layout simplified-ai-result">
       <section className="panel ai-result">
         <div className="panel-header">
-          <div><span className="eyebrow">Borrador editable</span><h2>{getTargetName(controller.target)}</h2></div>
+          <div><span className="eyebrow">Borrador editable</span><h2>{controller.draftTitle}</h2></div>
           <span className="status-pill borrador">Borrador</span>
         </div>
         <div className="ai-analysis-summary">
@@ -48,7 +47,7 @@ export function AiDraftResult({
           <div><strong>Resumen del análisis</strong><p>{controller.result.processingSummary}</p></div>
         </div>
         <AiIdentityEditor controller={controller} />
-        {controller.target === "traslado_salvador" ? <HospitalSalvadorEditor controller={controller} /> : <div className="ai-sections">
+        {controller.draftTarget === "traslado_salvador" ? <HospitalSalvadorEditor controller={controller} /> : <div className="ai-sections">
           {controller.result.sections.map((section, index) => (
             <label key={`${section.title}-${index}`}>
               <input className="ai-section-title" aria-label={`Título de la sección ${index + 1}`} value={section.title} onChange={(event) => controller.updateSectionTitle(index, event.target.value)} />
@@ -65,7 +64,7 @@ export function AiDraftResult({
         </div>
         <div className="result-actions">
           <button className="button secondary" onClick={controller.reset}><Trash2 size={15} /> Descartar</button>
-          {controller.target === "traslado_salvador" ? (
+          {controller.draftTarget === "traslado_salvador" ? (
             <button className="button secondary" disabled={downloading || !controller.identityConfirmed} onClick={() => void downloadOfficialWord()}>
               <Download size={16} /> {downloading ? "Generando…" : "Descargar Word oficial"}
             </button>

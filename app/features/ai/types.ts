@@ -44,6 +44,7 @@ export type AiSection = {
 };
 
 export type AiImportResult = {
+  documentKind: string;
   sources: string[];
   providerId: AiProviderId;
   providerName: string;
@@ -66,6 +67,8 @@ export type AiTargetId =
   | "tele_nefro"
   | "tele_reumato"
   | "traslado_salvador";
+
+export type AiPromptMode = "profile" | "free";
 
 export type AiProviderId = "openai" | "gemma_local";
 
