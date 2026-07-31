@@ -2,11 +2,12 @@
 
 /* eslint-disable @next/next/no-img-element -- Camera blob URLs are edited in canvas/WebGL and must remain exact client-side sources. */
 
-import { ArrowDown, ArrowUp, Camera, Check, FileImage, Loader2, Pencil, RefreshCw, RotateCw, Trash2, UploadCloud, X } from "@/app/components/Icons";
-import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
+import { ArrowDown, ArrowUp, Camera, Check, FileImage, Loader2, Pencil, RotateCw, Trash2, UploadCloud, X } from "@/app/components/Icons";
+import { useEffect, useRef, useState } from "react";
 import { createScannedPdf } from "@/app/lib/client-pdf";
-import { DEFAULT_SCAN_ADJUSTMENTS, DEFAULT_SCAN_CORNERS, prepareScanSource, renderScannedPage, type ScanAdjustments, type ScanCorners, type ScanFilter, type ScanQuality } from "@/app/lib/scan-processing";
+import { prepareScanSource, renderScannedPage, scanAdjustmentsForFilter, type ScanAdjustments, type ScanCorners, type ScanFilter, type ScanQuality } from "@/app/lib/scan-processing";
 import { detectDocumentCorners } from "@/app/features/scanner/document-detection";
+import { cloneScanCorners, SCAN_FILTER_OPTIONS, ScanReviewEditor, type ScanReviewState } from "@/app/features/scanner/ScanReviewEditor";
 import { forgetStoredCaptureToken, getCaptureSession, MobileSessionClientError, uploadCapturedFile } from "@/app/features/files/mobile-session-client";
 import { MOBILE_CAPTURE_MAX_FILES } from "@/app/features/files/mobile-session-policy";
 
@@ -26,61 +27,10 @@ type PageFile = {
   edgeConfidence: number;
 };
 
-type ReviewState = { pageId: string; corners: ScanCorners; filter: ScanFilter; adjustments: ScanAdjustments };
-
-const filterOptions: Array<{ id: ScanFilter; label: string; description: string }> = [
-  { id: "auto", label: "Documento", description: "Papel blanco y texto nítido" },
-  { id: "color", label: "Color", description: "Conserva el aspecto original" },
-  { id: "gray", label: "Grises", description: "Documento sobrio y legible" },
-  { id: "bw", label: "Blanco y negro", description: "Máximo contraste" },
-];
-
-const cloneCorners = (corners: ScanCorners) => corners.map(point => ({ ...point })) as ScanCorners;
-const previewFilter = (filter: ScanFilter, adjustments: ScanAdjustments) => {
-  const brightness = 1 + adjustments.whiten / 500;
-  const contrast = .85 + adjustments.contrast / 120;
-  return filter === "auto" ? `brightness(${brightness}) contrast(${contrast}) saturate(.88)` : filter === "gray" ? `grayscale(1) brightness(${brightness}) contrast(${contrast})` : filter === "bw" ? `grayscale(1) brightness(${brightness}) contrast(${Math.max(1.6, contrast + .45)})` : `brightness(${1 + adjustments.whiten / 1000}) contrast(${Math.max(1, contrast - .25)})`;
-};
-
 function canvasFile(canvas: HTMLCanvasElement, name: string) {
   return new Promise<File>((resolve, reject) => canvas.toBlob(blob => blob
     ? resolve(new File([blob], name, { type: "image/jpeg" }))
     : reject(new Error("No se pudo preparar la imagen.")), "image/jpeg", .94));
-}
-
-function ScanReviewEditor({ page, review, processing, detecting, onChange, onApply, onRedetect, onClose }: {
-  page: PageFile;
-  review: ReviewState;
-  processing: boolean;
-  detecting: boolean;
-  onChange: (change: Partial<ReviewState>) => void;
-  onApply: () => void;
-  onRedetect: () => void;
-  onClose: () => void;
-}) {
-  function moveCorner(index: number, event: ReactPointerEvent<HTMLButtonElement>) {
-    if (!event.currentTarget.hasPointerCapture(event.pointerId)) return;
-    const frame = event.currentTarget.parentElement?.getBoundingClientRect();
-    if (!frame) return;
-    let x = Math.min(.98, Math.max(.02, (event.clientX - frame.left) / frame.width));
-    let y = Math.min(.98, Math.max(.02, (event.clientY - frame.top) / frame.height));
-    const next = cloneCorners(review.corners);
-    const [topLeft, topRight, bottomRight, bottomLeft] = next;
-    if (index === 0) { x = Math.min(x, topRight.x - .05); y = Math.min(y, bottomLeft.y - .05); }
-    if (index === 1) { x = Math.max(x, topLeft.x + .05); y = Math.min(y, bottomRight.y - .05); }
-    if (index === 2) { x = Math.max(x, bottomLeft.x + .05); y = Math.max(y, topRight.y + .05); }
-    if (index === 3) { x = Math.min(x, bottomRight.x - .05); y = Math.max(y, topLeft.y + .05); }
-    next[index] = { x, y };
-    onChange({ corners: next });
-  }
-
-  const points = review.corners.map(point => `${point.x * 100},${point.y * 100}`).join(" ");
-  const ratio = page.sourceWidth / page.sourceHeight;
-  return <div className="scan-review"><header><button onClick={onClose} aria-label="Cerrar editor"><X size={22} /></button><div><strong>Ajustar escaneo</strong><small>Arrastre las cuatro esquinas hasta el borde del papel</small></div><i /></header>
-    <section className="scan-review-workspace"><div className="scan-source-frame" style={{ aspectRatio: `${page.sourceWidth} / ${page.sourceHeight}`, width: `min(100%, calc(62vh * ${ratio}))` }}><img src={page.sourceUrl} alt="Original para ajustar bordes" style={{ filter: previewFilter(review.filter, review.adjustments) }} /><svg viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true"><polygon points={points} /></svg>{review.corners.map((point, index) => <button key={index} className="corner-handle" style={{ left: `${point.x * 100}%`, top: `${point.y * 100}%` }} aria-label={`Esquina ${index + 1}`} onPointerDown={event => { event.currentTarget.setPointerCapture(event.pointerId); event.preventDefault(); }} onPointerMove={event => moveCorner(index, event)}><span /></button>)}</div><div className="scan-edge-tools"><span>{page.edgeConfidence ? "Bordes detectados automáticamente" : "Revise los cuatro bordes"}</span><button disabled={detecting} onClick={onRedetect}><RefreshCw size={13} className={detecting ? "spin" : ""} /> {detecting ? "Detectando…" : "Detectar de nuevo"}</button></div></section>
-    <section className="scan-filter-panel"><strong>Estilo</strong><div>{filterOptions.map(option => <button key={option.id} className={review.filter === option.id ? "active" : ""} onClick={() => onChange({ filter: option.id })}><span className={`filter-swatch ${option.id}`} /><span><strong>{option.label}</strong><small>{option.description}</small></span>{review.filter === option.id ? <Check size={15} /> : null}</button>)}</div><details className="scan-adjustments"><summary>Ajustes del acabado</summary><div><label><span>Blancura del papel <b>{review.adjustments.whiten}%</b></span><input type="range" min="0" max="100" value={review.adjustments.whiten} onChange={event => onChange({ adjustments: { ...review.adjustments, whiten: Number(event.target.value) } })} /></label><label><span>Contraste <b>{review.adjustments.contrast}%</b></span><input type="range" min="0" max="100" value={review.adjustments.contrast} onChange={event => onChange({ adjustments: { ...review.adjustments, contrast: Number(event.target.value) } })} /></label></div></details></section>
-    <footer><button className="button secondary" onClick={() => onChange({ corners: cloneCorners(DEFAULT_SCAN_CORNERS), filter: "auto", adjustments: { ...DEFAULT_SCAN_ADJUSTMENTS } })}>Restablecer</button><button className="button primary" disabled={processing || detecting} onClick={onApply}>{processing ? <Loader2 size={17} className="spin" /> : <Check size={17} />}{processing ? "Procesando…" : "Aplicar escaneo"}</button></footer>
-  </div>;
 }
 
 export function MobileCapture({ token }: { token: string }) {
@@ -107,7 +57,7 @@ export function MobileCapture({ token }: { token: string }) {
   const [torchAvailable, setTorchAvailable] = useState(false);
   const [torchOn, setTorchOn] = useState(false);
   const [flash, setFlash] = useState(false);
-  const [review, setReview] = useState<ReviewState | null>(null);
+  const [review, setReview] = useState<ScanReviewState | null>(null);
   const [uploadLocked, setUploadLocked] = useState(false);
   const [deletedUpload, setDeletedUpload] = useState(false);
   const [sentPageCount, setSentPageCount] = useState(0);
@@ -180,21 +130,22 @@ export function MobileCapture({ token }: { token: string }) {
     if (!files.length || controlsLocked) return false;
     setProcessing(true);
     setError(null);
+    const added: PageFile[] = [];
     try {
-      const added: PageFile[] = [];
       for (let index = 0; index < files.length; index++) {
         const pageNumber = pages.length + index + 1;
         const source = await prepareScanSource(files[index], pageNumber);
         const detection = await detectDocumentCorners(source.file);
-        const corners = cloneCorners(detection.corners);
-        const adjustments = { ...DEFAULT_SCAN_ADJUSTMENTS };
+        const corners = cloneScanCorners(detection.corners);
+        const adjustments = scanAdjustmentsForFilter("auto");
         const processed = await renderScannedPage(source.file, source.width, source.height, corners, "auto", pageNumber, adjustments);
         added.push({ id: crypto.randomUUID(), file: processed.file, url: URL.createObjectURL(processed.file), sourceFile: source.file, sourceUrl: URL.createObjectURL(source.file), sourceWidth: source.width, sourceHeight: source.height, rotation: 0, quality: processed.quality, filter: "auto", corners, adjustments, edgeConfidence: detection.confidence });
       }
       setPages(value => [...value, ...added]);
-      if (added[0]) setReview({ pageId: added[0].id, corners: cloneCorners(added[0].corners), filter: added[0].filter, adjustments: { ...added[0].adjustments } });
+      if (added[0]) setReview({ pageId: added[0].id, corners: cloneScanCorners(added[0].corners), filter: added[0].filter, adjustments: { ...added[0].adjustments } });
       return true;
     } catch {
+      added.forEach(page => { URL.revokeObjectURL(page.url); URL.revokeObjectURL(page.sourceUrl); });
       setError("Una imagen no pudo procesarse. Pruebe con JPG, PNG o una foto nueva.");
       return false;
     }
@@ -244,7 +195,7 @@ export function MobileCapture({ token }: { token: string }) {
       setPages(value => value.map(item => {
         if (item.id !== page.id) return item;
         URL.revokeObjectURL(item.url);
-        return { ...item, file: processed.file, url: nextUrl, quality: processed.quality, filter: review.filter, corners: cloneCorners(review.corners), adjustments: { ...review.adjustments } };
+        return { ...item, file: processed.file, url: nextUrl, quality: processed.quality, filter: review.filter, corners: cloneScanCorners(review.corners), adjustments: { ...review.adjustments } };
       }));
       setReview(null);
     } catch { setError("No se pudo aplicar el recorte. Restablezca los bordes e intente nuevamente."); }
@@ -258,14 +209,14 @@ export function MobileCapture({ token }: { token: string }) {
     setDetecting(true);
     try {
       const detection = await detectDocumentCorners(page.sourceFile);
-      setReview(value => value ? { ...value, corners: cloneCorners(detection.corners) } : value);
+      setReview(value => value ? { ...value, corners: cloneScanCorners(detection.corners) } : value);
       setPages(value => value.map(item => item.id === page.id ? { ...item, edgeConfidence: detection.confidence } : item));
     } catch { setError("No se pudieron detectar los bordes. Puede ajustarlos manualmente."); }
     finally { setDetecting(false); }
   }
 
   function isEditablePage(id: string) { return !controlsLocked && pages.findIndex(page => page.id === id) >= sentPageCount; }
-  function editPage(page: PageFile) { if (isEditablePage(page.id)) setReview({ pageId: page.id, corners: cloneCorners(page.corners), filter: page.filter, adjustments: { ...page.adjustments } }); }
+  function editPage(page: PageFile) { if (isEditablePage(page.id)) setReview({ pageId: page.id, corners: cloneScanCorners(page.corners), filter: page.filter, adjustments: { ...page.adjustments } }); }
   function update(id: string, change: Partial<PageFile>) { if (isEditablePage(id)) setPages(value => value.map(page => page.id === id ? { ...page, ...change } : page)); }
   function remove(id: string) { if (isEditablePage(id)) setPages(value => value.filter(page => { if (page.id === id) { URL.revokeObjectURL(page.url); URL.revokeObjectURL(page.sourceUrl); } return page.id !== id; })); }
   function move(index: number, direction: -1 | 1) { if (controlsLocked) return; const next = [...pages]; const target = index + direction; if (index < sentPageCount || target < sentPageCount || target >= next.length) return; [next[index], next[target]] = [next[target], next[index]]; setPages(next); }
@@ -288,7 +239,8 @@ export function MobileCapture({ token }: { token: string }) {
       } else {
         for (let index = sentPagesRef.current; index < pages.length; index++) {
           requestStarted = true;
-          const uploaded = await sendFile(pages[index].file, `${name} - página ${index + 1}.jpg`, pages[index].id);
+          const extension = pages[index].file.type === "image/png" ? "png" : "jpg";
+          const uploaded = await sendFile(pages[index].file, `${name} - página ${index + 1}.${extension}`, pages[index].id);
           sentPagesRef.current = index + 1;
           setSentPageCount(index + 1);
           setRemainingFiles(uploaded.remainingFiles);
@@ -347,7 +299,7 @@ export function MobileCapture({ token }: { token: string }) {
       <input ref={galleryInputRef} type="file" hidden accept="image/*" multiple onChange={event => { void addFileList(event.target.files); event.target.value = ""; }} />
       <div className="capture-primary-actions"><button className="scan-start" disabled={pages.length >= pageLimit || processing || controlsLocked} onClick={() => void startCamera()}><Camera size={24} /><span><strong>{pages.length ? "Escanear otra página" : "Abrir cámara"}</strong><small>Captura en alta resolución</small></span></button><button className="gallery-start" disabled={pages.length >= pageLimit || processing || controlsLocked} onClick={() => galleryInputRef.current?.click()}><FileImage size={20} /><span>{processing ? "Procesando…" : "Elegir imágenes"}</span></button></div>
       {error ? <p className="form-error capture-error">{error}</p> : null}
-      {pages.length ? <div className="mobile-pages"><div className="mobile-pages-title"><strong>{pages.length} {pages.length === 1 ? "página" : "páginas"}</strong><span>Orden de salida</span></div>{pages.map((page, index) => { const pageLocked = controlsLocked || index < sentPageCount; return <article key={page.id}><button className="page-thumb" disabled={pageLocked} onClick={() => editPage(page)} aria-label={`Editar página ${index + 1}`}><img src={page.url} alt={`Página ${index + 1}`} style={{ transform: `rotate(${page.rotation}deg)` }} /><span>{index + 1}</span></button><div><strong>Página {index + 1} · {filterOptions.find(item => item.id === page.filter)?.label}</strong><small className={`quality-${page.quality.level}`}>{page.quality.label} · {page.quality.detail}</small><div><button onClick={() => move(index, -1)} disabled={pageLocked || index === sentPageCount} aria-label="Mover arriba"><ArrowUp size={16} /></button><button onClick={() => move(index, 1)} disabled={pageLocked || index === pages.length - 1} aria-label="Mover abajo"><ArrowDown size={16} /></button><button disabled={pageLocked} onClick={() => editPage(page)} aria-label="Editar bordes y estilo"><Pencil size={16} /></button><button disabled={pageLocked} onClick={() => update(page.id, { rotation: (page.rotation + 90) % 360 })} aria-label="Rotar"><RotateCw size={16} /></button><button className="danger" disabled={pageLocked} onClick={() => remove(page.id)} aria-label="Quitar"><Trash2 size={16} /></button></div></div></article>; })}</div> : null}
+      {pages.length ? <div className="mobile-pages"><div className="mobile-pages-title"><strong>{pages.length} {pages.length === 1 ? "página" : "páginas"}</strong><span>Orden de salida</span></div>{pages.map((page, index) => { const pageLocked = controlsLocked || index < sentPageCount; return <article key={page.id}><button className="page-thumb" disabled={pageLocked} onClick={() => editPage(page)} aria-label={`Editar página ${index + 1}`}><img src={page.url} alt={`Página ${index + 1}`} style={{ transform: `rotate(${page.rotation}deg)` }} /><span>{index + 1}</span></button><div><strong>Página {index + 1} · {SCAN_FILTER_OPTIONS.find(item => item.id === page.filter)?.label}</strong><small className={`quality-${page.quality.level}`}>{page.quality.label} · {page.quality.detail}</small><div><button onClick={() => move(index, -1)} disabled={pageLocked || index === sentPageCount} aria-label="Mover arriba"><ArrowUp size={16} /></button><button onClick={() => move(index, 1)} disabled={pageLocked || index === pages.length - 1} aria-label="Mover abajo"><ArrowDown size={16} /></button><button disabled={pageLocked} onClick={() => editPage(page)} aria-label="Editar bordes y estilo"><Pencil size={16} /></button><button disabled={pageLocked} onClick={() => update(page.id, { rotation: (page.rotation + 90) % 360 })} aria-label="Rotar"><RotateCw size={16} /></button><button className="danger" disabled={pageLocked} onClick={() => remove(page.id)} aria-label="Quitar"><Trash2 size={16} /></button></div></div></article>; })}</div> : null}
       {pages.length ? <div className="scan-finish"><label>Nombre<input value={name} maxLength={80} disabled={controlsLocked || sentPrefixLocked} onChange={event => setName(event.target.value)} /></label><div className="format-switch"><button className={output === "pdf" ? "active" : ""} disabled={controlsLocked || sentPrefixLocked} onClick={() => { sentPagesRef.current = 0; setSentPageCount(0); setOutput("pdf"); }}>PDF único</button><button className={output === "images" ? "active" : ""} disabled={controlsLocked || sentPrefixLocked} onClick={() => { sentPagesRef.current = 0; setSentPageCount(0); setOutput("images"); }}>Imágenes</button></div>{output === "images" && unsentPageCount > remainingFiles ? <p className="form-error">Esta sesión permite guardar {remainingFiles} {remainingFiles === 1 ? "imagen más" : "imágenes más"}.</p> : null}<button className="button primary full capture-submit" disabled={busy || processing || detecting || Boolean(review) || !name.trim() || (output === "images" && unsentPageCount > remainingFiles)} onClick={() => void upload()}>{busy ? <Loader2 size={18} className="spin" /> : <UploadCloud size={18} />}{busy ? "Guardando…" : "Guardar en HHR-documentos"}</button></div> : null}
     </section>
     {cameraOpen ? <div className="camera-stage"><video ref={videoRef} autoPlay muted playsInline /><div className={flash ? "camera-flash visible" : "camera-flash"} /><header><button onClick={stopCamera} aria-label="Cerrar cámara"><X size={23} /></button><span>{pages.length ? `${pages.length} capturadas` : "Encuadre el documento"}</span>{torchAvailable ? <button className={torchOn ? "active" : ""} onClick={() => void toggleTorch()} aria-label="Luz">{torchOn ? "Luz on" : "Luz"}</button> : <i />}</header><div className="document-guide"><i /><i /><i /><i /><span>{cameraReady ? "Mantenga el teléfono paralelo al papel" : "Iniciando cámara…"}</span></div><footer>{pages.length ? <img src={pages[pages.length - 1].url} alt="Última página" /> : <i />}<button className="camera-shutter" disabled={!cameraReady || controlsLocked || pages.length >= pageLimit} onClick={() => void capturePage()} aria-label="Capturar página"><span /></button><button className="camera-done" onClick={stopCamera}>{pages.length ? "Listo" : "Cancelar"}</button></footer></div> : null}

@@ -1,28 +1,72 @@
 "use client";
 
 import { enhanceScan } from "@/app/features/scanner/scan-enhancement";
+import { jpegExifOrientation } from "@/app/lib/image-orientation";
 
 export type ScanFilter = "auto" | "color" | "gray" | "bw";
 export type ScanPoint = { x: number; y: number };
 export type ScanCorners = [ScanPoint, ScanPoint, ScanPoint, ScanPoint];
 export type ScanQuality = { level: "good" | "warn"; label: string; detail: string };
-export type ScanAdjustments = { whiten: number; contrast: number };
+export type ScanAdjustments = {
+  brightness?: number;
+  contrast: number;
+  saturation?: number;
+  whiten: number;
+  sharpness?: number;
+};
 
-export const DEFAULT_SCAN_ADJUSTMENTS: ScanAdjustments = { whiten: 72, contrast: 58 };
+export const DEFAULT_SCAN_ADJUSTMENTS: ScanAdjustments = {
+  brightness: 50,
+  contrast: 52,
+  saturation: 45,
+  whiten: 28,
+  sharpness: 18,
+};
+
+export function scanAdjustmentsForFilter(filter: ScanFilter): ScanAdjustments {
+  if (filter === "color") return { brightness: 50, contrast: 50, saturation: 50, whiten: 0, sharpness: 0 };
+  if (filter === "gray") return { brightness: 52, contrast: 54, saturation: 0, whiten: 20, sharpness: 16 };
+  if (filter === "bw") return { brightness: 50, contrast: 56, saturation: 0, whiten: 0, sharpness: 12 };
+  return { ...DEFAULT_SCAN_ADJUSTMENTS };
+}
 
 export const DEFAULT_SCAN_CORNERS: ScanCorners = [
-  { x: .06, y: .05 },
-  { x: .94, y: .05 },
-  { x: .94, y: .95 },
-  { x: .06, y: .95 },
+  { x: 0, y: 0 },
+  { x: 1, y: 0 },
+  { x: 1, y: 1 },
+  { x: 0, y: 1 },
 ];
 
 type DecodedImage = { source: CanvasImageSource; width: number; height: number; release: () => void };
+const MAX_PROCESSED_BYTES = 15 * 1024 * 1024;
 
-function canvasToFile(canvas: HTMLCanvasElement, name: string, quality = .96) {
-  return new Promise<File>((resolve, reject) => canvas.toBlob(blob => blob
-    ? resolve(new File([blob], name, { type: "image/jpeg" }))
+function canvasBlob(canvas: HTMLCanvasElement, quality: number) {
+  return new Promise<Blob>((resolve, reject) => canvas.toBlob(blob => blob
+    ? resolve(blob)
     : reject(new Error("No se pudo preparar la imagen.")), "image/jpeg", quality));
+}
+
+async function canvasToFile(canvas: HTMLCanvasElement, name: string, quality = .985) {
+  let current = canvas;
+  let currentQuality = quality;
+  for (let attempt = 0; attempt < 4; attempt += 1) {
+    const blob = await canvasBlob(current, currentQuality);
+    if (blob.size <= MAX_PROCESSED_BYTES) {
+      return { file: new File([blob], name, { type: "image/jpeg" }), width: current.width, height: current.height };
+    }
+    const ratio = Math.min(.9, Math.sqrt(MAX_PROCESSED_BYTES / blob.size) * .94);
+    const resized = document.createElement("canvas");
+    resized.width = Math.max(1, Math.round(current.width * ratio));
+    resized.height = Math.max(1, Math.round(current.height * ratio));
+    const context = resized.getContext("2d");
+    if (!context) throw new Error("No se pudo ajustar el tamaño de la imagen.");
+    context.imageSmoothingEnabled = true;
+    context.imageSmoothingQuality = "high";
+    context.drawImage(current, 0, 0, resized.width, resized.height);
+    current = resized;
+    currentQuality = Math.max(.88, currentQuality - .03);
+  }
+  throw new Error("La imagen procesada supera el límite permitido.");
 }
 
 async function decodeImage(file: File): Promise<DecodedImage> {
@@ -67,7 +111,12 @@ export function scanQuality(canvas: HTMLCanvasElement): ScanQuality {
 export async function prepareScanSource(file: File, index: number) {
   const image = await decodeImage(file);
   try {
-    const scale = Math.min(1, 4200 / Math.max(image.width, image.height));
+    const scale = Math.min(1, 4800 / Math.max(image.width, image.height));
+    const sourceType = file.type.toLowerCase();
+    const orientation = await jpegExifOrientation(file);
+    if (scale === 1 && (sourceType === "image/png" || (sourceType === "image/jpeg" && orientation === 1))) {
+      return { file, width: image.width, height: image.height };
+    }
     const canvas = document.createElement("canvas");
     canvas.width = Math.max(1, Math.round(image.width * scale));
     canvas.height = Math.max(1, Math.round(image.height * scale));
@@ -76,8 +125,24 @@ export async function prepareScanSource(file: File, index: number) {
     context.fillStyle = "#fff";
     context.fillRect(0, 0, canvas.width, canvas.height);
     context.drawImage(image.source, 0, 0, canvas.width, canvas.height);
-    return { file: await canvasToFile(canvas, `pagina-${index}-original.jpg`, .97), width: canvas.width, height: canvas.height };
+    return await canvasToFile(canvas, `pagina-${index}-original.jpg`, .995);
   } finally { image.release(); }
+}
+
+function isFullFrame(corners: ScanCorners) {
+  return corners.every((point, index) => {
+    const target = DEFAULT_SCAN_CORNERS[index];
+    return Math.abs(point.x - target.x) < .0001 && Math.abs(point.y - target.y) < .0001;
+  });
+}
+
+function isNeutralOriginal(filter: ScanFilter, adjustments: ScanAdjustments) {
+  return filter === "color"
+    && (adjustments.brightness ?? 50) === 50
+    && adjustments.contrast === 50
+    && (adjustments.saturation ?? 50) === 50
+    && adjustments.whiten === 0
+    && (adjustments.sharpness ?? 0) === 0;
 }
 
 function distance(a: ScanPoint, b: ScanPoint, width: number, height: number) {
@@ -140,7 +205,9 @@ function drawWebGl(canvas: HTMLCanvasElement, image: DecodedImage, corners: Scan
     const top = { x: topLeft.x + (topRight.x - topLeft.x) * u, y: topLeft.y + (topRight.y - topLeft.y) * u };
     const bottom = { x: bottomLeft.x + (bottomRight.x - bottomLeft.x) * u, y: bottomLeft.y + (bottomRight.y - bottomLeft.y) * u };
     const source = { x: top.x + (bottom.x - top.x) * v, y: top.y + (bottom.y - top.y) * v };
-    vertices.push(u * 2 - 1, 1 - v * 2, source.x, 1 - source.y);
+    // The browser already exposes the flipped DOM upload with a top-origin
+    // sampling coordinate here. Inverting this value mirrors perspective crops.
+    vertices.push(u * 2 - 1, 1 - v * 2, source.x, source.y);
   };
   for (let row = 0; row < grid; row++) {
     for (let column = 0; column < grid; column++) {
@@ -185,6 +252,8 @@ function drawFallback(canvas: HTMLCanvasElement, image: DecodedImage, corners: S
   const maxY = Math.max(...corners.map(point => point.y)) * image.height;
   context.fillStyle = "#fff";
   context.fillRect(0, 0, canvas.width, canvas.height);
+  context.imageSmoothingEnabled = true;
+  context.imageSmoothingQuality = "high";
   context.filter = filter === "auto" ? "brightness(1.1) contrast(1.22) saturate(.88)" : filter === "gray" ? "grayscale(1) brightness(1.08) contrast(1.25)" : filter === "bw" ? "grayscale(1) brightness(1.15) contrast(1.85)" : "none";
   context.drawImage(image.source, minX, minY, maxX - minX, maxY - minY, 0, 0, canvas.width, canvas.height);
   context.filter = "none";
@@ -197,14 +266,28 @@ export async function renderScannedPage(sourceFile: File, sourceWidth: number, s
   const rightHeight = distance(corners[1], corners[2], sourceWidth, sourceHeight);
   const rawWidth = Math.max(1, Math.round((topWidth + bottomWidth) / 2));
   const rawHeight = Math.max(1, Math.round((leftHeight + rightHeight) / 2));
-  const scale = Math.min(1, 3600 / Math.max(rawWidth, rawHeight));
+  const longestEdge = Math.max(rawWidth, rawHeight);
+  // Low-resolution phone exports look jagged when a PDF viewer expands them to A4.
+  // Processed styles get a bounded high-quality 3x supersample.
+  const printScale = longestEdge < 2400 ? Math.min(3, 2400 / longestEdge) : 1;
+  const scale = Math.min(printScale, 4800 / longestEdge);
   const rawCanvas = document.createElement("canvas");
   rawCanvas.width = Math.max(1, Math.round(rawWidth * scale));
   rawCanvas.height = Math.max(1, Math.round(rawHeight * scale));
   const image = await decodeImage(sourceFile);
   try {
-    if (!drawWebGl(rawCanvas, image, corners, "color")) drawFallback(rawCanvas, image, corners, "color");
+    if (isFullFrame(corners) && isNeutralOriginal(filter, adjustments) && (sourceFile.type === "image/jpeg" || sourceFile.type === "image/png")) {
+      const originalCanvas = document.createElement("canvas");
+      originalCanvas.width = sourceWidth;
+      originalCanvas.height = sourceHeight;
+      drawFallback(originalCanvas, image, DEFAULT_SCAN_CORNERS, "color");
+      const output = await canvasToFile(originalCanvas, `pagina-${pageNumber}.jpg`, .995);
+      return { ...output, quality: scanQuality(originalCanvas) };
+    }
+    if (isFullFrame(corners)) drawFallback(rawCanvas, image, corners, "color");
+    else if (!drawWebGl(rawCanvas, image, corners, "color")) drawFallback(rawCanvas, image, corners, "color");
     const canvas = enhanceScan(rawCanvas, filter, adjustments);
-    return { file: await canvasToFile(canvas, `pagina-${pageNumber}.jpg`, .96), quality: scanQuality(canvas), width: canvas.width, height: canvas.height };
+    const output = await canvasToFile(canvas, `pagina-${pageNumber}.jpg`, .985);
+    return { ...output, quality: scanQuality(canvas) };
   } finally { image.release(); }
 }

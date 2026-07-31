@@ -77,9 +77,11 @@ test("ships the clinical routes, storage bindings and source templates", async (
   ];
   await Promise.all(required.map(path => access(new URL(path, import.meta.url))));
 
-  const [hosting, scanner, mobileCapture, captureEntry, mobileSessionClient, mobileSessionPolicy, mobilePage, scanProcessing, documentDetection, scanEnhancement, mobileUpload] = await Promise.all([
+  const [hosting, scanner, desktopImageScanner, scanReviewEditor, mobileCapture, captureEntry, mobileSessionClient, mobileSessionPolicy, mobilePage, scanProcessing, documentDetection, scanEnhancement, clientPdf, imageOrientation, mobileUpload] = await Promise.all([
     readFile(new URL("../.openai/hosting.json", import.meta.url), "utf8"),
     readFile(new URL("../app/components/ScannerDesk.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/features/scanner/DesktopImageScanner.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/features/scanner/ScanReviewEditor.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/components/MobileCapture.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/captura/CaptureEntry.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/features/files/mobile-session-client.ts", import.meta.url), "utf8"),
@@ -88,6 +90,8 @@ test("ships the clinical routes, storage bindings and source templates", async (
     readFile(new URL("../app/lib/scan-processing.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/features/scanner/document-detection.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/features/scanner/scan-enhancement.ts", import.meta.url), "utf8"),
+    readFile(new URL("../app/lib/client-pdf.ts", import.meta.url), "utf8"),
+    readFile(new URL("../app/lib/image-orientation.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/api/mobile-upload/route.ts", import.meta.url), "utf8"),
   ]);
   assert.match(hosting, /"d1"\s*:\s*"DB"/);
@@ -95,9 +99,15 @@ test("ships the clinical routes, storage bindings and source templates", async (
   assert.match(mobileSessionPolicy, /10 \* 60 \* 1000/);
   assert.match(mobileCapture, /getUserMedia/);
   assert.match(mobileCapture, /Editar bordes y estilo/);
-  assert.match(mobileCapture, /Esquina \$\{index \+ 1\}/);
-  assert.match(mobileCapture, /Detectar de nuevo/);
-  assert.match(mobileCapture, /Blancura del papel/);
+  assert.match(scanReviewEditor, /Esquina \$\{index \+ 1\}/);
+  assert.match(scanReviewEditor, /Detectar de nuevo/);
+  assert.match(scanReviewEditor, /Fondo blanco/);
+  assert.match(scanReviewEditor, /Nitidez/);
+  assert.match(scanReviewEditor, /Brillo/);
+  assert.match(scanReviewEditor, /Saturación/);
+  assert.match(scanReviewEditor, /Restablecer/);
+  assert.match(scanReviewEditor, /salida HD automática/);
+  assert.match(scanReviewEditor, /Texto limpio sin perder trazos/);
   assert.match(mobileCapture, /ImageCapture/);
   assert.match(mobileCapture, /sentPagesRef\.current = index \+ 1/);
   assert.match(mobileCapture, /for \(let index = sentPagesRef\.current/);
@@ -118,6 +128,19 @@ test("ships the clinical routes, storage bindings and source templates", async (
   assert.match(captureEntry, /<MobileCapture key=\{entry\.token\}/);
   assert.match(scanner, /currentSessionIdRef\.current === sessionId/);
   assert.match(scanner, /terminalSnapshotCompletedRef/);
+  assert.match(scanner, /DesktopImageScanner/);
+  assert.match(desktopImageScanner, /image\/jpeg,image\/png,image\/webp,image\/heic,image\/heif/);
+  assert.match(desktopImageScanner, /prepareScanSource/);
+  assert.match(desktopImageScanner, /detectDocumentCorners/);
+  assert.match(desktopImageScanner, /renderScannedPage/);
+  assert.match(desktopImageScanner, /ScanReviewEditor/);
+  assert.match(desktopImageScanner, /Editar bordes y calidad/);
+  assert.match(desktopImageScanner, /Original/);
+  assert.match(desktopImageScanner, /page\.outputWidth/);
+  assert.match(desktopImageScanner, /pages\.every\(page => hasPreset/);
+  assert.match(desktopImageScanner, /createScannedPdf/);
+  assert.match(desktopImageScanner, /uploadSavedFile/);
+  assert.match(desktopImageScanner, /Solo el resultado procesado se guarda/);
   assert.match(mobileSessionClient, /x-hhr-capture-token/);
   assert.match(mobileSessionClient, /x-hhr-upload-id/);
   assert.match(mobileSessionClient, /fetch\("\/api\/mobile-upload"/);
@@ -126,12 +149,30 @@ test("ships the clinical routes, storage bindings and source templates", async (
   assert.match(scanProcessing, /renderScannedPage/);
   assert.match(scanProcessing, /uniform int u_filter/);
   assert.match(scanProcessing, /DEFAULT_SCAN_CORNERS/);
-  assert.match(scanProcessing, /4200/);
+  assert.match(scanProcessing, /4800/);
+  assert.match(scanProcessing, /source\.x, source\.y/);
+  assert.match(scanProcessing, /scanAdjustmentsForFilter/);
+  assert.match(scanProcessing, /isNeutralOriginal/);
+  assert.match(scanProcessing, /Math\.min\(3, 2400 \/ longestEdge\)/);
+  assert.match(scanProcessing, /MAX_PROCESSED_BYTES/);
   assert.match(documentDetection, /strongestLine/);
   assert.match(documentDetection, /detectDocumentCorners/);
+  assert.match(documentDetection, /coverage < \.4/);
+  assert.match(documentDetection, /paddedCorners/);
   assert.match(scanEnhancement, /otsuThreshold/);
   assert.match(scanEnhancement, /enhanceScan/);
   assert.match(scanEnhancement, /high - low < 24/);
+  assert.match(scanEnhancement, /sharpness/);
+  assert.match(scanEnhancement, /brightnessValue/);
+  assert.match(scanEnhancement, /saturationValue/);
+  assert.match(scanEnhancement, /bwSoftness/);
+  assert.match(clientPdf, /fileDataUrl/);
+  assert.match(clientPdf, /sourceFormat/);
+  assert.match(clientPdf, /imageSmoothingQuality = "high"/);
+  assert.match(clientPdf, /jpegExifOrientation/);
+  assert.match(clientPdf, /imageOrientation: "from-image"/);
+  assert.match(imageOrientation, /0x0112/);
+  assert.match(clientPdf, /image\.format === "PNG" \? "FAST" : "NONE"/);
   assert.match(mobileUpload, /15 \* 1024 \* 1024/);
   assert.match(mobileUpload, /appEnv\(\)\.FILES/);
   assert.match(mobileUpload, /bucket\.put/);
