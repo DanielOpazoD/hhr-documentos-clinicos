@@ -38,8 +38,8 @@ const smoothStep = (edge0: number, edge1: number, value: number) => {
 };
 
 function resolveTonalRange(histogram: Uint32Array, pixelCount: number) {
-  const low = percentile(histogram, pixelCount, .025);
-  const high = percentile(histogram, pixelCount, .91);
+  const low = percentile(histogram, pixelCount, .015);
+  const high = percentile(histogram, pixelCount, .975);
   if (high - low < 24) return { blackPoint: 0, range: 255 };
   return { blackPoint: low, range: high - low };
 }
@@ -53,7 +53,11 @@ export function enhanceScan(source: HTMLCanvasElement, filter: ScanFilter, adjus
   context.fillStyle = "#fff";
   context.fillRect(0, 0, canvas.width, canvas.height);
   context.drawImage(source, 0, 0);
-  if (filter === "color" && adjustments.whiten === 0 && adjustments.contrast === 50) return canvas;
+  const brightnessValue = Math.max(0, Math.min(100, adjustments.brightness ?? 50));
+  const contrastValue = Math.max(0, Math.min(100, adjustments.contrast));
+  const saturationValue = Math.max(0, Math.min(100, adjustments.saturation ?? 50));
+  const sharpnessValue = Math.max(0, Math.min(100, adjustments.sharpness ?? 0));
+  if (filter === "color" && brightnessValue === 50 && contrastValue === 50 && saturationValue === 50 && adjustments.whiten === 0 && sharpnessValue === 0) return canvas;
 
   const image = context.getImageData(0, 0, canvas.width, canvas.height);
   const histogram = new Uint32Array(256);
@@ -63,8 +67,11 @@ export function enhanceScan(source: HTMLCanvasElement, filter: ScanFilter, adjus
   }
   const { blackPoint, range } = resolveTonalRange(histogram, pixelCount);
   const whitenStrength = Math.max(0, Math.min(1, adjustments.whiten / 100));
-  const contrast = .78 + Math.max(0, Math.min(100, adjustments.contrast)) / 82;
+  const contrast = .5 + contrastValue / 100;
+  const brightness = (brightnessValue - 50) * 2;
+  const saturation = saturationValue / 50;
   const bwThreshold = otsuThreshold(histogram, pixelCount);
+  const bwSoftness = Math.max(7, 18 - (contrastValue - 50) * .18);
 
   for (let offset = 0; offset < image.data.length; offset += 4) {
     const red = image.data[offset];
@@ -72,29 +79,49 @@ export function enhanceScan(source: HTMLCanvasElement, filter: ScanFilter, adjus
     const blue = image.data[offset + 2];
     const light = red * .299 + green * .587 + blue * .114;
     if (filter === "bw") {
-      const threshold = bwThreshold + (50 - adjustments.contrast) * .18;
-      const value = light >= threshold ? 255 : 0;
+      const threshold = bwThreshold + (50 - contrastValue) * .18 - (brightnessValue - 50) * 1.1;
+      // Preserve antialiasing around handwriting and thin table rules instead of
+      // collapsing every pixel to pure black or white.
+      const value = clampByte(smoothStep(threshold - bwSoftness, threshold + bwSoftness, light) * 255);
       image.data[offset] = value;
       image.data[offset + 1] = value;
       image.data[offset + 2] = value;
       continue;
     }
     const normalizedLight = Math.max(0, Math.min(1, (light - blackPoint) / range));
-    const paper = smoothStep(.62, .94, normalizedLight) * whitenStrength;
-    const map = (channel: number) => {
-      const stretched = Math.max(0, Math.min(1, (channel - blackPoint) / range));
-      const contrasted = Math.max(0, Math.min(1, (stretched - .5) * contrast + .5));
-      return clampByte((contrasted + (1 - contrasted) * paper) * 255);
-    };
+    const paper = smoothStep(.7, .98, normalizedLight) * whitenStrength;
+    const adjust = (channel: number) => clampByte((channel - 127.5) * contrast + 127.5 + brightness);
     if (filter === "gray") {
-      const gray = clampByte((Math.max(0, Math.min(1, (normalizedLight - .5) * contrast + .5)) + paper * (1 - normalizedLight)) * 255);
+      const adjustedLight = adjust(light);
+      const gray = clampByte(adjustedLight + (255 - adjustedLight) * paper);
       image.data[offset] = gray;
       image.data[offset + 1] = gray;
       image.data[offset + 2] = gray;
     } else {
-      image.data[offset] = map(red);
-      image.data[offset + 1] = map(green);
-      image.data[offset + 2] = map(blue);
+      const adjustedRed = adjust(red);
+      const adjustedGreen = adjust(green);
+      const adjustedBlue = adjust(blue);
+      const adjustedLight = adjustedRed * .299 + adjustedGreen * .587 + adjustedBlue * .114;
+      const saturate = (channel: number) => adjustedLight + (channel - adjustedLight) * saturation;
+      image.data[offset] = clampByte(saturate(adjustedRed) + (255 - saturate(adjustedRed)) * paper);
+      image.data[offset + 1] = clampByte(saturate(adjustedGreen) + (255 - saturate(adjustedGreen)) * paper);
+      image.data[offset + 2] = clampByte(saturate(adjustedBlue) + (255 - saturate(adjustedBlue)) * paper);
+    }
+  }
+  const sharpness = sharpnessValue;
+  if (sharpness > 0 && canvas.width > 2 && canvas.height > 2) {
+    const original = new Uint8ClampedArray(image.data);
+    const amount = sharpness / 500;
+    const rowStride = canvas.width * 4;
+    for (let y = 1; y < canvas.height - 1; y += 1) {
+      for (let x = 1; x < canvas.width - 1; x += 1) {
+        const offset = y * rowStride + x * 4;
+        for (let channel = 0; channel < 3; channel += 1) {
+          const center = original[offset + channel];
+          const neighbors = original[offset - 4 + channel] + original[offset + 4 + channel] + original[offset - rowStride + channel] + original[offset + rowStride + channel];
+          image.data[offset + channel] = clampByte(center + amount * (center * 4 - neighbors));
+        }
+      }
     }
   }
   context.putImageData(image, 0, 0);

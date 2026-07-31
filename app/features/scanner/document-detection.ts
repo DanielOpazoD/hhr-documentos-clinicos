@@ -1,8 +1,18 @@
-import type { ScanCorners } from "@/app/lib/scan-processing";
+import { DEFAULT_SCAN_CORNERS, type ScanCorners } from "@/app/lib/scan-processing";
 
 export type DocumentDetection = { corners: ScanCorners; confidence: number };
 
 type Decoded = { source: CanvasImageSource; width: number; height: number; release: () => void };
+
+const cloneDefaultCorners = () => DEFAULT_SCAN_CORNERS.map(point => ({ ...point })) as ScanCorners;
+const clamp = (value: number) => Math.max(.005, Math.min(.995, value));
+
+function paddedCorners(corners: ScanCorners, padding = .018): ScanCorners {
+  return corners.map((point, index) => ({
+    x: clamp(point.x + (index === 0 || index === 3 ? -padding : padding)),
+    y: clamp(point.y + (index === 0 || index === 1 ? -padding : padding)),
+  })) as ScanCorners;
+}
 
 async function decode(file: File): Promise<Decoded> {
   try {
@@ -79,9 +89,10 @@ export async function detectDocumentCorners(file: File): Promise<DocumentDetecti
     ];
     const minimumWidth = Math.min(corners[1].x - corners[0].x, corners[2].x - corners[3].x);
     const minimumHeight = Math.min(corners[3].y - corners[0].y, corners[2].y - corners[1].y);
-    if (minimumWidth < .35 || minimumHeight < .35 || confidence < .12) {
-      return { corners: [{ x: .05, y: .04 }, { x: .95, y: .04 }, { x: .95, y: .96 }, { x: .05, y: .96 }], confidence: 0 };
+    const coverage = minimumWidth * minimumHeight;
+    if (minimumWidth < .55 || minimumHeight < .55 || coverage < .4 || confidence < .2) {
+      return { corners: cloneDefaultCorners(), confidence: 0 };
     }
-    return { corners, confidence };
+    return { corners: paddedCorners(corners), confidence };
   } finally { image.release(); }
 }
