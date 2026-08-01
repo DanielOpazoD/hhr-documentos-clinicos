@@ -5,17 +5,36 @@ import { PROMPT_ENGINE_VERSION, promptVersion } from "@/app/features/ai/prompt-c
 import { generateDraftWithProvider, isAiProviderId } from "@/app/features/ai/server/providers";
 import { importSources } from "@/app/features/ai/server/import-request";
 import { progressStream } from "@/app/features/ai/server/progress-stream";
-import { audit } from "@/app/lib/server/audit";
+import { auditBestEffort } from "@/app/lib/server/audit";
 import { requestOwner } from "@/app/lib/server/auth";
 import { ensureDatabase } from "@/app/lib/server/database";
 import { apiTrace, jsonError, observeApi, reportApiFailure } from "@/app/lib/server/http";
 import { recordAiUsage } from "@/app/features/ai/server/usage";
 import type { AiPromptMode, AiTargetId } from "@/app/features/ai/types";
 import { FREEFORM_SCHEMA_TARGET } from "@/app/features/ai/targets";
+import {
+  AiExecutionTimeoutError,
+  aiExecutionDeniedResponse,
+  failAiExecution,
+  reserveAiExecution,
+  runAiExecution,
+} from "@/app/features/ai/server/execution";
 
 async function updateRunStatus(id: string, status: string) {
   const db = await ensureDatabase();
   await db.prepare("UPDATE ai_import_runs SET status = ? WHERE id = ?").bind(status, id).run();
+}
+
+async function updateRunStatusBestEffort(id: string, status: string) {
+  try {
+    await updateRunStatus(id, status);
+  } catch {
+    console.error(JSON.stringify({
+      level: "error",
+      event: "ai_import_status_update_failed",
+      status,
+    }));
+  }
 }
 
 async function importWithAi(request: Request) {
@@ -65,28 +84,46 @@ async function importWithAi(request: Request) {
     return jsonError(error instanceof Error ? error.message : "No se pudieron validar los archivos.");
   }
 
-  const id = crypto.randomUUID();
+  const reservation = await reserveAiExecution({
+    owner,
+    operation: "clinical_draft",
+    providerId,
+  });
+  if (!reservation.ok) return aiExecutionDeniedResponse(reservation.denial);
+  const id = reservation.lease.id;
   const sourceLabel = sources.length === 1 ? sources[0].sourceName : `${sources[0].sourceName} + ${sources.length - 1}`;
   const db = await ensureDatabase();
-  await db.prepare(
-    "INSERT INTO ai_import_runs (id, owner_email, source_name, target_type, status, created_at) VALUES (?, ?, ?, ?, 'procesando', ?)",
-  ).bind(id, owner, sourceLabel, promptMode === "free" ? "libre" : target, new Date().toISOString()).run();
+  try {
+    await db.prepare(
+      "INSERT INTO ai_import_runs (id, owner_email, source_name, target_type, status, created_at) VALUES (?, ?, ?, ?, 'procesando', ?)",
+    ).bind(id, owner, sourceLabel, promptMode === "free" ? "libre" : target, new Date().toISOString()).run();
+  } catch (error) {
+    await failAiExecution(reservation.lease).catch(() => undefined);
+    throw error;
+  }
 
   const trace = apiTrace(request);
+  let streamCode = "AI_GENERATION_FAILED";
+  let streamMessage = "No se pudo completar la operación.";
+  let streamStatus = 502;
   return progressStream(async (emit) => {
     emit({ type: "status", stage: "preparing", label: "Preparando archivos", detail: `${sources.length} fuente${sources.length === 1 ? "" : "s"} lista${sources.length === 1 ? "" : "s"} para analizar` });
     try {
-      const { output: result, provider, usage } = await generateDraftWithProvider({
-        providerId,
-        model,
-        sources,
-        target,
-        promptMode,
-        promptInstructions,
-        professionalInstructions: userInstructions.trim() || undefined,
-        onProgress: (progress) => emit({ type: "status", ...progress }),
-      });
-      await updateRunStatus(id, "completado");
+      const { output: result, provider, usage } = await runAiExecution(
+        reservation.lease,
+        (signal) => generateDraftWithProvider({
+          providerId,
+          model,
+          sources,
+          target,
+          promptMode,
+          promptInstructions,
+          professionalInstructions: userInstructions.trim() || undefined,
+          onProgress: (progress) => emit({ type: "status", ...progress }),
+          signal,
+        }),
+      );
+      await updateRunStatusBestEffort(id, "completado");
       const usageRecorded = await recordAiUsage({
         owner,
         runId: id,
@@ -94,7 +131,7 @@ async function importWithAi(request: Request) {
         model: provider.model,
         usage,
       }).then(() => true).catch(() => false);
-      await audit(owner, "generated", "ai_import", id, {
+      await auditBestEffort(owner, "generated", "ai_import", id, {
         sourceNames: sources.map((source) => source.sourceName),
         target,
         provider: provider.id,
@@ -153,8 +190,13 @@ async function importWithAi(request: Request) {
         safetyNotice: result.safetyNotice,
       } });
     } catch (error) {
-      await updateRunStatus(id, "fallido");
-      await audit(owner, "failed", "ai_import", id, {
+      if (error instanceof AiExecutionTimeoutError) {
+        streamCode = error.code;
+        streamMessage = error.message;
+        streamStatus = 504;
+      }
+      await updateRunStatusBestEffort(id, "fallido");
+      await auditBestEffort(owner, "failed", "ai_import", id, {
         sourceNames: sources.map((source) => source.sourceName),
         target,
         provider: providerId,
@@ -165,10 +207,11 @@ async function importWithAi(request: Request) {
       throw error;
     }
   }, {
-    code: "AI_GENERATION_FAILED",
+    code: () => streamCode,
+    errorMessage: () => streamMessage,
     requestId: trace?.requestId,
     onError: () => {
-      if (trace) reportApiFailure({ ...trace, status: 502, code: "AI_GENERATION_FAILED" });
+      if (trace) reportApiFailure({ ...trace, status: streamStatus, code: streamCode });
     },
   });
 }

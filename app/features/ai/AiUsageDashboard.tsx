@@ -46,6 +46,7 @@ export function AiUsageDashboard() {
         <div><span>Costo estimado</span><strong>{summary ? money(summary.totals.estimatedCostUsd) : "—"}</strong></div>
         <div><span>Tokens</span><strong>{summary ? integer.format(summary.totals.totalTokens) : "—"}</strong></div>
         <div><span>Solicitudes</span><strong>{summary ? integer.format(summary.totals.requests) : "—"}</strong></div>
+        <div><span>OpenAI · últimas 24 h</span><strong>{summary ? `${summary.availability.cloud.remaining} / ${summary.availability.cloud.limit}` : "—"}</strong></div>
       </div>
 
       <div className="usage-table" role="table" aria-label="Consumo por modelo">

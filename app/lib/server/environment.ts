@@ -8,6 +8,9 @@ export type AppEnv = {
   LOCAL_AI_BASE_URL?: string;
   LOCAL_AI_MODEL?: string;
   LOCAL_AI_API_KEY?: string;
+  AI_DAILY_CLOUD_LIMIT?: string;
+  AI_MAX_CONCURRENT_CLOUD?: string;
+  AI_MAX_CONCURRENT_LOCAL?: string;
   GOOGLE_DRIVE_CLIENT_ID?: string;
   GOOGLE_DRIVE_API_KEY?: string;
   GOOGLE_DRIVE_APP_ID?: string;

@@ -2,6 +2,8 @@ import { appEnv } from "@/app/lib/server/environment";
 import type { AiTargetId } from "../types";
 import { DEFAULT_OPENAI_MODEL, isOpenAiModel, supportsReasoning } from "./openai-models";
 import { assertProposalIsGeneric, compactDocuments, type PromptSourceDocument } from "./prompt-source-policy";
+import type { AiTokenUsage } from "../usage-types";
+import { extractAiTokenUsage } from "./token-usage";
 
 export type { PromptSourceDocument } from "./prompt-source-policy";
 
@@ -11,6 +13,7 @@ export type DocumentPromptProposal = {
   instructions: string;
   summary: string;
   model: string;
+  usage: AiTokenUsage;
 };
 
 function outputText(payload: unknown): string | null {
@@ -25,7 +28,10 @@ function outputText(payload: unknown): string | null {
   return null;
 }
 
-export async function createPromptFromDocuments(documents: PromptSourceDocument[]): Promise<DocumentPromptProposal> {
+export async function createPromptFromDocuments(
+  documents: PromptSourceDocument[],
+  options: { signal?: AbortSignal } = {},
+): Promise<DocumentPromptProposal> {
   const runtime = appEnv();
   const apiKey = runtime.OPENAI_API_KEY || process.env.OPENAI_API_KEY;
   if (!apiKey) throw new Error("La integración con OpenAI no está configurada.");
@@ -33,6 +39,7 @@ export async function createPromptFromDocuments(documents: PromptSourceDocument[
   const model = configuredModel && isOpenAiModel(configuredModel) ? configuredModel : DEFAULT_OPENAI_MODEL;
   const response = await fetch("https://api.openai.com/v1/responses", {
     method: "POST",
+    signal: options.signal,
     headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
     body: JSON.stringify({
       model,
@@ -99,7 +106,7 @@ Elige el target que mejor represente la plantilla y devuelve instrucciones compl
   if (name.length < 3 || !target || instructions.length < 20 || instructions.length > 16_000 || summary.length < 3) {
     throw new Error("OpenAI devolvió una plantilla incompleta.");
   }
-  const proposal = { name, target, instructions, summary, model };
+  const proposal = { name, target, instructions, summary, model, usage: extractAiTokenUsage(payload) };
   assertProposalIsGeneric(proposal);
   return proposal;
 }

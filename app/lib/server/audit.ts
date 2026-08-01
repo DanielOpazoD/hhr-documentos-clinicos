@@ -20,3 +20,24 @@ export async function audit(
     new Date().toISOString(),
   ).run();
 }
+
+export async function auditBestEffort(
+  owner: string,
+  action: string,
+  entityType: string,
+  entityId: string,
+  metadata: Record<string, unknown> = {},
+): Promise<boolean> {
+  try {
+    await audit(owner, action, entityType, entityId, metadata);
+    return true;
+  } catch {
+    console.error(JSON.stringify({
+      level: "error",
+      event: "audit_write_failed",
+      action,
+      entityType,
+    }));
+    return false;
+  }
+}

@@ -31,6 +31,7 @@ Comprueba:
 - versiones documentales inválidas, duplicadas, futuras o sin versión actual;
 - relaciones huérfanas entre documentos, versiones, archivos y sesiones móviles;
 - exactamente una firma predeterminada por propietario que tenga firmas.
+- estados válidos y cierre coherente de la bitácora de ejecuciones de IA.
 
 Antes de aplicar una migración pendiente se puede aceptar un historial que sea prefijo exacto del actual:
 
@@ -83,7 +84,7 @@ Los comandos remotos requieren una configuración operativa de Wrangler fuera de
    wrangler d1 migrations list <database> --remote --config <operator-config>
    ```
 
-   Detenga aquí la promoción si `0005_schema_authority.sql` y la migración más reciente (`0006_signing_assets.sql`) no aparecen aplicadas. El despliegue de Sites no sustituye este bloqueo operativo.
+   Detenga aquí la promoción si `0005_schema_authority.sql` y la migración más reciente (`0007_ai_execution_guard.sql`) no aparecen aplicadas. El despliegue de Sites no sustituye este bloqueo operativo.
 
 7. Despliegue mediante Sites reutilizando `.openai/hosting.json`.
 8. Verifique una exportación posterior sin permitir pendientes:
@@ -117,4 +118,4 @@ Después de restaurar, vuelva a exportar y compare el historial y los conteos de
 
 ## Ensayo desechable
 
-`npm run test:database` construye una instalación vacía, actualiza las cuatro versiones históricas, conserva sus registros salvo las normalizaciones explícitas, provoca divergencias para comprobar el verificador y restaura byte a byte el estado lógico previo desde una copia desechable. No usa la D1 remota ni datos reales.
+`npm run test:database` construye una instalación vacía, actualiza las cuatro versiones históricas y las dos versiones canónicas anteriores, conserva sus registros salvo las normalizaciones explícitas, provoca divergencias para comprobar el verificador y restaura byte a byte el estado lógico previo desde una copia desechable. No usa la D1 remota ni datos reales.

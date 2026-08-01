@@ -1,12 +1,15 @@
 import { appEnv } from "@/app/lib/server/environment";
 import type { AiPromptInput } from "../prompt-types";
 import { DEFAULT_OPENAI_MODEL, isOpenAiModel, supportsReasoning } from "./openai-models";
+import type { AiTokenUsage } from "../usage-types";
+import { extractAiTokenUsage } from "./token-usage";
 
 export type PromptImprovement = {
   name: string;
   instructions: string;
   summary: string;
   model: string;
+  usage: AiTokenUsage;
 };
 
 function outputText(payload: unknown): string | null {
@@ -21,7 +24,10 @@ function outputText(payload: unknown): string | null {
   return null;
 }
 
-export async function improvePrompt(input: AiPromptInput): Promise<PromptImprovement> {
+export async function improvePrompt(
+  input: AiPromptInput,
+  options: { signal?: AbortSignal } = {},
+): Promise<PromptImprovement> {
   const runtime = appEnv();
   const apiKey = runtime.OPENAI_API_KEY || process.env.OPENAI_API_KEY;
   if (!apiKey) throw new Error("La integración con OpenAI no está configurada.");
@@ -29,6 +35,7 @@ export async function improvePrompt(input: AiPromptInput): Promise<PromptImprove
   const model = configuredModel && isOpenAiModel(configuredModel) ? configuredModel : DEFAULT_OPENAI_MODEL;
   const response = await fetch("https://api.openai.com/v1/responses", {
     method: "POST",
+    signal: options.signal,
     headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
     body: JSON.stringify({
       model,
@@ -94,5 +101,5 @@ Devuelve el perfil completo listo para reemplazar el texto actual y un resumen b
   if (name.length < 3 || instructions.length < 20 || instructions.length > 16_000 || summary.length < 3) {
     throw new Error("OpenAI devolvió una propuesta incompleta.");
   }
-  return { name, instructions, summary, model };
+  return { name, instructions, summary, model, usage: extractAiTokenUsage(payload) };
 }

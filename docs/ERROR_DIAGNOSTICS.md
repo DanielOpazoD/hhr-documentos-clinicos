@@ -21,7 +21,7 @@ No se registran cuerpos, parámetros de URL, correo, nombres, RUT, contenido cl�
 4. Reproducir el flujo con datos sintéticos en local.
 5. Registrar la causa, la corrección y la validación utilizada.
 
-Los errores que ocurren después de iniciar una generación con IA usan `AI_GENERATION_FAILED` y conservan el mismo identificador de la solicitud que abrió el stream.
+Los errores que ocurren después de iniciar una generación con IA usan `AI_GENERATION_FAILED` y conservan el mismo identificador de la solicitud que abrió el stream. Un timeout usa `AI_PROVIDER_TIMEOUT`; los límites previos a la llamada usan `AI_DAILY_LIMIT_REACHED` o `AI_CONCURRENCY_LIMIT_REACHED` y entregan `Retry-After` sin revelar prompts ni datos de la fuente.
 
 ## Límites actuales
 

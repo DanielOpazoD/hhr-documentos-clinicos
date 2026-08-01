@@ -20,7 +20,7 @@ const wranglerCli = join(
 const externalOrigin = "https://hhr.integration.test";
 const execFileAsync = promisify(execFile);
 
-export async function startLocalApp() {
+export async function startLocalApp({ seedSql = [], vars = {} } = {}) {
   const integrationRoot = await mkdtemp(join(tmpdir(), "hhr-worker-integration-"));
   const stateRoot = join(integrationRoot, "state");
   const integrationConfig = join(integrationRoot, "wrangler.json");
@@ -51,6 +51,23 @@ export async function startLocalApp() {
       cwd: repositoryRoot,
       env: { ...process.env, CI: "1" },
     });
+    for (const sql of seedSql) {
+      await execFileAsync(process.execPath, [wranglerCli,
+        "d1",
+        "execute",
+        databaseBinding,
+        "--local",
+        "--config",
+        integrationConfig,
+        "--persist-to",
+        stateRoot,
+        "--command",
+        sql,
+      ], {
+        cwd: repositoryRoot,
+        env: { ...process.env, CI: "1" },
+      });
+    }
     worker = await unstable_dev(workerEntrypoint, {
       config: integrationConfig,
       local: true,
@@ -61,6 +78,7 @@ export async function startLocalApp() {
         OPENAI_API_KEY: "",
         LOCAL_AI_BASE_URL: "",
         LOCAL_AI_API_KEY: "",
+        ...vars,
       },
       experimental: {
         disableExperimentalWarning: true,

@@ -5,6 +5,7 @@ import { extractLocalSource, getPdfPageCount } from "./source-extraction";
 import type { AiTokenUsage } from "../usage-types";
 import { supportsReasoning } from "./openai-models";
 import { PROFESSIONAL_INSTRUCTION_SOURCE } from "./prompt-composition";
+import { extractAiTokenUsage } from "./token-usage";
 
 export type OpenAiOutput = {
   documentKind: string;
@@ -62,25 +63,6 @@ function extractReasoningSummary(payload: unknown): string | null {
   return text || null;
 }
 
-function extractTokenUsage(payload: unknown): AiTokenUsage {
-  const usage = (payload as {
-    usage?: {
-      input_tokens?: number;
-      output_tokens?: number;
-      total_tokens?: number;
-      input_tokens_details?: { cached_tokens?: number };
-    };
-  } | null)?.usage;
-  const inputTokens = Math.max(0, Number(usage?.input_tokens ?? 0));
-  const outputTokens = Math.max(0, Number(usage?.output_tokens ?? 0));
-  return {
-    inputTokens,
-    cachedInputTokens: Math.max(0, Number(usage?.input_tokens_details?.cached_tokens ?? 0)),
-    outputTokens,
-    totalTokens: Math.max(0, Number(usage?.total_tokens ?? inputTokens + outputTokens)),
-  };
-}
-
 function sourceContent(file: File, sourceName: string, mimeType: string) {
   return file.arrayBuffer().then((buffer) => {
     const fileData = `data:${mimeType};base64,${toBase64(buffer)}`;
@@ -104,6 +86,7 @@ export async function generateClinicalDraft(input: {
   promptInstructions: string;
   professionalInstructions?: string;
   onProgress?: AiProgressReporter;
+  signal?: AbortSignal;
 }): Promise<{ output: OpenAiOutput; usage: AiTokenUsage }> {
   const schema = outputSchema(input.target);
   const professionalInstructions = input.professionalInstructions?.trim() ?? "";
@@ -139,6 +122,7 @@ export async function generateClinicalDraft(input: {
   }] : [];
   const response = await fetch("https://api.openai.com/v1/responses", {
     method: "POST",
+    signal: input.signal,
     headers: {
       Authorization: `Bearer ${input.apiKey}`,
       "Content-Type": "application/json",
@@ -193,6 +177,6 @@ export async function generateClinicalDraft(input: {
   const reasoningSummary = extractReasoningSummary(payload);
   return {
     output: reasoningSummary ? { ...output, reasoningSummary } : output,
-    usage: extractTokenUsage(payload),
+    usage: extractAiTokenUsage(payload),
   };
 }

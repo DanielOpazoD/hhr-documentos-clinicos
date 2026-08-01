@@ -101,12 +101,14 @@ export async function generateLocalClinicalDraft(input: {
   promptInstructions: string;
   professionalInstructions?: string;
   onProgress?: AiProgressReporter;
+  signal?: AbortSignal;
 }): Promise<{ output: OpenAiOutput; usage: AiTokenUsage }> {
   await input.onProgress?.({ stage: "reading", label: "Leyendo documentos", detail: `Extrayendo texto e imágenes de ${input.sources.length} fuente${input.sources.length === 1 ? "" : "s"}` });
   const sources: Array<AiSourceInput & { extractedText: string | null }> = [];
   for (const source of input.sources) {
     const extractedText = await extractLocalSource(source.file, source.mimeType);
     sources.push({ ...source, extractedText });
+    input.signal?.throwIfAborted();
   }
   const professionalInstructions = input.professionalInstructions?.trim() ?? "";
   if (estimatedRequestTokens(sources, input.target, input.promptInstructions, professionalInstructions, input.promptMode) > LOCAL_CONTEXT_TOKENS) {
@@ -118,7 +120,7 @@ export async function generateLocalClinicalDraft(input: {
   await input.onProgress?.({ stage: "drafting", label: "Redactando el borrador", detail: "Organizando la información sin completar datos ausentes" });
   const response = await fetch(`${input.baseUrl}/chat/completions`, {
     method: "POST",
-    signal: AbortSignal.timeout(120_000),
+    signal: input.signal,
     headers: {
       "Content-Type": "application/json",
       ...(input.apiKey ? { Authorization: `Bearer ${input.apiKey}` } : {}),

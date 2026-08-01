@@ -130,6 +130,7 @@ export async function generateDraftWithProvider(input: {
   promptInstructions: string;
   professionalInstructions?: string;
   onProgress?: AiProgressReporter;
+  signal?: AbortSignal;
 }): Promise<{ output: OpenAiOutput; provider: ProviderConfig; usage: AiTokenUsage }> {
   if (input.providerId === "openai" && input.model && !isOpenAiModel(input.model)) {
     throw new Error("Modelo de OpenAI no permitido.");
@@ -146,6 +147,7 @@ export async function generateDraftWithProvider(input: {
       promptInstructions: input.promptInstructions,
       professionalInstructions: input.professionalInstructions,
       onProgress: input.onProgress,
+      signal: input.signal,
     });
     return { ...result, provider };
   }
@@ -163,6 +165,7 @@ export async function generateDraftWithProvider(input: {
     promptInstructions: input.promptInstructions,
     professionalInstructions: input.professionalInstructions,
     onProgress: input.onProgress,
+    signal: input.signal,
   });
   return { ...result, provider };
 }

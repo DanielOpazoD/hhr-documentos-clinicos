@@ -4,9 +4,48 @@ import { startLocalApp } from "./local-app.mjs";
 
 let app;
 const requestIdPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
+const aiQuotaOwner = "ai-quota@hhr.test";
+const aiConcurrencyOwner = "ai-concurrency@hhr.test";
+const aiReducedLimitOwner = "ai-reduced-limit@hhr.test";
+const aiMalformedSourceOwner = "ai-malformed-source@hhr.test";
+const aiMalformedSourceId = "malformed-prompt-source";
+let aiReducedLimitNextAvailableAt;
 
 before(async () => {
-  app = await startLocalApp();
+  const createdAt = new Date().toISOString();
+  const finishedAt = createdAt;
+  const quotaRows = Array.from({ length: 3 }, (_, index) => (
+    `('quota-${index}', '${aiQuotaOwner}', 'prompt_improvement', 'openai', 'completed', '${createdAt}', '${finishedAt}')`
+  ));
+  const concurrentRows = Array.from({ length: 2 }, (_, index) => (
+    `('concurrent-${index}', '${aiConcurrencyOwner}', 'prompt_improvement', 'openai', 'active', '${createdAt}', NULL)`
+  ));
+  const reducedLimitCreatedAts = Array.from({ length: 5 }, (_, index) => (
+    new Date(Date.now() - (5 - index) * 60_000).toISOString()
+  ));
+  aiReducedLimitNextAvailableAt = new Date(
+    Date.parse(reducedLimitCreatedAts[2]) + 24 * 60 * 60 * 1_000,
+  ).toISOString();
+  const reducedLimitRows = reducedLimitCreatedAts.map((runCreatedAt, index) => (
+    `('reduced-${index}', '${aiReducedLimitOwner}', 'prompt_improvement', 'openai', 'completed', '${runCreatedAt}', '${runCreatedAt}')`
+  ));
+  app = await startLocalApp({
+    vars: {
+      AI_DAILY_CLOUD_LIMIT: "3",
+      AI_MAX_CONCURRENT_CLOUD: "2",
+      AI_MAX_CONCURRENT_LOCAL: "1",
+    },
+    seedSql: [`
+      INSERT INTO ai_operation_runs
+        (id, owner_email, operation, provider_id, status, created_at, finished_at)
+      VALUES ${[...quotaRows, ...concurrentRows, ...reducedLimitRows].join(",")}
+    `, `
+      INSERT INTO documents
+        (id, owner_email, template_id, title, patient_name, patient_rut_masked, status, content_json, version, created_at, updated_at)
+      VALUES
+        ('${aiMalformedSourceId}', '${aiMalformedSourceOwner}', 'documento_libre', 'Documento malformado', '', '', 'Borrador', '{"sections":{}}', 1, '${createdAt}', '${createdAt}')
+    `],
+  });
 });
 
 after(async () => {
@@ -497,4 +536,68 @@ test("keeps AI import offline without authorization", async () => {
     body: invalidProvider,
   }), 400);
   assert.match(providerError.error, /Proveedor de IA no permitido/);
+});
+
+test("enforces per-owner AI quotas and concurrency before contacting a provider", async () => {
+  const prompt = {
+    name: "Certificado seguro",
+    target: "certificado",
+    instructions: "Redacte un certificado breve usando solo información respaldada.",
+  };
+
+  const quotaResponse = await jsonRequest(aiQuotaOwner, "/api/ai/prompts/improve", "POST", prompt);
+  const quota = await jsonResponse(quotaResponse, 429);
+  assert.equal(quota.code, "AI_DAILY_LIMIT_REACHED");
+  assert.match(quota.error, /3 operaciones/);
+  assert.match(quotaResponse.headers.get("retry-after") ?? "", /^\d+$/);
+
+  const reducedLimitResponse = await jsonRequest(aiReducedLimitOwner, "/api/ai/prompts/improve", "POST", prompt);
+  const reducedLimit = await jsonResponse(reducedLimitResponse, 429);
+  assert.equal(reducedLimit.code, "AI_DAILY_LIMIT_REACHED");
+  const expectedRetryAfter = Math.ceil((Date.parse(aiReducedLimitNextAvailableAt) - Date.now()) / 1_000);
+  const actualRetryAfter = Number(reducedLimitResponse.headers.get("retry-after"));
+  assert.ok(Math.abs(actualRetryAfter - expectedRetryAfter) <= 2);
+
+  const reducedUsage = await jsonResponse(await ownedFetch(aiReducedLimitOwner, "/api/ai/usage?days=7"), 200);
+  assert.equal(reducedUsage.availability.cloud.used, 5);
+  assert.equal(reducedUsage.availability.cloud.remaining, 0);
+  assert.equal(reducedUsage.availability.cloud.nextAvailableAt, aiReducedLimitNextAvailableAt);
+
+  const concurrencyResponse = await jsonRequest(aiConcurrencyOwner, "/api/ai/prompts/improve", "POST", prompt);
+  const concurrency = await jsonResponse(concurrencyResponse, 429);
+  assert.equal(concurrency.code, "AI_CONCURRENCY_LIMIT_REACHED");
+  assert.match(concurrency.error, /2 operaciones/);
+  assert.equal(concurrencyResponse.headers.get("retry-after"), "15");
+
+  const isolatedOwner = `ai-isolated-${crypto.randomUUID()}@hhr.test`;
+  const providerUnavailable = await jsonResponse(
+    await jsonRequest(isolatedOwner, "/api/ai/prompts/improve", "POST", prompt),
+    502,
+  );
+  assert.equal(providerUnavailable.code, "UPSTREAM_ERROR");
+  assert.equal(providerUnavailable.error, "No se pudo mejorar el prompt.");
+
+  const usage = await jsonResponse(await ownedFetch(aiQuotaOwner, "/api/ai/usage?days=7"), 200);
+  assert.deepEqual(usage.availability.cloud, {
+    limit: 3,
+    used: 3,
+    remaining: 0,
+    nextAvailableAt: usage.availability.cloud.nextAvailableAt,
+  });
+  assert.match(usage.availability.cloud.nextAvailableAt, /^\d{4}-\d{2}-\d{2}T/);
+  assert.deepEqual(usage.availability.concurrency.cloud, { limit: 2, active: 0 });
+});
+
+test("does not reserve AI capacity when saved-document preparation fails", async () => {
+  const failure = await jsonResponse(
+    await jsonRequest(aiMalformedSourceOwner, "/api/ai/prompts/from-documents", "POST", {
+      ids: [aiMalformedSourceId],
+    }),
+    500,
+  );
+  assert.equal(failure.code, "INTERNAL_ERROR");
+
+  const usage = await jsonResponse(await ownedFetch(aiMalformedSourceOwner, "/api/ai/usage?days=7"), 200);
+  assert.equal(usage.availability.cloud.used, 0);
+  assert.equal(usage.availability.concurrency.cloud.active, 0);
 });

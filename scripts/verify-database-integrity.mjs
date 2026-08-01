@@ -127,6 +127,18 @@ function businessChecks() {
          HAVING SUM(CASE WHEN is_default = 1 THEN 1 ELSE 0 END) <> 1
        )`,
     },
+    {
+      check: "ai_operations.invalid_state",
+      requires: [["ai_operation_runs", "status"], ["ai_operation_runs", "finished_at"]],
+      minimumMigration: "0007_ai_execution_guard.sql",
+      sql: `SELECT COUNT(*) AS count
+       FROM ai_operation_runs
+       WHERE operation NOT IN ('clinical_draft', 'prompt_improvement', 'prompt_from_documents')
+          OR provider_id NOT IN ('openai', 'gemma_local')
+          OR status NOT IN ('active', 'completed', 'failed', 'timed_out', 'expired')
+          OR (status = 'active' AND finished_at IS NOT NULL)
+          OR (status <> 'active' AND finished_at IS NULL)`,
+    },
   ];
 }
 
