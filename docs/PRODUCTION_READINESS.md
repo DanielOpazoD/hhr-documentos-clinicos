@@ -11,6 +11,8 @@ La aplicación está preparada como un entorno privado funcional, pero no se dec
 - Documentos y metadatos persistidos en D1; archivos y firmas privados en R2.
 - Límites explícitos de tamaño y tipo para archivos, capturas y firmas.
 - Borradores de IA editables, sin finalización o firma automática.
+- Reserva atómica en D1 antes de cada operación de IA, con cuota móvil por usuario, concurrencia separada para nube y modelo local, caducidad de ejecuciones abandonadas y timeouts acotados.
+- Consumo de tokens registrado para borradores, mejora de prompts y plantillas derivadas; disponibilidad de la ventana de 24 horas visible sin añadir telemetría clínica.
 - Registro de creación, actualización, carga, generación y errores relevantes.
 - Errores API correlacionados mediante un código de soporte, contrato estable y logs estructurados sin cuerpos ni identificadores clínicos.
 - Versionado de documentos al cambiar su estado clínico.
@@ -27,10 +29,10 @@ La aplicación está preparada como un entorno privado funcional, pero no se dec
 - Overrides acotados de PostCSS y Sharp corrigen avisos transitivos; `npm audit --omit=dev` reporta cero vulnerabilidades productivas.
 - Build reproducible, lint y TypeScript estricto sin errores.
 - Pruebas automatizadas estructurales, de políticas puras y de integración HTTP contra el Worker construido con D1/R2 locales desechables.
-- Recorridos de integración para autenticación, aislamiento por propietario, concurrencia y restauración documental, archivos, firmas, ciclo de vida y procedencia de sesiones móviles, y autorización de IA sin proveedores externos.
+- Recorridos de integración para autenticación, aislamiento por propietario, concurrencia y restauración documental, archivos, firmas, ciclo de vida y procedencia de sesiones móviles, y límites de IA sin proveedores externos.
 - Gate de integración continua con verificación de build, migraciones, presupuesto de JavaScript/CSS e integración del runtime privado.
 - Esquema D1 administrado exclusivamente por migraciones versionadas; ninguna solicitud crea tablas, altera columnas o aplica compatibilidades históricas.
-- Pruebas de instalación vacía y actualización desde las cinco versiones anteriores, con conservación de registros y rollback sobre una copia desechable.
+- Pruebas de instalación vacía y actualización desde las rutas históricas y las dos versiones canónicas anteriores, con conservación de registros y rollback sobre una copia desechable.
 - Verificador privado de migraciones, índices, versiones documentales, relaciones huérfanas y firmas predeterminadas que solo emite conteos.
 
 ## Controles pendientes antes de uso clínico institucional
@@ -39,12 +41,11 @@ La aplicación está preparada como un entorno privado funcional, pero no se dec
 2. Política documentada de retención, eliminación, exportación y derecho de acceso.
 3. Automatización institucional de respaldos D1/R2 y simulacro remoto periódico; el procedimiento D1 y su ensayo local ya están documentados.
 4. Alertas operativas externas y procedimiento institucional de respuesta a incidentes; la correlación y el diagnóstico local ya están documentados.
-5. Límites de consumo por usuario y protección contra abuso de APIs costosas.
-6. Revisión de amenazas, pruebas de penetración y validación de dependencias transitivas.
-7. Matriz de roles y permisos clínicos más granular si se amplía el acceso.
-8. Validación legal de firma, receta, consentimiento e integraciones externas.
-9. Plan de continuidad operativa y procedimiento manual de contingencia.
-10. Piloto controlado con usuarios designados, criterios de salida y registro de hallazgos.
+5. Revisión de amenazas, pruebas de penetración y validación de dependencias transitivas.
+6. Matriz de roles y permisos clínicos más granular si se amplía el acceso.
+7. Validación legal de firma, receta, consentimiento e integraciones externas.
+8. Plan de continuidad operativa y procedimiento manual de contingencia.
+9. Piloto controlado con usuarios designados, criterios de salida y registro de hallazgos.
 
 ## Regla de promoción
 
