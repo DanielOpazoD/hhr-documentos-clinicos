@@ -4,9 +4,30 @@ import { startLocalApp } from "./local-app.mjs";
 
 let app;
 const requestIdPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
+const aiQuotaOwner = "ai-quota@hhr.test";
+const aiConcurrencyOwner = "ai-concurrency@hhr.test";
 
 before(async () => {
-  app = await startLocalApp();
+  const createdAt = new Date().toISOString();
+  const finishedAt = createdAt;
+  const quotaRows = Array.from({ length: 3 }, (_, index) => (
+    `('quota-${index}', '${aiQuotaOwner}', 'prompt_improvement', 'openai', 'completed', '${createdAt}', '${finishedAt}')`
+  ));
+  const concurrentRows = Array.from({ length: 2 }, (_, index) => (
+    `('concurrent-${index}', '${aiConcurrencyOwner}', 'prompt_improvement', 'openai', 'active', '${createdAt}', NULL)`
+  ));
+  app = await startLocalApp({
+    vars: {
+      AI_DAILY_CLOUD_LIMIT: "3",
+      AI_MAX_CONCURRENT_CLOUD: "2",
+      AI_MAX_CONCURRENT_LOCAL: "1",
+    },
+    seedSql: [`
+      INSERT INTO ai_operation_runs
+        (id, owner_email, operation, provider_id, status, created_at, finished_at)
+      VALUES ${[...quotaRows, ...concurrentRows].join(",")}
+    `],
+  });
 });
 
 after(async () => {
@@ -497,4 +518,42 @@ test("keeps AI import offline without authorization", async () => {
     body: invalidProvider,
   }), 400);
   assert.match(providerError.error, /Proveedor de IA no permitido/);
+});
+
+test("enforces per-owner AI quotas and concurrency before contacting a provider", async () => {
+  const prompt = {
+    name: "Certificado seguro",
+    target: "certificado",
+    instructions: "Redacte un certificado breve usando solo información respaldada.",
+  };
+
+  const quotaResponse = await jsonRequest(aiQuotaOwner, "/api/ai/prompts/improve", "POST", prompt);
+  const quota = await jsonResponse(quotaResponse, 429);
+  assert.equal(quota.code, "AI_DAILY_LIMIT_REACHED");
+  assert.match(quota.error, /3 operaciones/);
+  assert.match(quotaResponse.headers.get("retry-after") ?? "", /^\d+$/);
+
+  const concurrencyResponse = await jsonRequest(aiConcurrencyOwner, "/api/ai/prompts/improve", "POST", prompt);
+  const concurrency = await jsonResponse(concurrencyResponse, 429);
+  assert.equal(concurrency.code, "AI_CONCURRENCY_LIMIT_REACHED");
+  assert.match(concurrency.error, /2 operaciones/);
+  assert.equal(concurrencyResponse.headers.get("retry-after"), "15");
+
+  const isolatedOwner = `ai-isolated-${crypto.randomUUID()}@hhr.test`;
+  const providerUnavailable = await jsonResponse(
+    await jsonRequest(isolatedOwner, "/api/ai/prompts/improve", "POST", prompt),
+    502,
+  );
+  assert.equal(providerUnavailable.code, "UPSTREAM_ERROR");
+  assert.match(providerUnavailable.error, /OpenAI no está configurada/);
+
+  const usage = await jsonResponse(await ownedFetch(aiQuotaOwner, "/api/ai/usage?days=7"), 200);
+  assert.deepEqual(usage.availability.cloud, {
+    limit: 3,
+    used: 3,
+    remaining: 0,
+    nextAvailableAt: usage.availability.cloud.nextAvailableAt,
+  });
+  assert.match(usage.availability.cloud.nextAvailableAt, /^\d{4}-\d{2}-\d{2}T/);
+  assert.deepEqual(usage.availability.concurrency.cloud, { limit: 2, active: 0 });
 });

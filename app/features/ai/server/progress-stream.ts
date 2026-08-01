@@ -3,7 +3,8 @@ type StreamEvent = Record<string, unknown>;
 export function progressStream(
   produce: (emit: (event: StreamEvent) => void) => Promise<void>,
   options: {
-    code?: string;
+    code?: string | (() => string);
+    errorMessage?: string | (() => string);
     requestId?: string;
     onError?: () => void;
   } = {},
@@ -21,8 +22,10 @@ export function progressStream(
         options.onError?.();
         emit({
           type: "error",
-          error: "No se pudo completar la operación.",
-          code: options.code,
+          error: typeof options.errorMessage === "function"
+            ? options.errorMessage()
+            : options.errorMessage ?? "No se pudo completar la operación.",
+          code: typeof options.code === "function" ? options.code() : options.code,
           requestId: options.requestId,
         });
       } finally {

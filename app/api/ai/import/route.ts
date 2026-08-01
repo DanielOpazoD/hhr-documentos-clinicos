@@ -12,6 +12,13 @@ import { apiTrace, jsonError, observeApi, reportApiFailure } from "@/app/lib/ser
 import { recordAiUsage } from "@/app/features/ai/server/usage";
 import type { AiPromptMode, AiTargetId } from "@/app/features/ai/types";
 import { FREEFORM_SCHEMA_TARGET } from "@/app/features/ai/targets";
+import {
+  AiExecutionTimeoutError,
+  aiExecutionDeniedResponse,
+  failAiExecution,
+  reserveAiExecution,
+  runAiExecution,
+} from "@/app/features/ai/server/execution";
 
 async function updateRunStatus(id: string, status: string) {
   const db = await ensureDatabase();
@@ -65,27 +72,45 @@ async function importWithAi(request: Request) {
     return jsonError(error instanceof Error ? error.message : "No se pudieron validar los archivos.");
   }
 
-  const id = crypto.randomUUID();
+  const reservation = await reserveAiExecution({
+    owner,
+    operation: "clinical_draft",
+    providerId,
+  });
+  if (!reservation.ok) return aiExecutionDeniedResponse(reservation.denial);
+  const id = reservation.lease.id;
   const sourceLabel = sources.length === 1 ? sources[0].sourceName : `${sources[0].sourceName} + ${sources.length - 1}`;
   const db = await ensureDatabase();
-  await db.prepare(
-    "INSERT INTO ai_import_runs (id, owner_email, source_name, target_type, status, created_at) VALUES (?, ?, ?, ?, 'procesando', ?)",
-  ).bind(id, owner, sourceLabel, promptMode === "free" ? "libre" : target, new Date().toISOString()).run();
+  try {
+    await db.prepare(
+      "INSERT INTO ai_import_runs (id, owner_email, source_name, target_type, status, created_at) VALUES (?, ?, ?, ?, 'procesando', ?)",
+    ).bind(id, owner, sourceLabel, promptMode === "free" ? "libre" : target, new Date().toISOString()).run();
+  } catch (error) {
+    await failAiExecution(reservation.lease).catch(() => undefined);
+    throw error;
+  }
 
   const trace = apiTrace(request);
+  let streamCode = "AI_GENERATION_FAILED";
+  let streamMessage = "No se pudo completar la operación.";
+  let streamStatus = 502;
   return progressStream(async (emit) => {
     emit({ type: "status", stage: "preparing", label: "Preparando archivos", detail: `${sources.length} fuente${sources.length === 1 ? "" : "s"} lista${sources.length === 1 ? "" : "s"} para analizar` });
     try {
-      const { output: result, provider, usage } = await generateDraftWithProvider({
-        providerId,
-        model,
-        sources,
-        target,
-        promptMode,
-        promptInstructions,
-        professionalInstructions: userInstructions.trim() || undefined,
-        onProgress: (progress) => emit({ type: "status", ...progress }),
-      });
+      const { output: result, provider, usage } = await runAiExecution(
+        reservation.lease,
+        (signal) => generateDraftWithProvider({
+          providerId,
+          model,
+          sources,
+          target,
+          promptMode,
+          promptInstructions,
+          professionalInstructions: userInstructions.trim() || undefined,
+          onProgress: (progress) => emit({ type: "status", ...progress }),
+          signal,
+        }),
+      );
       await updateRunStatus(id, "completado");
       const usageRecorded = await recordAiUsage({
         owner,
@@ -153,6 +178,11 @@ async function importWithAi(request: Request) {
         safetyNotice: result.safetyNotice,
       } });
     } catch (error) {
+      if (error instanceof AiExecutionTimeoutError) {
+        streamCode = error.code;
+        streamMessage = error.message;
+        streamStatus = 504;
+      }
       await updateRunStatus(id, "fallido");
       await audit(owner, "failed", "ai_import", id, {
         sourceNames: sources.map((source) => source.sourceName),
@@ -165,10 +195,11 @@ async function importWithAi(request: Request) {
       throw error;
     }
   }, {
-    code: "AI_GENERATION_FAILED",
+    code: () => streamCode,
+    errorMessage: () => streamMessage,
     requestId: trace?.requestId,
     onError: () => {
-      if (trace) reportApiFailure({ ...trace, status: 502, code: "AI_GENERATION_FAILED" });
+      if (trace) reportApiFailure({ ...trace, status: streamStatus, code: streamCode });
     },
   });
 }

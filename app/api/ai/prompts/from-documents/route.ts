@@ -3,6 +3,13 @@ import { audit } from "@/app/lib/server/audit";
 import { requestOwner } from "@/app/lib/server/auth";
 import { ensureDatabase } from "@/app/lib/server/database";
 import { jsonError, observeApi, readJsonObject } from "@/app/lib/server/http";
+import {
+  AiExecutionTimeoutError,
+  aiExecutionDeniedResponse,
+  reserveAiExecution,
+  runAiExecution,
+} from "@/app/features/ai/server/execution";
+import { recordAiUsage } from "@/app/features/ai/server/usage";
 
 const MAX_SOURCE_DOCUMENTS = 8;
 
@@ -58,16 +65,35 @@ async function createPromptFromSavedDocuments(request: Request) {
     `SELECT id, template_id AS templateId, content_json AS contentJson FROM documents WHERE owner_email = ? AND id IN (${placeholders})`,
   ).bind(owner, ...ids).all<DocumentRow>();
   if (selected.results.length !== ids.length) return jsonError("Uno o más documentos no están disponibles.", 404);
+  const reservation = await reserveAiExecution({
+    owner,
+    operation: "prompt_from_documents",
+    providerId: "openai",
+  });
+  if (!reservation.ok) return aiExecutionDeniedResponse(reservation.denial);
   try {
     const selectedById = new Map(selected.results.map((row) => [row.id, row]));
     const orderedDocuments = ids.map((id) => sourceDocument(selectedById.get(id)!));
-    const proposal = await createPromptFromDocuments(orderedDocuments);
+    const proposal = await runAiExecution(
+      reservation.lease,
+      (signal) => createPromptFromDocuments(orderedDocuments, { signal }),
+    );
+    const usageRecorded = await recordAiUsage({
+      owner,
+      runId: reservation.lease.id,
+      providerId: "openai",
+      model: proposal.model,
+      usage: proposal.usage,
+    }).then(() => true).catch(() => false);
     const proposalId = crypto.randomUUID();
     await audit(owner, "proposed_from_documents", "ai_prompt_proposal", proposalId, {
       target: proposal.target,
       documentIds: ids,
       documentCount: ids.length,
       model: proposal.model,
+      usageRecorded,
+      inputTokens: proposal.usage.inputTokens,
+      outputTokens: proposal.usage.outputTokens,
     });
     return Response.json({
       proposal: {
@@ -78,6 +104,9 @@ async function createPromptFromSavedDocuments(request: Request) {
       summary: proposal.summary,
     });
   } catch (error) {
+    if (error instanceof AiExecutionTimeoutError) {
+      return jsonError(error.message, 504, error.code);
+    }
     return jsonError(error instanceof Error ? error.message : "No se pudo crear la plantilla.", 502);
   }
 }

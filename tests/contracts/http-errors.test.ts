@@ -152,3 +152,21 @@ test("progressStream correlates failures that occur after streaming starts", asy
   assert.equal(event.requestId, requestId);
   assert.equal(event.error, "No se pudo completar la operación.");
 });
+
+test("progressStream exposes only the route-selected safe timeout message", async () => {
+  let code = "AI_GENERATION_FAILED";
+  let message = "No se pudo completar la operación.";
+  const response = progressStream(async () => {
+    code = "AI_PROVIDER_TIMEOUT";
+    message = "La operación de IA tardó demasiado.";
+    throw new Error("upstream host and private prompt detail");
+  }, {
+    code: () => code,
+    errorMessage: () => message,
+  });
+
+  const event = JSON.parse((await response.text()).trim()) as Record<string, unknown>;
+  assert.equal(event.code, "AI_PROVIDER_TIMEOUT");
+  assert.equal(event.error, "La operación de IA tardó demasiado.");
+  assert.doesNotMatch(JSON.stringify(event), /upstream host|private prompt/);
+});
