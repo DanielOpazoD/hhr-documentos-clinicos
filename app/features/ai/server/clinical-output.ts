@@ -1,7 +1,7 @@
 import type { OpenAiOutput } from "./openai-responses";
 import { hospitalSalvadorFields, isHospitalSalvadorFieldKey } from "../hospital-salvador-fields";
 import type { AiPromptMode, AiTargetId } from "../types";
-import { protectUnsupportedSection, sanitizeEvidenceCandidates } from "./clinical-evidence";
+import { isDeclaredClinicalAbsence, protectUnsupportedSection, sanitizeEvidenceCandidates } from "./clinical-evidence";
 import { normalizedDocumentKind, withoutRedundantIdentitySections } from "./document-hygiene";
 
 type RawClinicalOutput = {
@@ -45,10 +45,6 @@ function isoDate(value: unknown): string {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(text)) return "";
   const date = new Date(`${text}T00:00:00Z`);
   return Number.isNaN(date.getTime()) || date.toISOString().slice(0, 10) !== text ? "" : text;
-}
-
-function declaredAbsence(value: string): boolean {
-  return /^(?:no consignad[oa]|no se dispone|no disponible|sin información|no aparece|no consta)\s*[.!]?$/i.test(value.trim());
 }
 
 export function parseClinicalOutput(
@@ -102,7 +98,7 @@ export function parseClinicalOutput(
       title: section.title,
       text: section.text,
       evidence: section.evidence,
-      declaresAbsence: declaredAbsence(section.text),
+      declaresAbsence: isDeclaredClinicalAbsence(section.text),
     });
     if (protectedSection.unsupportedTitle) unsupportedSections.push(protectedSection.unsupportedTitle);
     section.text = protectedSection.text;

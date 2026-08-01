@@ -5,6 +5,10 @@ export type EvidenceCandidate = {
   status?: unknown;
 };
 
+export function isDeclaredClinicalAbsence(value: string): boolean {
+  return /^(?:no consignad[oa]|no se dispone|no disponible|sin información|no aparece|no consta)\s*[.!]?$/i.test(value.trim());
+}
+
 export function sanitizeEvidenceCandidates(
   value: unknown,
   sources: Array<{
