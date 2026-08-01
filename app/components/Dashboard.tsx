@@ -22,16 +22,23 @@ export function Dashboard() {
   const [loadError, setLoadError] = useState<string | null>(null);
   useEffect(() => {
     const controller = new AbortController();
-    void Promise.all([
+    void Promise.allSettled([
       fetch("/api/documents", { signal: controller.signal }).then((response) => readApiResponse<{ documents?: RecentDocument[] }>(response)),
       fetch("/api/files", { signal: controller.signal }).then((response) => readApiResponse<{ files?: RecentFile[] }>(response)),
-    ]).then(([docs, saved]) => {
-      setDocuments(docs.documents ?? []);
-      setFiles(saved.files ?? []);
-    }).catch((cause) => {
-      if (!(cause instanceof DOMException && cause.name === "AbortError")) {
-        setLoadError(cause instanceof Error ? cause.message : "No se pudo cargar la actividad reciente.");
-      }
+    ]).then(([documentsResult, filesResult]) => {
+      if (controller.signal.aborted) return;
+      if (documentsResult.status === "fulfilled") setDocuments(documentsResult.value.documents ?? []);
+      if (filesResult.status === "fulfilled") setFiles(filesResult.value.files ?? []);
+      const failure = documentsResult.status === "rejected"
+        ? documentsResult.reason
+        : filesResult.status === "rejected"
+          ? filesResult.reason
+          : null;
+      setLoadError(failure instanceof Error
+        ? failure.message
+        : failure
+          ? "No se pudo cargar toda la actividad reciente."
+          : null);
     });
     return () => controller.abort();
   }, []);
