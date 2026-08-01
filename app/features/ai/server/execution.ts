@@ -49,7 +49,6 @@ type AiExecutionReservation =
 
 type ExecutionCounts = {
   cloudUsed: number;
-  oldestCloudRun: string | null;
 };
 
 function executionPolicy(): AiExecutionPolicy {
@@ -80,15 +79,31 @@ async function executionCounts(
 ): Promise<ExecutionCounts> {
   const row = await db.prepare(`
     SELECT
-      SUM(CASE WHEN provider_id = 'openai' AND created_at >= ? THEN 1 ELSE 0 END) AS cloudUsed,
-      MIN(CASE WHEN provider_id = 'openai' AND created_at >= ? THEN created_at END) AS oldestCloudRun
+      SUM(CASE WHEN provider_id = 'openai' AND created_at >= ? THEN 1 ELSE 0 END) AS cloudUsed
     FROM ai_operation_runs
     WHERE owner_email = ?
-  `).bind(cutoff, cutoff, owner).first<ExecutionCounts>();
+  `).bind(cutoff, owner).first<ExecutionCounts>();
   return {
     cloudUsed: Number(row?.cloudUsed ?? 0),
-    oldestCloudRun: row?.oldestCloudRun ?? null,
   };
+}
+
+async function cloudCapacityRun(
+  db: D1Database,
+  owner: string,
+  cutoff: string,
+  used: number,
+  limit: number,
+): Promise<string | null> {
+  if (used < limit) return null;
+  const row = await db.prepare(`
+    SELECT created_at AS createdAt
+    FROM ai_operation_runs
+    WHERE owner_email = ? AND provider_id = 'openai' AND created_at >= ?
+    ORDER BY created_at ASC
+    LIMIT 1 OFFSET ?
+  `).bind(owner, cutoff, used - limit).first<{ createdAt: string }>();
+  return row?.createdAt ?? null;
 }
 
 export async function reserveAiExecution(input: {
@@ -153,11 +168,18 @@ export async function reserveAiExecution(input: {
 
   const counts = await executionCounts(db, input.owner, cloudCutoff);
   if (input.providerId === "openai" && counts.cloudUsed >= policy.cloudDailyLimit) {
+    const capacityRun = await cloudCapacityRun(
+      db,
+      input.owner,
+      cloudCutoff,
+      counts.cloudUsed,
+      policy.cloudDailyLimit,
+    );
     return {
       ok: false,
       denial: {
         reason: "daily_limit",
-        retryAfterSeconds: retryAfterWindow(counts.oldestCloudRun, nowMs),
+        retryAfterSeconds: retryAfterWindow(capacityRun, nowMs),
         limit: policy.cloudDailyLimit,
       },
     };
@@ -225,26 +247,26 @@ export async function getAiExecutionAvailability(owner: string): Promise<AiExecu
     SELECT
       SUM(CASE WHEN provider_id = 'openai' AND created_at >= ? THEN 1 ELSE 0 END) AS cloudUsed,
       SUM(CASE WHEN provider_id = 'openai' AND status = 'active' AND created_at >= ? THEN 1 ELSE 0 END) AS activeCloud,
-      SUM(CASE WHEN provider_id = 'gemma_local' AND status = 'active' AND created_at >= ? THEN 1 ELSE 0 END) AS activeLocal,
-      MIN(CASE WHEN provider_id = 'openai' AND created_at >= ? THEN created_at END) AS oldestCloudRun
+      SUM(CASE WHEN provider_id = 'gemma_local' AND status = 'active' AND created_at >= ? THEN 1 ELSE 0 END) AS activeLocal
     FROM ai_operation_runs
     WHERE owner_email = ?
-  `).bind(cloudCutoff, activeCutoff, activeCutoff, cloudCutoff, owner).first<{
+  `).bind(cloudCutoff, activeCutoff, activeCutoff, owner).first<{
     cloudUsed: number;
     activeCloud: number;
     activeLocal: number;
-    oldestCloudRun: string | null;
   }>();
   const used = Number(row?.cloudUsed ?? 0);
-  const oldestRun = row?.oldestCloudRun ?? null;
   const remaining = Math.max(0, policy.cloudDailyLimit - used);
+  const capacityRun = remaining === 0
+    ? await cloudCapacityRun(db, owner, cloudCutoff, used, policy.cloudDailyLimit)
+    : null;
   return {
     cloud: {
       limit: policy.cloudDailyLimit,
       used,
       remaining,
-      nextAvailableAt: remaining === 0 && oldestRun
-        ? new Date(Date.parse(oldestRun) + AI_CLOUD_WINDOW_MS).toISOString()
+      nextAvailableAt: capacityRun
+        ? new Date(Date.parse(capacityRun) + AI_CLOUD_WINDOW_MS).toISOString()
         : null,
     },
     concurrency: {

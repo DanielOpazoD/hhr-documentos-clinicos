@@ -6,8 +6,10 @@ let app;
 const requestIdPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
 const aiQuotaOwner = "ai-quota@hhr.test";
 const aiConcurrencyOwner = "ai-concurrency@hhr.test";
+const aiReducedLimitOwner = "ai-reduced-limit@hhr.test";
 const aiMalformedSourceOwner = "ai-malformed-source@hhr.test";
 const aiMalformedSourceId = "malformed-prompt-source";
+let aiReducedLimitNextAvailableAt;
 
 before(async () => {
   const createdAt = new Date().toISOString();
@@ -18,6 +20,15 @@ before(async () => {
   const concurrentRows = Array.from({ length: 2 }, (_, index) => (
     `('concurrent-${index}', '${aiConcurrencyOwner}', 'prompt_improvement', 'openai', 'active', '${createdAt}', NULL)`
   ));
+  const reducedLimitCreatedAts = Array.from({ length: 5 }, (_, index) => (
+    new Date(Date.now() - (5 - index) * 60_000).toISOString()
+  ));
+  aiReducedLimitNextAvailableAt = new Date(
+    Date.parse(reducedLimitCreatedAts[2]) + 24 * 60 * 60 * 1_000,
+  ).toISOString();
+  const reducedLimitRows = reducedLimitCreatedAts.map((runCreatedAt, index) => (
+    `('reduced-${index}', '${aiReducedLimitOwner}', 'prompt_improvement', 'openai', 'completed', '${runCreatedAt}', '${runCreatedAt}')`
+  ));
   app = await startLocalApp({
     vars: {
       AI_DAILY_CLOUD_LIMIT: "3",
@@ -27,7 +38,7 @@ before(async () => {
     seedSql: [`
       INSERT INTO ai_operation_runs
         (id, owner_email, operation, provider_id, status, created_at, finished_at)
-      VALUES ${[...quotaRows, ...concurrentRows].join(",")}
+      VALUES ${[...quotaRows, ...concurrentRows, ...reducedLimitRows].join(",")}
     `, `
       INSERT INTO documents
         (id, owner_email, template_id, title, patient_name, patient_rut_masked, status, content_json, version, created_at, updated_at)
@@ -539,6 +550,18 @@ test("enforces per-owner AI quotas and concurrency before contacting a provider"
   assert.equal(quota.code, "AI_DAILY_LIMIT_REACHED");
   assert.match(quota.error, /3 operaciones/);
   assert.match(quotaResponse.headers.get("retry-after") ?? "", /^\d+$/);
+
+  const reducedLimitResponse = await jsonRequest(aiReducedLimitOwner, "/api/ai/prompts/improve", "POST", prompt);
+  const reducedLimit = await jsonResponse(reducedLimitResponse, 429);
+  assert.equal(reducedLimit.code, "AI_DAILY_LIMIT_REACHED");
+  const expectedRetryAfter = Math.ceil((Date.parse(aiReducedLimitNextAvailableAt) - Date.now()) / 1_000);
+  const actualRetryAfter = Number(reducedLimitResponse.headers.get("retry-after"));
+  assert.ok(Math.abs(actualRetryAfter - expectedRetryAfter) <= 2);
+
+  const reducedUsage = await jsonResponse(await ownedFetch(aiReducedLimitOwner, "/api/ai/usage?days=7"), 200);
+  assert.equal(reducedUsage.availability.cloud.used, 5);
+  assert.equal(reducedUsage.availability.cloud.remaining, 0);
+  assert.equal(reducedUsage.availability.cloud.nextAvailableAt, aiReducedLimitNextAvailableAt);
 
   const concurrencyResponse = await jsonRequest(aiConcurrencyOwner, "/api/ai/prompts/improve", "POST", prompt);
   const concurrency = await jsonResponse(concurrencyResponse, 429);
