@@ -1,0 +1,51 @@
+flowchart LR
+    subgraph Inputs["ENTRADAS"]
+        Professional["Profesional"]
+        Mobile["Captura móvil"]
+        Drive["Google Drive"]
+    end
+
+    subgraph Product["PRODUCTO"]
+        subgraph App["Aplicación HHR"]
+            Documents["Documentos"]
+            AI["IA clínica"]
+            Files["Archivos"]
+            Scanner["Escáner"]
+            Forms["Formularios"]
+            Settings["Configuración"]
+        end
+    end
+
+    subgraph Platform["PLATAFORMA PRIVADA"]
+        API["API privada"]
+        D1["D1 · metadatos"]
+        R2["R2 · archivos"]
+        Providers["OpenAI / LM Studio"]
+    end
+
+    Professional --> App
+    Mobile -->|"capacidad temporal"| Scanner
+    Drive -->|"OAuth efímero"| Documents
+    Drive -->|"archivos seleccionados"| Files
+    Documents --> API
+    AI --> API
+    Files --> API
+    Scanner --> API
+    Forms --> Documents
+    Settings --> API
+    API --> D1
+    API --> R2
+    API --> Providers
+
+    Safety["Autenticación · Propiedad · Trazabilidad · Preflight clínico"]
+    Safety -. "protege" .-> Product
+    Safety -. "protege" .-> Platform
+
+    Goal["Objetivo"] --> Split["Separar"] --> Explore["Explorar"] --> Verify["Verificar"] --> Integrate["Integrar"] --> PR["PR"]
+
+    classDef product fill:#f4fbfb,stroke:#177f83,color:#17191c,stroke-width:1.5px;
+    classDef platform fill:#ffffff,stroke:#177f83,color:#17191c,stroke-width:1.5px;
+    classDef safety fill:#fffaf0,stroke:#c68c00,color:#17191c,stroke-width:1.5px;
+    class Documents,AI,Files,Scanner,Forms,Settings product;
+    class API,D1,R2,Providers platform;
+    class Safety,Goal,Split,Explore,Verify,Integrate,PR safety;
