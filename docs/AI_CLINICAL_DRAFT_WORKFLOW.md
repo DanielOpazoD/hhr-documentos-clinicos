@@ -10,6 +10,7 @@ flowchart LR
     G --> V[Verificar]
     V --> U[Registrar consumo]
     U --> A[Auditar]
+    V --> A
     V --> D[Entregar borrador]
     R -. Fallo posterior a la reserva .-> F[Auditar fallo]
 ```

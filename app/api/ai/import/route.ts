@@ -118,11 +118,16 @@ async function importWithAi(request: Request) {
     })),
     workflow.run("validate_sources", () => importSources(form)),
   ]);
-  if (promptResult.status === "rejected") {
-    return jsonError(promptResult.reason instanceof Error ? promptResult.reason.message : "Prompt no disponible.");
-  }
-  if (sourcesResult.status === "rejected") {
-    return jsonError(sourcesResult.reason instanceof Error ? sourcesResult.reason.message : "No se pudieron validar los archivos.");
+  if (sourcesResult.status === "rejected" || promptResult.status === "rejected") {
+    const errors = [
+      sourcesResult.status === "rejected"
+        ? sourcesResult.reason instanceof Error ? sourcesResult.reason.message : "No se pudieron validar los archivos."
+        : null,
+      promptResult.status === "rejected"
+        ? promptResult.reason instanceof Error ? promptResult.reason.message : "Prompt no disponible."
+        : null,
+    ].filter((message): message is string => Boolean(message));
+    return jsonError(errors.join(" "));
   }
   const resolvedPromptId = promptResult.value.id;
   const resolvedPromptVersion = promptResult.value.version;

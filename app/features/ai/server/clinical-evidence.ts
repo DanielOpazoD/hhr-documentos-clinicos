@@ -6,7 +6,8 @@ export type EvidenceCandidate = {
 };
 
 export function isDeclaredClinicalAbsence(value: string): boolean {
-  return /^(?:no consignad[oa]|no se dispone|no disponible|sin información|no aparece|no consta)\s*[.!]?$/i.test(value.trim());
+  const normalized = value.trim().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+  return /^(?:no consignad[oa]|no se dispone|no disponible|sin informacion|no aparece|no consta)\s*[.!]?$/i.test(normalized);
 }
 
 export function sanitizeEvidenceCandidates(

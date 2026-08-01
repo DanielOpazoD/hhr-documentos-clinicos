@@ -554,6 +554,21 @@ test("keeps invalid clinical sources outside the AI execution ledger", async () 
   }), 400);
   assert.match(failure.error, /no coincide con su formato/);
 
+  const invalidPromptAndSource = new FormData();
+  invalidPromptAndSource.set("processingAuthorized", "true");
+  invalidPromptAndSource.set("target", "certificado");
+  invalidPromptAndSource.set("provider", "openai");
+  invalidPromptAndSource.set("promptMode", "profile");
+  invalidPromptAndSource.set("promptId", "missing-prompt");
+  invalidPromptAndSource.set("files", new File(["not a PDF"], "resultado.pdf", { type: "application/pdf" }));
+
+  const combinedFailure = await jsonResponse(await ownedFetch(owner, "/api/ai/import", {
+    method: "POST",
+    body: invalidPromptAndSource,
+  }), 400);
+  assert.match(combinedFailure.error, /no coincide con su formato/);
+  assert.match(combinedFailure.error, /prompt seleccionado ya no está disponible/);
+
   const usage = await jsonResponse(await ownedFetch(owner, "/api/ai/usage?days=7"), 200);
   assert.equal(usage.availability.cloud.used, 0);
   assert.equal(usage.availability.concurrency.cloud.active, 0);

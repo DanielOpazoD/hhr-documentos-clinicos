@@ -83,16 +83,35 @@ export function createClinicalDraftWorkflowTrace(clock: () => number = Date.now)
     });
   }
 
+  function recordOperationally(
+    node: ClinicalDraftWorkflowNodeId,
+    status: ClinicalDraftWorkflowNodeStatus,
+    durationMs: number,
+  ): void {
+    try {
+      record(node, status, durationMs);
+    } catch (error) {
+      console.error(JSON.stringify({
+        level: "error",
+        event: "clinical_draft_workflow_trace_violation",
+        node,
+        status,
+        reason: error instanceof Error ? error.message : "unknown_trace_error",
+      }));
+    }
+  }
+
   async function run<T>(node: ClinicalDraftWorkflowNodeId, action: () => Promise<T>): Promise<T> {
     const startedAt = clock();
+    let result: T;
     try {
-      const result = await action();
-      record(node, "completed", clock() - startedAt);
-      return result;
+      result = await action();
     } catch (error) {
-      record(node, "failed", clock() - startedAt);
+      recordOperationally(node, "failed", clock() - startedAt);
       throw error;
     }
+    recordOperationally(node, "completed", clock() - startedAt);
+    return result;
   }
 
   return {
@@ -196,6 +215,7 @@ export function verifyClinicalDraftOutput(output: OpenAiOutput): ClinicalDraftVe
     }
   }
   if (!output.sections.length) addFinding("section_incomplete", "block");
+  // Every pending entry counts once; each declared absence without a matching entry adds one more.
   const missingInformationCount = output.missingInformation.length + unlistedDeclaredAbsences;
   if (missingInformationCount) {
     addFinding("missing_information", "warning", missingInformationCount);

@@ -88,6 +88,43 @@ test("records only operational node state and enforces graph dependencies", asyn
   assert.doesNotMatch(JSON.stringify(trace.snapshot()), /PRIVATE CLINICAL VALUE/);
 });
 
+test("keeps strict trace guards while accepting degraded dependencies", async () => {
+  const trace = createClinicalDraftWorkflowTrace();
+  await trace.run("resolve_prompt", async () => undefined);
+  await trace.run("validate_sources", async () => undefined);
+  trace.record("reserve_execution", "completed");
+  trace.record("generate", "completed");
+  trace.record("verify", "completed");
+  trace.record("record_usage", "degraded");
+  trace.record("audit", "completed");
+
+  assert.equal(trace.snapshot().find((event) => event.node === "record_usage")?.status, "degraded");
+  assert.equal(trace.snapshot().at(-1)?.node, "audit");
+  assert.throws(() => trace.record("audit", "completed"), /ya fue registrado/);
+});
+
+test("does not let trace violations replace workflow action outcomes", async () => {
+  const trace = createClinicalDraftWorkflowTrace();
+  const traceErrors: string[] = [];
+  const originalConsoleError = console.error;
+  console.error = (message?: unknown) => traceErrors.push(String(message));
+
+  try {
+    assert.equal(await trace.run("reserve_execution", async () => "reserved"), "reserved");
+    const actionError = new Error("action failure");
+    await assert.rejects(
+      trace.run("reserve_execution", async () => { throw actionError; }),
+      (error: unknown) => error === actionError,
+    );
+  } finally {
+    console.error = originalConsoleError;
+  }
+
+  assert.deepEqual(trace.snapshot(), []);
+  assert.equal(traceErrors.length, 2);
+  assert.ok(traceErrors.every((message) => message.includes("clinical_draft_workflow_trace_violation")));
+});
+
 test("passes a complete supported draft", () => {
   assert.deepEqual(verifyClinicalDraftOutput(completeOutput()), {
     outcome: "pass",
@@ -192,7 +229,7 @@ test("counts declared absences once when reconciling missing information", () =>
   const verification = verifyClinicalDraftOutput(completeOutput({
     sections: [
       { title: "Diagnóstico", text: "No consta.", evidence: [] },
-      { title: "Tratamiento", text: "Sin información.", evidence: [] },
+      { title: "Tratamiento", text: "Sin informacion.", evidence: [] },
       { title: "RUT", text: "No aparece.", evidence: [] },
     ],
     missingInformation: ["Confirmar diagnóstico.", "Confirmar rutina de ejercicios."],
@@ -202,6 +239,44 @@ test("counts declared absences once when reconciling missing information", () =>
     outcome: "warning",
     findings: [{ code: "missing_information", severity: "warning", count: 4 }],
   });
+});
+
+test("reports missing document metadata and duplicate section titles", () => {
+  const verification = verifyClinicalDraftOutput(completeOutput({
+    documentKind: "",
+    safetyNotice: "",
+    sections: [
+      {
+        title: "Certificado",
+        text: "Primera indicación respaldada.",
+        evidence: [{
+          sourceIndex: 0,
+          page: 1,
+          excerpt: "Primera indicación respaldada",
+          status: "explicito",
+          verification: "verified",
+        }],
+      },
+      {
+        title: "certificado",
+        text: "Segunda indicación respaldada.",
+        evidence: [{
+          sourceIndex: 0,
+          page: 1,
+          excerpt: "Segunda indicación respaldada",
+          status: "explicito",
+          verification: "verified",
+        }],
+      },
+    ],
+  }));
+
+  assert.equal(verification.outcome, "blocked");
+  assert.deepEqual(verification.findings.map((finding) => finding.code), [
+    "document_kind_missing",
+    "duplicate_section_title",
+    "safety_notice_missing",
+  ]);
 });
 
 test("blocks redundant identity and unsupported clinical sections", () => {
