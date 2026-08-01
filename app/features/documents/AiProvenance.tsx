@@ -12,7 +12,7 @@ export function AiProvenance({ aiMetadata, sections }: Props) {
     : evidence ?? {};
 
   return (
-    <aside className="ai-document-origin print-hide">
+    <aside id="ai-document-origin" tabIndex={-1} className="ai-document-origin print-hide">
       <details className="ai-provenance-disclosure">
         <summary>
           <Sparkles size={14} />

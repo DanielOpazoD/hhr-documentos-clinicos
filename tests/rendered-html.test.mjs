@@ -328,6 +328,7 @@ test("keeps the clinical studios usable from mobile through desktop", async () =
     "../app/components/AiStudio.tsx",
     "../app/features/ai/AiDraftResult.tsx",
     "../app/features/documents/DocumentCommandBar.tsx",
+    "../app/features/documents/DocumentPreflight.tsx",
     "../app/features/documents/DocumentHistoryDialog.tsx",
     "../app/features/documents/DocumentLibrary.tsx",
     "../app/features/documents/PromptProposalDialog.tsx",
@@ -337,6 +338,7 @@ test("keeps the clinical studios usable from mobile through desktop", async () =
     "../app/features/documents/ProfessionalEditor.tsx",
     "../app/features/documents/DocumentPreview.tsx",
     "../app/features/documents/document-pdf.ts",
+    "../app/features/documents/document-readiness.ts",
     "../app/lib/document-layout.ts",
     "../app/features/documents/SignatureEditor.tsx",
     "../app/features/documents/SignatureImageEditor.tsx",
@@ -437,6 +439,26 @@ test("keeps the clinical studios usable from mobile through desktop", async () =
   assert.match(documentStudio, />Imprimir<\/span>/);
   assert.match(documentStudio, />Historial<\/span>/);
   assert.match(documentStudio, /aria-label="Imprimir documento"/);
+  assert.match(documentStudio, /document-print-preflight/);
+  assert.match(documentStudio, /evaluateDocumentReadiness/);
+  assert.match(documentStudio, /Imprimir de todos modos/);
+  assert.match(documentStudio, /printWhenReady/);
+  assert.match(documentStudio, /hasUnsavedChanges\(\) && !\(await persist\("Borrador"\)\)/);
+  assert.match(documentStudio, /const currentReadiness = readinessRef\.current/);
+  assert.match(documentStudio, /if \(saving\) return;/);
+  assert.match(documentStudio, /onPrint=\{\(\) => printWhenReady\(true\)\}/);
+  assert.match(documentStudio, /disabled=\{printingDisabled\}/);
+  assert.match(documentStudio, /ref=\{printTriggerRef\}/);
+  assert.match(documentStudio, /printTriggerRef\.current\?\.focus\(\)/);
+  assert.match(documentStudio, /headingRef\.current\?\.focus/);
+  assert.match(documentStudio, /field\.focus\(\)/);
+  assert.match(documentStudio, /Los cambios pendientes se guardan antes de imprimir/);
+  assert.match(documentStudio, /onNavigate=\{editFromPreview\}/);
+  assert.match(documentStudio, /fieldId === "signature-settings-trigger"/);
+  assert.match(documentStudio, /professional-editor-mobile \.signature-panel-trigger/);
+  assert.match(documentStudio, /if \(preflightOpen\) closePreflight\(\)/);
+  assert.doesNotMatch(documentStudio, /identity-collapse-trigger|patientDetailsOpen|professionalDetailsOpen/);
+  assert.match(documentStudio, /id="ai-document-origin"/);
   assert.match(documentStudio, /aria-label="Ver historial del documento"/);
   assert.match(documentStudio, /event\.key === "Escape"/);
   assert.match(documentStudio, /event\.key === "Enter"/);
@@ -549,6 +571,11 @@ test("keeps the clinical studios usable from mobile through desktop", async () =
   assert.match(styles, /\.document-signer\.preview-edit-target/);
   assert.match(styles, /\.professional-editor/);
   assert.match(styles, /\.professional-editor-sidebar/);
+  assert.match(styles, /\.document-preflight/);
+  assert.match(styles, /\.document-preflight-issues/);
+  assert.match(styles, /\.document-preflight-issue/);
+  assert.doesNotMatch(responsiveStyles, /\.patient-editor\.collapsed|\.identity-collapse-trigger|position: sticky/);
+  assert.doesNotMatch(globalStyles, /@import\s+["']tailwindcss["']/);
   assert.match(styles, /\.studio-page \.document-command-bar, \.studio-page \.document-status-actions \{ display: contents; \}/);
   assert.match(styles, /\.studio-page \.header-actions \.button \{ min-height: 36px; flex: 0 0 auto; padding-inline: 12px; white-space: nowrap; \}/);
   assert.match(styles, /\.studio-page \.header-actions \{ width: 100%; display: flex; justify-content: flex-end; gap: 6px; \}/);

@@ -12,6 +12,8 @@ import { ProfessionalEditor } from "@/app/features/documents/ProfessionalEditor"
 import { SignatureEditor } from "@/app/features/documents/SignatureEditor";
 import { DocumentPreview } from "@/app/features/documents/DocumentPreview";
 import { DocumentHistoryDialog } from "@/app/features/documents/DocumentHistoryDialog";
+import { DocumentPreflight } from "@/app/features/documents/DocumentPreflight";
+import { evaluateDocumentReadiness } from "@/app/features/documents/document-readiness";
 import { useDocumentWorkspace } from "@/app/features/documents/use-document-workspace";
 import { useDocumentKeyboard } from "@/app/features/documents/use-document-keyboard";
 
@@ -20,10 +22,21 @@ export function DocumentStudio() {
   const [assistantOpen, setAssistantOpen] = useState(false);
   const [assistantActivated, setAssistantActivated] = useState(false);
   const [signaturePanelOpen, setSignaturePanelOpen] = useState(false);
+  const [preflightOpen, setPreflightOpen] = useState(false);
   const [professionalSlot, setProfessionalSlot] = useState<HTMLElement | null>(null);
   const signaturePanelRef = useRef<HTMLElement>(null);
   const signatureTriggerRef = useRef<HTMLButtonElement | null>(null);
-  const { closeDocumentHistory, openDocument, persist, setNewMenuOpen, setSignatureDeleteId, setSignatureFormOpen } = workspace;
+  const printTriggerRef = useRef<HTMLButtonElement | null>(null);
+  const {
+    closeDocumentHistory,
+    hasUnsavedChanges,
+    openDocument,
+    persist,
+    saving,
+    setNewMenuOpen,
+    setSignatureDeleteId,
+    setSignatureFormOpen,
+  } = workspace;
   const saveFromKeyboard = useCallback(() => void persist(), [persist]);
   const openNewDocumentMenu = useCallback(() => setNewMenuOpen(true), [setNewMenuOpen]);
   const closeSignaturePanel = useCallback((restoreFocus = true) => {
@@ -42,11 +55,16 @@ export function DocumentStudio() {
     signatureTriggerRef.current = trigger;
     setSignaturePanelOpen(true);
   }, [closeSignaturePanel, signaturePanelOpen]);
+  const closePreflight = useCallback((restoreFocus = true) => {
+    setPreflightOpen(false);
+    if (restoreFocus) window.requestAnimationFrame(() => printTriggerRef.current?.focus());
+  }, []);
   const closeTransientControls = useCallback(() => {
     setNewMenuOpen(false);
     closeDocumentHistory();
     closeSignaturePanel();
-  }, [closeDocumentHistory, closeSignaturePanel, setNewMenuOpen]);
+    if (preflightOpen) closePreflight();
+  }, [closeDocumentHistory, closePreflight, closeSignaturePanel, preflightOpen, setNewMenuOpen]);
   useDocumentKeyboard({
     saving: workspace.saving,
     onSave: saveFromKeyboard,
@@ -56,14 +74,17 @@ export function DocumentStudio() {
 
   const setAssistantVisibility = useCallback((open: boolean, updateUrl = true) => {
     if (open) setAssistantActivated(true);
-    if (open) closeSignaturePanel(false);
+    if (open) {
+      closeSignaturePanel(false);
+      closePreflight(false);
+    }
     setAssistantOpen(open);
     if (!updateUrl) return;
     const url = new URL(window.location.href);
     if (open) url.searchParams.set("assistant", "1");
     else url.searchParams.delete("assistant");
     window.history.pushState({}, "", `${url.pathname}${url.search}`);
-  }, [closeSignaturePanel]);
+  }, [closePreflight, closeSignaturePanel]);
 
   const openGeneratedDocument = useCallback(async (id: string) => {
     if (!(await openDocument(id))) return false;
@@ -77,16 +98,58 @@ export function DocumentStudio() {
 
   const editFromPreview = useCallback((fieldId: string) => {
     const compactViewport = window.matchMedia("(max-width: 820px)").matches;
+    if (fieldId === "signature-settings-trigger") {
+      const trigger = document.querySelector<HTMLButtonElement>(
+        compactViewport
+          ? ".professional-editor-mobile .signature-panel-trigger"
+          : "#document-professional-slot .signature-panel-trigger",
+      );
+      if (!signaturePanelOpen && trigger) toggleSignaturePanel(trigger);
+      else signaturePanelRef.current?.focus();
+      return;
+    }
     window.requestAnimationFrame(() => window.requestAnimationFrame(() => {
       const resolvedFieldId = compactViewport && fieldId.startsWith("professional-")
         ? `mobile-${fieldId}`
         : fieldId;
       const field = document.getElementById(resolvedFieldId);
       if (!(field instanceof HTMLElement)) return;
+      if (fieldId === "ai-document-origin") {
+        field.querySelector("details")?.setAttribute("open", "");
+      }
       field.focus();
       field.scrollIntoView({ block: "center", behavior: "smooth" });
     }));
-  }, []);
+  }, [signaturePanelOpen, toggleSignaturePanel]);
+
+  const readiness = evaluateDocumentReadiness({
+    aiMetadata: workspace.aiMetadata,
+    issueDate: workspace.issueDate,
+    patient: workspace.patient,
+    placedSignature: workspace.placedSignature,
+    sections: workspace.sections,
+    signer: workspace.signer,
+  });
+  const readinessRef = useRef(readiness);
+  useLayoutEffect(() => {
+    readinessRef.current = readiness;
+  }, [readiness]);
+
+  const printWhenReady = useCallback(async (acceptWarnings = false) => {
+    if (saving) return;
+    if (hasUnsavedChanges() && !(await persist("Borrador"))) return;
+    const currentReadiness = readinessRef.current;
+    if (
+      hasUnsavedChanges()
+      || currentReadiness.blockers.length
+      || (!acceptWarnings && currentReadiness.issues.length)
+    ) {
+      setPreflightOpen(true);
+      return;
+    }
+    closePreflight(false);
+    window.requestAnimationFrame(() => window.print());
+  }, [closePreflight, hasUnsavedChanges, persist, saving]);
 
   useEffect(() => {
     const frame = window.requestAnimationFrame(() => {
@@ -151,7 +214,17 @@ export function DocumentStudio() {
               <span>{assistantOpen ? "Volver al editor" : "Usar IA"}</span>
             </button>
             {!assistantOpen ? <>
-              <button aria-label="Imprimir documento" className="button primary studio-print-button" onClick={() => window.print()}><Printer size={16} /><span>Imprimir</span></button>
+              <button
+                ref={printTriggerRef}
+                aria-label="Imprimir documento"
+                aria-controls="document-print-preflight"
+                aria-expanded={preflightOpen}
+                className="button primary studio-print-button"
+                disabled={saving}
+                onClick={() => void printWhenReady()}
+              >
+                <Printer size={16} /><span>Imprimir</span>
+              </button>
               <DocumentCommandActions {...workspace} />
             </> : null}
           </div>
@@ -159,6 +232,15 @@ export function DocumentStudio() {
 
         {workspace.loadError ? <p className="form-error standalone">{workspace.loadError}</p> : null}
         <DocumentSaveError saveError={workspace.saveError} reloadDocument={workspace.reloadDocument} />
+        {preflightOpen && !assistantOpen ? (
+          <DocumentPreflight
+            readiness={readiness}
+            onClose={closePreflight}
+            onNavigate={editFromPreview}
+            onPrint={() => printWhenReady(true)}
+            printingDisabled={saving}
+          />
+        ) : null}
 
         {assistantActivated ? (
           <div hidden={!assistantOpen}>
