@@ -611,7 +611,7 @@ test("contains no production sample workflow or fictitious record creation", asy
 });
 
 test("integrates connections and guarded AI usage into tabbed settings", async () => {
-  const [navigation, settings, redirect, dashboard, usageApi, usageStore, execution, policy, database, schema, usageMigration, executionMigration, importRoute, improveRoute, fromDocumentsRoute] = await Promise.all([
+  const [navigation, settings, redirect, dashboard, usageApi, usageStore, execution, policy, database, auditSupport, schema, usageMigration, executionMigration, importRoute, improveRoute, fromDocumentsRoute] = await Promise.all([
     readFile(new URL("../app/components/AppFrame.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/configuracion/page.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/conexiones/page.tsx", import.meta.url), "utf8"),
@@ -621,6 +621,7 @@ test("integrates connections and guarded AI usage into tabbed settings", async (
     readFile(new URL("../app/features/ai/server/execution.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/features/ai/server/execution-policy.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/lib/server/database.ts", import.meta.url), "utf8"),
+    readFile(new URL("../app/lib/server/audit.ts", import.meta.url), "utf8"),
     readFile(new URL("../db/schema.ts", import.meta.url), "utf8"),
     readFile(new URL("../drizzle/0002_zippy_electro.sql", import.meta.url), "utf8"),
     readFile(new URL("../drizzle/0007_ai_execution_guard.sql", import.meta.url), "utf8"),
@@ -637,7 +638,7 @@ test("integrates connections and guarded AI usage into tabbed settings", async (
   assert.match(settings, /SystemSettings/);
   assert.match(dashboard, /Costo estimado/);
   assert.match(dashboard, /Tokens/);
-  assert.match(dashboard, /Disponibles · 24 h/);
+  assert.match(dashboard, /OpenAI · últimas 24 h/);
   assert.match(dashboard, /Modelo/);
   assert.match(dashboard, /No reemplaza la facturación del proveedor/);
   assert.match(usageApi, /GROUP BY provider_id, model/);
@@ -649,18 +650,29 @@ test("integrates connections and guarded AI usage into tabbed settings", async (
   assert.doesNotMatch(database, /\b(?:CREATE|ALTER|DROP)\s+(?:TABLE|INDEX)\b/i);
   assert.match(schema, /aiUsageEvents/);
   assert.match(schema, /aiOperationRuns/);
+  assert.match(schema, /ai_operation_runs_owner_provider_status_idx/);
+  assert.match(auditSupport, /auditBestEffort/);
+  assert.match(auditSupport, /audit_write_failed/);
   assert.match(usageMigration, /CREATE TABLE IF NOT EXISTS `ai_usage_events`/);
   assert.doesNotMatch(usageMigration, /ALTER TABLE `signatures`/);
   assert.match(executionMigration, /CREATE TABLE `ai_operation_runs`/);
+  assert.match(executionMigration, /ai_operation_runs_owner_provider_status_idx/);
   assert.match(execution, /db\.batch/);
   assert.match(execution, /INSERT INTO ai_operation_runs/);
   assert.match(execution, /retry-after/);
+  assert.match(execution, /finishAiExecutionBestEffort/);
   assert.match(policy, /cloudDailyLimit: 40/);
   assert.match(policy, /withAiExecutionTimeout/);
   for (const route of [importRoute, improveRoute, fromDocumentsRoute]) {
     assert.match(route, /reserveAiExecution/);
     assert.match(route, /runAiExecution/);
   }
+  assert.match(importRoute, /updateRunStatusBestEffort/);
+  for (const route of [importRoute, improveRoute, fromDocumentsRoute]) {
+    assert.match(route, /auditBestEffort/);
+  }
+  assert.match(improveRoute, /jsonError\("No se pudo mejorar el prompt\.", 502\)/);
+  assert.match(fromDocumentsRoute, /jsonError\("No se pudo crear la plantilla\.", 502\)/);
   assert.ok(
     fromDocumentsRoute.indexOf("const orderedDocuments") < fromDocumentsRoute.indexOf("const reservation"),
     "saved documents must be prepared before AI capacity is reserved",

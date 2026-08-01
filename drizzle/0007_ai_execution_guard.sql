@@ -9,3 +9,5 @@ CREATE TABLE `ai_operation_runs` (
 );
 --> statement-breakpoint
 CREATE INDEX `ai_operation_runs_owner_created_idx` ON `ai_operation_runs` (`owner_email`,`created_at`);
+--> statement-breakpoint
+CREATE INDEX `ai_operation_runs_owner_provider_status_idx` ON `ai_operation_runs` (`owner_email`,`provider_id`,`status`);

@@ -5,7 +5,7 @@ import { PROMPT_ENGINE_VERSION, promptVersion } from "@/app/features/ai/prompt-c
 import { generateDraftWithProvider, isAiProviderId } from "@/app/features/ai/server/providers";
 import { importSources } from "@/app/features/ai/server/import-request";
 import { progressStream } from "@/app/features/ai/server/progress-stream";
-import { audit } from "@/app/lib/server/audit";
+import { auditBestEffort } from "@/app/lib/server/audit";
 import { requestOwner } from "@/app/lib/server/auth";
 import { ensureDatabase } from "@/app/lib/server/database";
 import { apiTrace, jsonError, observeApi, reportApiFailure } from "@/app/lib/server/http";
@@ -23,6 +23,18 @@ import {
 async function updateRunStatus(id: string, status: string) {
   const db = await ensureDatabase();
   await db.prepare("UPDATE ai_import_runs SET status = ? WHERE id = ?").bind(status, id).run();
+}
+
+async function updateRunStatusBestEffort(id: string, status: string) {
+  try {
+    await updateRunStatus(id, status);
+  } catch {
+    console.error(JSON.stringify({
+      level: "error",
+      event: "ai_import_status_update_failed",
+      status,
+    }));
+  }
 }
 
 async function importWithAi(request: Request) {
@@ -111,7 +123,7 @@ async function importWithAi(request: Request) {
           signal,
         }),
       );
-      await updateRunStatus(id, "completado");
+      await updateRunStatusBestEffort(id, "completado");
       const usageRecorded = await recordAiUsage({
         owner,
         runId: id,
@@ -119,7 +131,7 @@ async function importWithAi(request: Request) {
         model: provider.model,
         usage,
       }).then(() => true).catch(() => false);
-      await audit(owner, "generated", "ai_import", id, {
+      await auditBestEffort(owner, "generated", "ai_import", id, {
         sourceNames: sources.map((source) => source.sourceName),
         target,
         provider: provider.id,
@@ -183,8 +195,8 @@ async function importWithAi(request: Request) {
         streamMessage = error.message;
         streamStatus = 504;
       }
-      await updateRunStatus(id, "fallido");
-      await audit(owner, "failed", "ai_import", id, {
+      await updateRunStatusBestEffort(id, "fallido");
+      await auditBestEffort(owner, "failed", "ai_import", id, {
         sourceNames: sources.map((source) => source.sourceName),
         target,
         provider: providerId,

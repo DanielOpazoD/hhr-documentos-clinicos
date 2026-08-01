@@ -293,6 +293,12 @@ test("upgrades canonical migration 0006 with an empty AI execution ledger and pr
 
     assert.deepEqual(businessSnapshot(db), before);
     assert.equal(db.prepare("SELECT COUNT(*) AS count FROM ai_operation_runs").get().count, 0);
+    const concurrencyPlan = db.prepare(`
+      EXPLAIN QUERY PLAN
+      SELECT COUNT(*) FROM ai_operation_runs
+      WHERE owner_email = ? AND provider_id = ? AND status = 'active'
+    `).all("owner@hhr.test", "openai").map((row) => row.detail).join(" ");
+    assert.match(concurrencyPlan, /ai_operation_runs_owner_provider_status_idx/);
     assert.equal((await verifyDatabase(db)).ok, true);
   } finally {
     db.close();

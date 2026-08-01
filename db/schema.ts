@@ -171,6 +171,7 @@ export const aiOperationRuns = sqliteTable("ai_operation_runs", {
   finishedAt: text("finished_at"),
 }, (table) => [
   index("ai_operation_runs_owner_created_idx").on(table.ownerEmail, table.createdAt),
+  index("ai_operation_runs_owner_provider_status_idx").on(table.ownerEmail, table.providerId, table.status),
 ]);
 
 export const auditEvents = sqliteTable("audit_events", {

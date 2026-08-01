@@ -117,6 +117,15 @@
             "created_at"
           ],
           "isUnique": false
+        },
+        "ai_operation_runs_owner_provider_status_idx": {
+          "name": "ai_operation_runs_owner_provider_status_idx",
+          "columns": [
+            "owner_email",
+            "provider_id",
+            "status"
+          ],
+          "isUnique": false
         }
       },
       "foreignKeys": {},

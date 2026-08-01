@@ -575,7 +575,7 @@ test("enforces per-owner AI quotas and concurrency before contacting a provider"
     502,
   );
   assert.equal(providerUnavailable.code, "UPSTREAM_ERROR");
-  assert.match(providerUnavailable.error, /OpenAI no está configurada/);
+  assert.equal(providerUnavailable.error, "No se pudo mejorar el prompt.");
 
   const usage = await jsonResponse(await ownedFetch(aiQuotaOwner, "/api/ai/usage?days=7"), 200);
   assert.deepEqual(usage.availability.cloud, {

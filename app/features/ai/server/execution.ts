@@ -2,6 +2,7 @@ import { ensureDatabase } from "@/app/lib/server/database";
 import { appEnv } from "@/app/lib/server/environment";
 import { jsonError } from "@/app/lib/server/http";
 import type { AiProviderId } from "../types";
+import type { AiUsageSummary } from "../usage-types";
 import {
   AI_ACTIVE_STALE_MS,
   AI_CLOUD_WINDOW_MS,
@@ -30,18 +31,7 @@ export type AiExecutionDenial = {
   limit: number;
 };
 
-export type AiExecutionAvailability = {
-  cloud: {
-    limit: number;
-    used: number;
-    remaining: number;
-    nextAvailableAt: string | null;
-  };
-  concurrency: {
-    cloud: { limit: number; active: number };
-    local: { limit: number; active: number };
-  };
-};
+export type AiExecutionAvailability = AiUsageSummary["availability"];
 
 type AiExecutionReservation =
   | { ok: true; lease: AiExecutionLease }
@@ -217,6 +207,23 @@ async function finishAiExecution(lease: AiExecutionLease, status: Exclude<AiExec
   if (changedRows(result) !== 1) throw new Error("No se pudo cerrar la ejecución de IA.");
 }
 
+async function finishAiExecutionBestEffort(
+  lease: AiExecutionLease,
+  status: Exclude<AiExecutionStatus, "active">,
+): Promise<void> {
+  try {
+    await finishAiExecution(lease, status);
+  } catch {
+    console.error(JSON.stringify({
+      level: "error",
+      event: "ai_execution_finalize_failed",
+      operation: lease.operation,
+      providerId: lease.providerId,
+      status,
+    }));
+  }
+}
+
 export async function runAiExecution<T>(
   lease: AiExecutionLease,
   action: (signal: AbortSignal) => Promise<T>,
@@ -226,10 +233,13 @@ export async function runAiExecution<T>(
   try {
     result = await withAiExecutionTimeout(action, timeoutMs);
   } catch (error) {
-    await finishAiExecution(lease, error instanceof AiExecutionTimeoutError ? "timed_out" : "failed");
+    await finishAiExecutionBestEffort(
+      lease,
+      error instanceof AiExecutionTimeoutError ? "timed_out" : "failed",
+    );
     throw error;
   }
-  await finishAiExecution(lease, "completed");
+  await finishAiExecutionBestEffort(lease, "completed");
   return result;
 }
 
