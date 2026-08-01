@@ -161,6 +161,18 @@ export const aiUsageEvents = sqliteTable("ai_usage_events", {
   index("ai_usage_owner_created_idx").on(table.ownerEmail, table.createdAt),
 ]);
 
+export const aiOperationRuns = sqliteTable("ai_operation_runs", {
+  id: text("id").primaryKey(),
+  ownerEmail: text("owner_email").notNull(),
+  operation: text("operation").notNull(),
+  providerId: text("provider_id").notNull(),
+  status: text("status").notNull(),
+  createdAt: text("created_at").notNull(),
+  finishedAt: text("finished_at"),
+}, (table) => [
+  index("ai_operation_runs_owner_created_idx").on(table.ownerEmail, table.createdAt),
+]);
+
 export const auditEvents = sqliteTable("audit_events", {
   id: text("id").primaryKey(),
   ownerEmail: text("owner_email").notNull(),

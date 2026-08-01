@@ -279,6 +279,26 @@ test("upgrades canonical migration 0005 to independent signing assets without lo
   }
 });
 
+test("upgrades canonical migration 0006 with an empty AI execution ledger and preserves records", async () => {
+  const path = join(temporaryRoot, "canonical-6.sqlite");
+  const db = createDatabase(path);
+  try {
+    for (const name of migrationNames.slice(0, -1)) {
+      await applyRepositoryMigration(db, name);
+    }
+    seedData(db, { legacy: false });
+    const before = businessSnapshot(db);
+
+    await applyPendingMigrations(db);
+
+    assert.deepEqual(businessSnapshot(db), before);
+    assert.equal(db.prepare("SELECT COUNT(*) AS count FROM ai_operation_runs").get().count, 0);
+    assert.equal((await verifyDatabase(db)).ok, true);
+  } finally {
+    db.close();
+  }
+});
+
 test("accepts request-time compatibility indexes only while 0005 is pending", async () => {
   const path = join(temporaryRoot, "pending-repaired.sqlite");
   const db = await createLegacyDatabase(4, path);
@@ -340,6 +360,10 @@ test("the integrity verifier detects schema and relational drift using counts on
       CREATE INDEX unexpected_documents_idx ON documents(title);
       CREATE TRIGGER unexpected_users_trigger AFTER INSERT ON users
         BEGIN SELECT 1; END;
+      INSERT INTO ai_operation_runs
+        (id, owner_email, operation, provider_id, status, created_at, finished_at)
+        VALUES ('invalid-run', 'owner@hhr.test', 'clinical_draft', 'openai', 'completed',
+          '2026-07-01T12:00:00.000Z', NULL);
       DELETE FROM documents WHERE id = 'document-1';
       UPDATE signatures SET is_default = 0 WHERE owner_email = 'signer-b@hhr.test';
       DELETE FROM d1_migrations WHERE name = '${migrationNames.at(-1)}';
@@ -357,6 +381,7 @@ test("the integrity verifier detects schema and relational drift using counts on
     assert.equal(checks.has("orphan.document_versions"), true);
     assert.equal(checks.has("orphan.document_files"), true);
     assert.equal(checks.has("signatures.default_count"), true);
+    assert.equal(checks.has("ai_operations.invalid_state"), true);
   } finally {
     db.close();
   }
