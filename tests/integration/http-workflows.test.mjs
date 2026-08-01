@@ -3,6 +3,7 @@ import { after, before, test } from "node:test";
 import { startLocalApp } from "./local-app.mjs";
 
 let app;
+const requestIdPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
 
 before(async () => {
   app = await startLocalApp();
@@ -21,6 +22,12 @@ function ownedFetch(owner, path, init = {}) {
 async function jsonResponse(response, expectedStatus) {
   const body = await response.json();
   assert.equal(response.status, expectedStatus, JSON.stringify(body));
+  const requestId = response.headers.get("x-request-id");
+  assert.match(requestId ?? "", requestIdPattern);
+  if (expectedStatus >= 400) {
+    assert.equal(body.requestId, requestId);
+    assert.equal(typeof body.code, "string");
+  }
   return body;
 }
 
@@ -86,8 +93,9 @@ test("requires an authenticated owner outside the local preview", async () => {
 
   for (const [path, method] of privateEndpoints) {
     const response = await app.fetch(path, { method });
-    assert.equal(response.status, 401, `${method} ${path}`);
-    assert.deepEqual(await response.json(), { error: "Autenticación requerida." });
+    const body = await jsonResponse(response, 401);
+    assert.equal(body.error, "Autenticación requerida.", `${method} ${path}`);
+    assert.equal(body.code, "AUTH_REQUIRED", `${method} ${path}`);
     assert.equal(response.headers.get("x-content-type-options"), "nosniff");
     assert.equal(response.headers.get("x-frame-options"), "SAMEORIGIN");
   }

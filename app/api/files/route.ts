@@ -2,14 +2,14 @@ import { audit } from "@/app/lib/server/audit";
 import { requestOwner } from "@/app/lib/server/auth";
 import { ensureDatabase } from "@/app/lib/server/database";
 import { appEnv } from "@/app/lib/server/environment";
-import { jsonError } from "@/app/lib/server/http";
+import { jsonError, observeApi } from "@/app/lib/server/http";
 import { safeFileName } from "@/app/lib/server/security";
 import { cleanupPendingFileDeletes, deleteOwnedFiles } from "@/app/features/files/server/delete-files";
 
 const allowed = new Set(["application/pdf", "application/vnd.openxmlformats-officedocument.wordprocessingml.document", "image/jpeg", "image/png", "image/heic", "image/heif"]);
 const maxBytes = 15 * 1024 * 1024;
 
-export async function GET(request: Request) {
+async function getFiles(request: Request) {
   const owner = requestOwner(request);
   if (!owner) return jsonError("Autenticación requerida.", 401);
   await cleanupPendingFileDeletes(owner).catch(() => undefined);
@@ -18,7 +18,7 @@ export async function GET(request: Request) {
   return Response.json({ files: result.results });
 }
 
-export async function POST(request: Request) {
+async function uploadFile(request: Request) {
   const owner = requestOwner(request);
   if (!owner) return jsonError("Autenticación requerida.", 401);
   const form = await request.formData();
@@ -37,7 +37,7 @@ export async function POST(request: Request) {
   return Response.json({ file: { id, name, mimeType: file.type, size: file.size, origin, status: "activo", createdAt: now } }, { status: 201 });
 }
 
-export async function PATCH(request: Request) {
+async function updateFile(request: Request) {
   const owner = requestOwner(request);
   if (!owner) return jsonError("Autenticación requerida.", 401);
   const payload = await request.json() as { id?: string; name?: string; status?: string };
@@ -52,7 +52,7 @@ export async function PATCH(request: Request) {
   return Response.json({ file: { id: payload.id, name, status } });
 }
 
-export async function DELETE(request: Request) {
+async function deleteFiles(request: Request) {
   const owner = requestOwner(request);
   if (!owner) return jsonError("Autenticación requerida.", 401);
   const payload = await request.json().catch(() => null) as { ids?: unknown } | null;
@@ -61,3 +61,8 @@ export async function DELETE(request: Request) {
   if (!ids.length || ids.length > 100) return jsonError("Seleccione entre 1 y 100 archivos.");
   return Response.json({ ok: true, deletedIds: await deleteOwnedFiles(owner, ids) });
 }
+
+export const GET = observeApi("files.GET", getFiles);
+export const POST = observeApi("files.POST", uploadFile);
+export const PATCH = observeApi("files.PATCH", updateFile);
+export const DELETE = observeApi("files.DELETE", deleteFiles);

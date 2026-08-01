@@ -2,11 +2,11 @@ import { audit } from "@/app/lib/server/audit";
 import { requestOwner } from "@/app/lib/server/auth";
 import { ensureDatabase } from "@/app/lib/server/database";
 import { appEnv } from "@/app/lib/server/environment";
-import { jsonError } from "@/app/lib/server/http";
+import { jsonError, observeApi } from "@/app/lib/server/http";
 
 type SignatureRow = { objectKey: string; mimeType: string; isDefault?: number; kind: string };
 
-export async function GET(request: Request, context: { params: Promise<{ id: string }> }) {
+async function getSignature(request: Request, context: { params: Promise<{ id: string }> }) {
   const owner = requestOwner(request);
   if (!owner) return jsonError("Autenticación requerida.", 401);
   const { id } = await context.params;
@@ -18,7 +18,7 @@ export async function GET(request: Request, context: { params: Promise<{ id: str
   return new Response(object.body, { headers: { "Content-Type": row.mimeType, "Cache-Control": "private, max-age=300" } });
 }
 
-export async function DELETE(request: Request, context: { params: Promise<{ id: string }> }) {
+async function deleteSignature(request: Request, context: { params: Promise<{ id: string }> }) {
   const owner = requestOwner(request);
   if (!owner) return jsonError("Autenticación requerida.", 401);
   const { id } = await context.params;
@@ -37,7 +37,7 @@ export async function DELETE(request: Request, context: { params: Promise<{ id: 
   return Response.json({ ok: true });
 }
 
-export async function PATCH(request: Request, context: { params: Promise<{ id: string }> }) {
+async function updateSignature(request: Request, context: { params: Promise<{ id: string }> }) {
   const owner = requestOwner(request);
   if (!owner) return jsonError("Autenticación requerida.", 401);
   const { id } = await context.params;
@@ -55,3 +55,7 @@ export async function PATCH(request: Request, context: { params: Promise<{ id: s
   await audit(owner, "defaulted", profile.kind, id);
   return Response.json({ ok: true });
 }
+
+export const GET = observeApi("signatures.id.GET", getSignature);
+export const DELETE = observeApi("signatures.id.DELETE", deleteSignature);
+export const PATCH = observeApi("signatures.id.PATCH", updateSignature);

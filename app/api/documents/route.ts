@@ -1,7 +1,7 @@
 import { audit } from "@/app/lib/server/audit";
 import { requestOwner } from "@/app/lib/server/auth";
 import { ensureDatabase } from "@/app/lib/server/database";
-import { jsonError, readJsonObject } from "@/app/lib/server/http";
+import { jsonError, observeApi, readJsonObject } from "@/app/lib/server/http";
 import {
   isDocumentWriteConflict,
   nextDocumentVersion,
@@ -23,7 +23,7 @@ function conflictError() {
   return jsonError("Este documento cambió en otra pestaña. Vuelva a abrirlo antes de guardar.", 409);
 }
 
-export async function GET(request: Request) {
+async function getDocuments(request: Request) {
   const owner = requestOwner(request);
   if (!owner) return jsonError("Autenticación requerida.", 401);
   const db = await ensureDatabase();
@@ -40,7 +40,7 @@ export async function GET(request: Request) {
   return Response.json({ documents: result.results });
 }
 
-export async function POST(request: Request) {
+async function saveDocument(request: Request) {
   const owner = requestOwner(request);
   if (!owner) return jsonError("Autenticación requerida.", 401);
   const payload = await readJsonObject(request);
@@ -98,7 +98,7 @@ export async function POST(request: Request) {
   return Response.json({ document: { id, title, patientName, templateId, status, version, updatedAt: now } }, { status: existing ? 200 : 201 });
 }
 
-export async function DELETE(request: Request) {
+async function deleteDocuments(request: Request) {
   const owner = requestOwner(request);
   if (!owner) return jsonError("Autenticación requerida.", 401);
   const queryId = new URL(request.url).searchParams.get("id")?.trim();
@@ -132,3 +132,7 @@ export async function DELETE(request: Request) {
   ]);
   return Response.json({ ok: true, deletedIds: ownedIds });
 }
+
+export const GET = observeApi("documents.GET", getDocuments);
+export const POST = observeApi("documents.POST", saveDocument);
+export const DELETE = observeApi("documents.DELETE", deleteDocuments);

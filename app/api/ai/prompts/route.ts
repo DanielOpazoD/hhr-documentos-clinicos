@@ -3,15 +3,15 @@ import { validatePromptInput } from "@/app/features/ai/server/prompt-validation"
 import { audit } from "@/app/lib/server/audit";
 import { requestOwner } from "@/app/lib/server/auth";
 import { ensureDatabase } from "@/app/lib/server/database";
-import { jsonError, readJsonObject } from "@/app/lib/server/http";
+import { jsonError, observeApi, readJsonObject } from "@/app/lib/server/http";
 
-export async function GET(request: Request) {
+async function getPrompts(request: Request) {
   const owner = requestOwner(request);
   if (!owner) return jsonError("Autenticación requerida.", 401);
   return Response.json({ prompts: await listPromptProfiles(owner) });
 }
 
-export async function POST(request: Request) {
+async function createPrompt(request: Request) {
   const owner = requestOwner(request);
   if (!owner) return jsonError("Autenticación requerida.", 401);
   const body = await readJsonObject(request);
@@ -36,3 +36,6 @@ export async function POST(request: Request) {
   const prompts = await listPromptProfiles(owner);
   return Response.json({ prompt: prompts.find((item) => item.id === id), prompts }, { status: 201 });
 }
+
+export const GET = observeApi("ai.prompts.GET", getPrompts);
+export const POST = observeApi("ai.prompts.POST", createPrompt);

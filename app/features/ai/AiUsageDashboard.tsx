@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import type { AiUsageSummary } from "./usage-types";
+import { readApiResponse } from "@/app/lib/client/http";
 
 const periods = [7, 30, 90] as const;
 const integer = new Intl.NumberFormat("es-CL", { maximumFractionDigits: 0 });
@@ -19,13 +20,14 @@ export function AiUsageDashboard() {
   useEffect(() => {
     const controller = new AbortController();
     void fetch(`/api/ai/usage?days=${days}`, { cache: "no-store", signal: controller.signal })
-      .then(async (response) => {
-        if (!response.ok) throw new Error("No se pudo consultar el uso.");
-        return response.json() as Promise<AiUsageSummary>;
-      })
+      .then((response) => readApiResponse<AiUsageSummary>(response, {
+        fallbackMessage: "No se pudo consultar el uso.",
+      }))
       .then(setSummary)
       .catch((cause) => {
-        if (!(cause instanceof DOMException && cause.name === "AbortError")) setError("No se pudo consultar el uso.");
+        if (!controller.signal.aborted && !(cause instanceof DOMException && cause.name === "AbortError")) {
+          setError(cause instanceof Error ? cause.message : "No se pudo consultar el uso.");
+        }
       });
     return () => controller.abort();
   }, [days]);

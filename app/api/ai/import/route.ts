@@ -8,7 +8,7 @@ import { progressStream } from "@/app/features/ai/server/progress-stream";
 import { audit } from "@/app/lib/server/audit";
 import { requestOwner } from "@/app/lib/server/auth";
 import { ensureDatabase } from "@/app/lib/server/database";
-import { jsonError } from "@/app/lib/server/http";
+import { apiTrace, jsonError, observeApi, reportApiFailure } from "@/app/lib/server/http";
 import { recordAiUsage } from "@/app/features/ai/server/usage";
 import type { AiPromptMode, AiTargetId } from "@/app/features/ai/types";
 import { FREEFORM_SCHEMA_TARGET } from "@/app/features/ai/targets";
@@ -18,7 +18,7 @@ async function updateRunStatus(id: string, status: string) {
   await db.prepare("UPDATE ai_import_runs SET status = ? WHERE id = ?").bind(status, id).run();
 }
 
-export async function POST(request: Request) {
+async function importWithAi(request: Request) {
   const owner = requestOwner(request);
   if (!owner) return jsonError("Autenticación requerida.", 401);
 
@@ -72,6 +72,7 @@ export async function POST(request: Request) {
     "INSERT INTO ai_import_runs (id, owner_email, source_name, target_type, status, created_at) VALUES (?, ?, ?, ?, 'procesando', ?)",
   ).bind(id, owner, sourceLabel, promptMode === "free" ? "libre" : target, new Date().toISOString()).run();
 
+  const trace = apiTrace(request);
   return progressStream(async (emit) => {
     emit({ type: "status", stage: "preparing", label: "Preparando archivos", detail: `${sources.length} fuente${sources.length === 1 ? "" : "s"} lista${sources.length === 1 ? "" : "s"} para analizar` });
     try {
@@ -163,5 +164,13 @@ export async function POST(request: Request) {
       });
       throw error;
     }
+  }, {
+    code: "AI_GENERATION_FAILED",
+    requestId: trace?.requestId,
+    onError: () => {
+      if (trace) reportApiFailure({ ...trace, status: 502, code: "AI_GENERATION_FAILED" });
+    },
   });
 }
+
+export const POST = observeApi("ai.import.POST", importWithAi);

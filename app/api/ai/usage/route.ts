@@ -1,6 +1,6 @@
 import { requestOwner } from "@/app/lib/server/auth";
 import { ensureDatabase } from "@/app/lib/server/database";
-import { jsonError } from "@/app/lib/server/http";
+import { jsonError, observeApi } from "@/app/lib/server/http";
 
 type UsageRow = {
   providerId: "openai" | "gemma_local";
@@ -15,7 +15,7 @@ type UsageRow = {
   lastUsedAt: string;
 };
 
-export async function GET(request: Request) {
+async function getUsage(request: Request) {
   const owner = requestOwner(request);
   if (!owner) return jsonError("Autenticación requerida.", 401);
   const requestedDays = Number(new URL(request.url).searchParams.get("days") ?? 30);
@@ -54,3 +54,5 @@ export async function GET(request: Request) {
     models,
   });
 }
+
+export const GET = observeApi("ai.usage.GET", getUsage);

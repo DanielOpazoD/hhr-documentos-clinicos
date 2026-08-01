@@ -194,7 +194,7 @@ test("serializes terminal mobile snapshots and keeps scanner polling server-auth
   const expirationFence = sourceSection(
     mobileSessions,
     "async function fenceExpiredSession(",
-    "export async function GET",
+    "async function getMobileSession",
   );
   const batchStart = expirationFence.indexOf("await db.batch");
   const expireWrite = expirationFence.indexOf("SET status = 'expirada'", batchStart);
@@ -217,8 +217,8 @@ test("serializes terminal mobile snapshots and keeps scanner polling server-auth
 
   const sessionGet = sourceSection(
     mobileSessions,
-    "export async function GET",
-    "export async function POST",
+    "async function getMobileSession",
+    "async function createMobileSession",
   );
   assert.match(sessionGet, /const snapshotAt = new Date\(\)\.toISOString\(\)/);
   assert.match(sessionGet, /session\.status === "activa" && snapshotStatus === "expirada"/);
@@ -826,6 +826,35 @@ test("organizes, archives and deletes stored files through owned server routes",
   assert.match(source, /aria-keyshortcuts="Enter"/);
   assert.match(source, /deleteOwnedFiles/);
   assert.equal(modules.filter((module) => module.split("\n").length > 220).length, 0);
+});
+
+test("keeps operational failures traceable without exposing clinical context", async () => {
+  const [errorPage, clientHttp, serverHttp, aiClient, aiRoute, progressStream, filesClient, diagnostics, styles] = await Promise.all([
+    readFile(new URL("../app/error.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/lib/client/http.ts", import.meta.url), "utf8"),
+    readFile(new URL("../app/lib/server/http.ts", import.meta.url), "utf8"),
+    readFile(new URL("../app/features/ai/client.ts", import.meta.url), "utf8"),
+    readFile(new URL("../app/api/ai/import/route.ts", import.meta.url), "utf8"),
+    readFile(new URL("../app/features/ai/server/progress-stream.ts", import.meta.url), "utf8"),
+    readFile(new URL("../app/features/files/client.ts", import.meta.url), "utf8"),
+    readFile(new URL("../docs/ERROR_DIAGNOSTICS.md", import.meta.url), "utf8"),
+    readFile(new URL("../app/globals.css", import.meta.url), "utf8"),
+  ]);
+
+  assert.match(errorPage, /No pudimos completar esta vista/);
+  assert.match(errorPage, /onClick=\{reset\}/);
+  assert.doesNotMatch(errorPage, /error\.message/);
+  assert.match(clientHttp, /class ApiClientError extends Error/);
+  assert.match(clientHttp, /Código de soporte/);
+  assert.match(clientHttp, /options\.validate/);
+  assert.match(serverHttp, /event: "api_request_failed"/);
+  assert.match(aiClient, /AI_GENERATION_FAILED|requestId/);
+  assert.match(aiRoute, /reportApiFailure/);
+  assert.match(progressStream, /No se pudo completar la operación/);
+  assert.doesNotMatch(progressStream, /error instanceof Error \? error\.message/);
+  assert.equal((filesClient.match(/validate: has/g) ?? []).length, 4);
+  assert.match(diagnostics, /No se registran cuerpos/);
+  assert.match(styles, /\.unexpected-error-page/);
 });
 
 test("ships the eight reviewed clinical prompts as configurable defaults", async () => {

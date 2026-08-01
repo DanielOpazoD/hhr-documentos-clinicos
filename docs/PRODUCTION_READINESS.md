@@ -12,6 +12,7 @@ La aplicación está preparada como un entorno privado funcional, pero no se dec
 - Límites explícitos de tamaño y tipo para archivos, capturas y firmas.
 - Borradores de IA editables, sin finalización o firma automática.
 - Registro de creación, actualización, carga, generación y errores relevantes.
+- Errores API correlacionados mediante un código de soporte, contrato estable y logs estructurados sin cuerpos ni identificadores clínicos.
 - Versionado de documentos al cambiar su estado clínico.
 - Historial visible con restauración no destructiva como borrador y control optimista de concurrencia.
 - Formularios institucionales originales preservados para impresión.
@@ -37,7 +38,7 @@ La aplicación está preparada como un entorno privado funcional, pero no se dec
 1. Aprobación institucional del tratamiento de datos y del proveedor de IA.
 2. Política documentada de retención, eliminación, exportación y derecho de acceso.
 3. Automatización institucional de respaldos D1/R2 y simulacro remoto periódico; el procedimiento D1 y su ensayo local ya están documentados.
-4. Monitoreo operativo, alertas, trazas y procedimiento de respuesta a incidentes.
+4. Alertas operativas externas y procedimiento institucional de respuesta a incidentes; la correlación y el diagnóstico local ya están documentados.
 5. Límites de consumo por usuario y protección contra abuso de APIs costosas.
 6. Revisión de amenazas, pruebas de penetración y validación de dependencias transitivas.
 7. Matriz de roles y permisos clínicos más granular si se amplía el acceso.

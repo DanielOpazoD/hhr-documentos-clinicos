@@ -2,7 +2,7 @@ import { createPromptFromDocuments, type PromptSourceDocument } from "@/app/feat
 import { audit } from "@/app/lib/server/audit";
 import { requestOwner } from "@/app/lib/server/auth";
 import { ensureDatabase } from "@/app/lib/server/database";
-import { jsonError, readJsonObject } from "@/app/lib/server/http";
+import { jsonError, observeApi, readJsonObject } from "@/app/lib/server/http";
 
 const MAX_SOURCE_DOCUMENTS = 8;
 
@@ -45,7 +45,7 @@ function sourceDocument(row: DocumentRow): PromptSourceDocument {
   };
 }
 
-export async function POST(request: Request) {
+async function createPromptFromSavedDocuments(request: Request) {
   const owner = requestOwner(request);
   if (!owner) return jsonError("Autenticación requerida.", 401);
   const body = await readJsonObject(request);
@@ -81,3 +81,5 @@ export async function POST(request: Request) {
     return jsonError(error instanceof Error ? error.message : "No se pudo crear la plantilla.", 502);
   }
 }
+
+export const POST = observeApi("ai.prompts.from-documents.POST", createPromptFromSavedDocuments);
