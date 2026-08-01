@@ -84,6 +84,26 @@ test("readApiResponse preserves status, code and support reference", async () =>
   );
 });
 
+test("readApiResponse rejects malformed successful responses", async () => {
+  const requestId = crypto.randomUUID();
+  const response = new Response("<html>unexpected upstream page</html>", {
+    status: 200,
+    headers: { "content-type": "text/html", "x-request-id": requestId },
+  });
+
+  await assert.rejects(
+    () => readApiResponse(response, { fallbackMessage: "No se pudo cargar la actividad." }),
+    (error: unknown) => {
+      assert.ok(error instanceof ApiClientError);
+      assert.equal(error.status, 200);
+      assert.equal(error.code, "INVALID_RESPONSE");
+      assert.equal(error.requestId, requestId);
+      assert.match(error.message, /No se pudo cargar la actividad/);
+      return true;
+    },
+  );
+});
+
 test("progressStream correlates failures that occur after streaming starts", async () => {
   const requestId = crypto.randomUUID();
   let failures = 0;

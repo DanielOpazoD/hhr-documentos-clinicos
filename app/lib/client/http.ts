@@ -38,11 +38,28 @@ export class ApiClientError extends Error {
 }
 
 export async function readApiResponse<T>(response: Response, options: ApiResponseOptions = {}): Promise<T> {
-  const payload = await response.json().catch(() => null) as Record<string, unknown> | null;
-  if (response.ok) return payload as T;
+  let parsed = false;
+  const value = await response.json().then((data: unknown) => {
+    parsed = true;
+    return data;
+  }).catch(() => null);
+  const payload = value && typeof value === "object" && !Array.isArray(value)
+    ? value as Record<string, unknown>
+    : null;
 
   const requestId = optionalValue(payload?.requestId, REQUEST_ID_PATTERN)
     ?? optionalValue(response.headers.get("x-request-id"), REQUEST_ID_PATTERN);
+  if (response.ok) {
+    if (parsed && value !== null && typeof value === "object") return value as T;
+    const details: ApiErrorDetails = {
+      message: options.fallbackMessage ?? "El servidor devolvió una respuesta inválida.",
+      status: response.status,
+      code: "INVALID_RESPONSE",
+      requestId,
+    };
+    throw options.createError?.(details) ?? new ApiClientError(details);
+  }
+
   const details: ApiErrorDetails = {
     message: typeof payload?.error === "string"
       ? payload.error
