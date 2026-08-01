@@ -203,6 +203,7 @@ function expectedUpgradeSnapshot(before) {
   const signatureHadDefaultColumn = (expected.signatures ?? []).every((row) => "is_default" in row);
   for (const row of expected.signatures ?? []) {
     if (!("kind" in row)) row.kind = "signature";
+    if (!("name" in row)) row.name = `${row.kind === "stamp" ? "Timbre" : "Firma"} de ${row.professional_name}`;
     if (!("is_default" in row)) row.is_default = 0;
     if (row.owner_email === "signer-b@hhr.test") row.is_default = 1;
     if (!signatureHadDefaultColumn && row.id === "signature-newer") row.is_default = 1;
@@ -271,7 +272,10 @@ test("upgrades canonical migration 0005 to independent signing assets without lo
     const before = businessSnapshot(db);
     await applyPendingMigrations(db);
     const expected = structuredClone(before);
-    for (const row of expected.signatures ?? []) row.kind = "signature";
+    for (const row of expected.signatures ?? []) {
+      row.kind = "signature";
+      row.name = `Firma de ${row.professional_name}`;
+    }
     assert.deepEqual(businessSnapshot(db), expected);
     assert.equal((await verifyDatabase(db)).ok, true);
   } finally {
@@ -279,7 +283,7 @@ test("upgrades canonical migration 0005 to independent signing assets without lo
   }
 });
 
-test("upgrades canonical migration 0006 with an empty AI execution ledger and preserves records", async () => {
+test("upgrades canonical migration 0007 with template preferences and named signing assets", async () => {
   const path = join(temporaryRoot, "canonical-6.sqlite");
   const db = createDatabase(path);
   try {
@@ -291,7 +295,9 @@ test("upgrades canonical migration 0006 with an empty AI execution ledger and pr
 
     await applyPendingMigrations(db);
 
-    assert.deepEqual(businessSnapshot(db), before);
+    const expected = structuredClone(before);
+    for (const row of expected.signatures ?? []) row.name = `${row.kind === "stamp" ? "Timbre" : "Firma"} de ${row.professional_name}`;
+    assert.deepEqual(businessSnapshot(db), expected);
     assert.equal(db.prepare("SELECT COUNT(*) AS count FROM ai_operation_runs").get().count, 0);
     const concurrencyPlan = db.prepare(`
       EXPLAIN QUERY PLAN

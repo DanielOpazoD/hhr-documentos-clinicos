@@ -32,6 +32,19 @@ export const documentTemplates = sqliteTable("document_templates", {
   ...timestamps,
 });
 
+export const documentTemplateSettings = sqliteTable("document_template_settings", {
+  id: text("id").primaryKey(),
+  ownerEmail: text("owner_email").notNull(),
+  templateId: text("template_id").notNull(),
+  title: text("title").notNull(),
+  sectionsJson: text("sections_json").notNull(),
+  promptId: text("prompt_id"),
+  ...timestamps,
+}, (table) => [
+  uniqueIndex("document_template_settings_owner_template_idx")
+    .on(table.ownerEmail, table.templateId),
+]);
+
 export const documents = sqliteTable("documents", {
   id: text("id").primaryKey(),
   ownerEmail: text("owner_email").notNull(),
@@ -91,6 +104,7 @@ export const signatures = sqliteTable("signatures", {
   id: text("id").primaryKey(),
   ownerEmail: text("owner_email").notNull(),
   kind: text("kind").notNull().default("signature"),
+  name: text("name").notNull().default(""),
   professionalName: text("professional_name").notNull(),
   professionalRut: text("professional_rut").notNull(),
   specialty: text("specialty").notNull(),

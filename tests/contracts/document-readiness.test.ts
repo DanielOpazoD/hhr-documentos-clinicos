@@ -15,6 +15,7 @@ const completeInput = {
   placedSignature: {
     id: "signature-1",
     kind: "signature" as const,
+    name: "Firma principal",
     professionalName: "Daniel Opazo",
     professionalRut: "17.752.753-K",
     specialty: "Medicina Interna",

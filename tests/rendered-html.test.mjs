@@ -343,6 +343,8 @@ test("keeps the clinical studios usable from mobile through desktop", async () =
     "../app/features/documents/SignatureEditor.tsx",
     "../app/features/documents/SignatureImageEditor.tsx",
     "../app/features/documents/SignatureProfileSelector.tsx",
+    "../app/features/documents/TemplateSettingsEditor.tsx",
+    "../app/features/documents/template-settings.ts",
     "../app/features/documents/prepare-signature.ts",
     "../app/features/documents/templates.ts",
     "../app/features/documents/use-document-keyboard.ts",
@@ -352,10 +354,12 @@ test("keeps the clinical studios usable from mobile through desktop", async () =
     "../app/features/documents/use-document-persistence.ts",
     "../app/features/documents/use-document-typography.ts",
     "../app/features/documents/use-signature-workspace.ts",
+    "../app/features/documents/use-template-settings.ts",
     "../app/features/documents/api.ts",
     "../app/features/documents/document-version.ts",
     "../app/api/documents/route.ts",
     "../app/api/documents/[id]/versions/route.ts",
+    "../app/api/document-templates/route.ts",
     "../app/lib/client-pdf.ts",
   ];
   const [moduleSources, globalStyles, responsiveStyles, layout, dashboard] = await Promise.all([
@@ -376,7 +380,11 @@ test("keeps the clinical studios usable from mobile through desktop", async () =
   assert.match(documentStudio, /Nombre médico/);
   assert.match(documentStudio, />Especialidad</);
   assert.doesNotMatch(documentStudio, /Previsión/);
-  assert.match(documentStudio, /Administrar imágenes guardadas/);
+  assert.doesNotMatch(documentStudio, /Administrar imágenes guardadas/);
+  assert.match(documentStudio, /Guardar plantilla/);
+  assert.match(documentStudio, /renameSignatureProfile/);
+  assert.match(documentStudio, /Renombrar/);
+  assert.match(documentStudio, /En uso/);
   assert.match(documentStudio, /Predeterminada/);
   assert.match(documentStudio, /makeDefaultSignature/);
   assert.match(documentStudio, /removeSignatureProfile/);
@@ -426,13 +434,28 @@ test("keeps the clinical studios usable from mobile through desktop", async () =
   assert.match(documentStudio, /aria-label=\{assistantOpen \? "Volver al editor" : "Usar IA"\}/);
   assert.match(documentStudio, /signature-settings-panel/);
   assert.match(documentStudio, /aria-label="Configurar firma y timbre"/);
-  assert.match(documentStudio, /signaturePanelRef\.current\?\.focus\(\)/);
+  assert.match(documentStudio, /sidePanelRef\.current\?\.focus\(\)/);
+  assert.match(documentStudio, /key=\{workspace\.activeTemplateSetting\.templateId\}/);
+  assert.match(documentStudio, /disabled=\{!templateSettingsLoaded && !templateSettingsError\}/);
+  assert.match(documentStudio, /templateSettingsError \? retryTemplateSettings\(\)/);
+  assert.match(documentStudio, /if \(saving\) return/);
+  assert.match(documentStudio, /section\.body\.trim\(\)/);
+  assert.match(documentStudio, /setTemplateSettings\(items\)/);
+  assert.match(documentStudio, /appliedTemplateRef\.current === applicationKey/);
+  assert.match(documentStudio, /definitionDiffers\(setting, defaults\)/);
+  assert.match(styles, /\.template-settings-panel \{[^}]*width: min\(430px, calc\(100vw - 24px\)\)/);
+  assert.match(documentStudio, /disabled=\{loadingPrompts \|\| !selectedPrompt\}/);
+  assert.match(documentStudio, /initialTemplateId=\{workspace\.templateId\}/);
+  assert.match(documentStudio, /initialTemplateSections=\{workspace\.activeTemplateSetting\.sections\}/);
+  assert.match(documentStudio, /retainedSections\(current, configuredIds, previousTitles\)/);
+  assert.match(documentStudio, /current === previous\.title \? saved\.title : current/);
+  assert.match(documentStudio, /saved\.templateId === templateId && definitionChanged/);
   assert.match(documentStudio, /trigger\.focus\(\)/);
   assert.match(documentStudio, /professionalSlot && !assistantOpen/);
   assert.match(documentStudio, /signaturePanelOpen && !assistantOpen/);
   assert.doesNotMatch(await readFile(new URL("../app/components/DocumentStudio.tsx", import.meta.url), "utf8"), /Descargar PDF|studio-download-button/);
   assert.match(documentStudio, /Redacte manualmente o genere un borrador con IA/);
-  assert.match(documentStudio, /<AiStudio active=\{assistantOpen\} embedded/);
+  assert.match(documentStudio, /<AiStudio[\s\S]*active=\{assistantOpen\}[\s\S]*embedded[\s\S]*initialPromptId/);
   assert.match(documentStudio, /Continuar en el editor/);
   assert.match(documentStudio, /url\.searchParams\.set\("document", id\)/);
   assert.match(documentStudio, />Guardar<\/span>/);
@@ -501,6 +524,7 @@ test("keeps the clinical studios usable from mobile through desktop", async () =
   assert.match(documentStudio, /Boolean\(defaultProfile \|\| defaultStamp\)/);
   assert.match(documentStudio, /markSignatureDirty/);
   assert.match(documentStudio, /workspaceEpoch/);
+  assert.match(documentStudio, /openedDocumentRef\.current/);
   assert.match(documentStudio, /flushPendingSave/);
   assert.match(documentStudio, /savePromise/);
   assert.match(documentStudio, /dirtyRef/);
@@ -509,7 +533,7 @@ test("keeps the clinical studios usable from mobile through desktop", async () =
   assert.match(documentStudio, /event\.currentTarget\.value = ""/);
   assert.match(documentStudio, /signatureBlockHeight/);
   assert.match(documentStudio, /SIGNING_IMAGE_WIDTH_MAX_PERCENT = 72/);
-  assert.match(documentStudio, /Aumentar tamaño de/);
+  assert.match(documentStudio, /aria-label=\{`Tamaño de/);
   assert.match(documentStudio, /splitTextToSize\(options\.signer\.name, signoffWidth\)/);
   assert.match(documentStudio, /signoffCursorY/);
   assert.match(documentStudio, /imageCenterY - imageHeight \/ 2/);
@@ -573,7 +597,8 @@ test("keeps the clinical studios usable from mobile through desktop", async () =
   assert.doesNotMatch(globalStyles, /@import\s+["']tailwindcss["']/);
   assert.match(styles, /\.studio-page \.document-command-bar, \.studio-page \.document-status-actions \{ display: contents; \}/);
   assert.match(styles, /\.studio-page \.header-actions \.button \{ min-height: 36px; flex: 0 0 auto; padding-inline: 12px; white-space: nowrap; \}/);
-  assert.match(styles, /\.studio-page \.header-actions \{ width: 100%; display: flex; justify-content: flex-end; gap: 6px; \}/);
+  assert.match(styles, /\.studio-page \.header-actions \{ flex-wrap: nowrap; align-items: center; gap: 6px; \}/);
+  assert.match(styles, /\.studio-page \.header-actions \{ width: 100%; display: flex; justify-content: flex-end; \}/);
   assert.match(styles, /\.professional-editor-mobile/);
   assert.doesNotMatch(styles, /\.document-editor-layout > \.mobile-hidden/);
   assert.match(styles, /\.page-header > \*, \.hero-row > \*.*min-width: 0;/);

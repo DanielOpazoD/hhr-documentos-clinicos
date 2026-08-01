@@ -2,7 +2,7 @@ import { audit } from "@/app/lib/server/audit";
 import { requestOwner } from "@/app/lib/server/auth";
 import { ensureDatabase } from "@/app/lib/server/database";
 import { appEnv } from "@/app/lib/server/environment";
-import { jsonError, observeApi } from "@/app/lib/server/http";
+import { jsonError, observeApi, readJsonObject } from "@/app/lib/server/http";
 
 type SignatureRow = { objectKey: string; mimeType: string; isDefault?: number; kind: string };
 
@@ -41,18 +41,23 @@ async function updateSignature(request: Request, context: { params: Promise<{ id
   const owner = requestOwner(request);
   if (!owner) return jsonError("Autenticación requerida.", 401);
   const { id } = await context.params;
-  const body = await request.json().catch(() => null) as { isDefault?: boolean } | null;
-  if (body?.isDefault !== true) return jsonError("Solicitud de perfil no válida.");
+  const body = await readJsonObject(request);
+  const name = typeof body?.name === "string" ? body.name.trim() : null;
+  const makeDefault = body?.isDefault === true;
+  if (!makeDefault && !name) return jsonError("Solicitud de imagen no válida.");
+  if (name && name.length > 80) return jsonError("El nombre de la imagen no puede superar 80 caracteres.");
 
   const db = await ensureDatabase();
   const profile = await db.prepare(`SELECT id, kind FROM signatures WHERE id = ? AND owner_email = ?`).bind(id, owner).first<{ id: string; kind: string }>();
   if (!profile) return jsonError("Imagen no encontrada.", 404);
   const now = new Date().toISOString();
-  await db.batch([
-    db.prepare(`UPDATE signatures SET is_default = 0 WHERE owner_email = ? AND kind = ?`).bind(owner, profile.kind),
-    db.prepare(`UPDATE signatures SET is_default = 1, updated_at = ? WHERE id = ? AND owner_email = ?`).bind(now, id, owner),
-  ]);
-  await audit(owner, "defaulted", profile.kind, id);
+  const statements = [];
+  if (makeDefault) {
+    statements.push(db.prepare(`UPDATE signatures SET is_default = 0 WHERE owner_email = ? AND kind = ?`).bind(owner, profile.kind));
+  }
+  statements.push(db.prepare(`UPDATE signatures SET name = COALESCE(?, name), is_default = CASE WHEN ? THEN 1 ELSE is_default END, updated_at = ? WHERE id = ? AND owner_email = ?`).bind(name, makeDefault ? 1 : 0, now, id, owner));
+  await db.batch(statements);
+  await audit(owner, makeDefault ? "defaulted" : "renamed", profile.kind, id);
   return Response.json({ ok: true });
 }
 

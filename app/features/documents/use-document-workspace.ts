@@ -2,11 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { DocumentStatus } from "@/app/lib/catalog";
-import {
-  getDocument,
-  listDocuments,
-  removeStoredDocuments,
-} from "./api";
+import { getDocument, listDocuments, removeStoredDocuments } from "./api";
 import { formatSavedTime } from "./formatters";
 import {
   createSections,
@@ -21,15 +17,12 @@ import { useDocumentIdentity } from "./use-document-identity";
 import { normalizeAiMetadata } from "./ai-metadata";
 import { downloadDocumentPdf } from "./document-pdf";
 import { applySignatureProfile } from "./signature-profile";
-import {
-  clampSignatureY,
-  clampSigningImageWidth,
-  defaultImagePlacement,
-  normalizeStoredSignatureY,
-} from "@/app/lib/document-layout";
+import { clampSignatureY, clampSigningImageWidth, defaultImagePlacement, normalizeStoredSignatureY } from "@/app/lib/document-layout";
 import { useDocumentPersistence } from "./use-document-persistence";
 import { useDocumentHistory } from "./use-document-history";
 import { useDocumentTypography } from "./use-document-typography";
+import { sectionsFromTemplateSetting, templateSettingFor } from "./template-settings";
+import { useTemplateSettings } from "./use-template-settings";
 export function useDocumentWorkspace() {
   const defaultTemplate = getTemplate(DEFAULT_TEMPLATE_ID);
   const [templateId, setTemplateId] = useState<string>(defaultTemplate.id);
@@ -50,15 +43,14 @@ export function useDocumentWorkspace() {
   const [aiMetadata, setAiMetadata] = useState<StoredAiMetadata | null>(null);
   const editRevision = useRef(0);
   const dirtyRef = useRef(false);
+  const openedDocumentRef = useRef(false);
   const workspaceEpoch = useRef(0);
   const defaultProfileApplied = useRef(false);
   const documentUpdatedAtRef = useRef<string | null>(null);
-
   const setDocumentRevision = useCallback((value: string | null) => {
     documentUpdatedAtRef.current = value;
     setDocumentUpdatedAt(value);
   }, []);
-
   const template = getTemplate(templateId);
   const visibleTitle = documentTitle.trim() || template.name;
   const filteredDocuments = useMemo(() => {
@@ -81,6 +73,10 @@ export function useDocumentWorkspace() {
     defaultProfileApplied.current = true;
     markDirty();
   }, [markDirty]);
+  const templateWorkspace = useTemplateSettings({
+    documentId, markDirty, openedDocumentRef, setDocumentTitle, setSections, templateId, workspaceEpoch,
+  });
+  const { templateSettings } = templateWorkspace;
 
   const identityWorkspace = useDocumentIdentity(markDirty);
   const { issueDate, legacyInsurance, loadIdentity, loadSignerProfile, patient, resetIdentity, signer, updateSigner: updateIdentitySigner } = identityWorkspace;
@@ -156,16 +152,17 @@ export function useDocumentWorkspace() {
       const signatureY = storedSignature
         ? normalizeStoredSignatureY(storedSignature.kind, storedSignature.y)
         : defaultImagePlacement("signature").y;
+      openedDocumentRef.current = true;
       setTemplateId(nextTemplateId);
       setDocumentTitle(stored.title);
       setSections(nextSections.length ? nextSections : createSections(nextTemplateId));
       loadIdentity(stored.content, stored.patientName, stored.patientRutMasked);
       setAiMetadata(normalizeAiMetadata(stored.content?.ai, nextSections));
       setPlacedSignature(storedSignature
-        ? { ...storedSignature, kind: "signature", y: signatureY, width: clampSigningImageWidth(storedSignature.width), isDefault: false, imageUrl: `/api/signatures/${storedSignature.id}` }
+        ? { ...storedSignature, name: storedSignature.name ?? `Firma de ${storedSignature.professionalName}`, kind: "signature", y: signatureY, width: clampSigningImageWidth(storedSignature.width), isDefault: false, imageUrl: `/api/signatures/${storedSignature.id}` }
         : null);
       setPlacedStamp(storedStamp
-        ? { ...storedStamp, kind: "stamp", y: clampSignatureY(storedStamp.y), width: clampSigningImageWidth(storedStamp.width), isDefault: false, imageUrl: `/api/signatures/${storedStamp.id}` }
+        ? { ...storedStamp, name: storedStamp.name ?? `Timbre de ${storedStamp.professionalName}`, kind: "stamp", y: clampSignatureY(storedStamp.y), width: clampSigningImageWidth(storedStamp.width), isDefault: false, imageUrl: `/api/signatures/${storedStamp.id}` }
         : null);
       setStatus(stored.status);
       setDocumentId(stored.id);
@@ -207,10 +204,12 @@ export function useDocumentWorkspace() {
   const createDocument = useCallback(async (nextTemplateId: string) => {
     if (!(await flushPendingSave())) return;
     workspaceEpoch.current += 1;
+    openedDocumentRef.current = false;
     const nextTemplate = getTemplate(nextTemplateId);
+    const nextSetting = templateSettingFor(templateSettings, nextTemplate.id);
     setTemplateId(nextTemplate.id);
-    setDocumentTitle(nextTemplate.name);
-    setSections(createSections(nextTemplate.id));
+    setDocumentTitle(nextSetting.title);
+    setSections(sectionsFromTemplateSetting(nextSetting));
     resetIdentity();
     setAiMetadata(null);
     defaultProfileApplied.current = false;
@@ -238,7 +237,7 @@ export function useDocumentWorkspace() {
     flushPendingSave, loadSignerProfile, resetIdentity, setAiMetadata, setDirty,
     setDocumentId, setDocumentRevision, setDocumentTitle, setHistoryOpen,
     setNewMenuOpen, setPlacedSignature, setPlacedStamp, setSavedAt, setSaveError, setSections,
-    setStatus, setTemplateId, setVersion, signatures,
+    setStatus, setTemplateId, setVersion, signatures, templateSettings,
   ]);
 
   const deleteDocuments = useCallback(async (requestedIds: string[]) => {
@@ -333,6 +332,7 @@ export function useDocumentWorkspace() {
 
   return {
     template, templateId, documentTitle, setDocumentTitle, visibleTitle, aiMetadata,
+    ...templateWorkspace,
     ...identityWorkspace,
     updateSigner, sections, status, documentId, documentUpdatedAt, version, savedAt,
     saving, dirty, storedDocuments, filteredDocuments, recentQuery, setRecentQuery,

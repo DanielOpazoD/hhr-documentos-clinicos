@@ -1,4 +1,4 @@
-import type { AiTargetId } from "./types";
+import type { AiPromptMode, AiTargetId } from "./types";
 
 export const FREEFORM_SCHEMA_TARGET: AiTargetId = "informe_medico";
 
@@ -36,6 +36,24 @@ export function documentTemplateForAiTarget(target: AiTargetId): string {
   if (target === "informe_medico" || target === "traslado_agudo") return "informe_medico";
   if (target === "certificado") return "certificado_general";
   return "documento_libre";
+}
+
+export function aiTargetForDocumentTemplate(templateId: string): AiTargetId | null {
+  if (templateId === "epicrisis") return "epicrisis";
+  if (templateId === "informe_medico" || templateId === "documento_libre") return "informe_medico";
+  if (templateId === "certificado_general" || templateId === "certificado_antecedentes") return "certificado";
+  return null;
+}
+
+export function resolveAiDraftTemplateId(input: {
+  target: AiTargetId;
+  promptMode: AiPromptMode;
+  sourceTarget?: AiTargetId;
+  sourceTemplateId?: string;
+}): string {
+  if (input.promptMode === "free") return "documento_libre";
+  if (input.sourceTemplateId && input.sourceTarget === input.target) return input.sourceTemplateId;
+  return documentTemplateForAiTarget(input.target);
 }
 
 export const defaultClinicalSigner = {

@@ -16,17 +16,20 @@ import { DocumentPreflight } from "@/app/features/documents/DocumentPreflight";
 import { evaluateDocumentReadiness } from "@/app/features/documents/document-readiness";
 import { useDocumentWorkspace } from "@/app/features/documents/use-document-workspace";
 import { useDocumentKeyboard } from "@/app/features/documents/use-document-keyboard";
+import { TemplateSettingsEditor } from "@/app/features/documents/TemplateSettingsEditor";
+import { aiTargetForDocumentTemplate } from "@/app/features/ai/targets";
 
 export function DocumentStudio() {
   const workspace = useDocumentWorkspace();
   const [assistantOpen, setAssistantOpen] = useState(false);
   const [assistantActivated, setAssistantActivated] = useState(false);
-  const [signaturePanelOpen, setSignaturePanelOpen] = useState(false);
+  const [sidePanel, setSidePanel] = useState<"signature" | "template" | null>(null);
   const [preflightOpen, setPreflightOpen] = useState(false);
   const [professionalSlot, setProfessionalSlot] = useState<HTMLElement | null>(null);
-  const signaturePanelRef = useRef<HTMLElement>(null);
-  const signatureTriggerRef = useRef<HTMLButtonElement | null>(null);
+  const sidePanelRef = useRef<HTMLElement>(null);
+  const sidePanelTriggerRef = useRef<HTMLButtonElement | null>(null);
   const printTriggerRef = useRef<HTMLButtonElement | null>(null);
+  const signaturePanelOpen = sidePanel === "signature";
   const {
     closeDocumentHistory,
     hasUnsavedChanges,
@@ -39,22 +42,28 @@ export function DocumentStudio() {
   } = workspace;
   const saveFromKeyboard = useCallback(() => void persist(), [persist]);
   const openNewDocumentMenu = useCallback(() => setNewMenuOpen(true), [setNewMenuOpen]);
-  const closeSignaturePanel = useCallback((restoreFocus = true) => {
-    const trigger = signatureTriggerRef.current;
-    signatureTriggerRef.current = null;
-    setSignaturePanelOpen(false);
+  const closeSidePanel = useCallback((restoreFocus = true) => {
+    const trigger = sidePanelTriggerRef.current;
+    sidePanelTriggerRef.current = null;
+    setSidePanel(null);
     setSignatureDeleteId(null);
     setSignatureFormOpen(false);
     if (restoreFocus && trigger) window.requestAnimationFrame(() => trigger.focus());
   }, [setSignatureDeleteId, setSignatureFormOpen]);
   const toggleSignaturePanel = useCallback((trigger: HTMLButtonElement) => {
     if (signaturePanelOpen) {
-      closeSignaturePanel();
+      closeSidePanel();
       return;
     }
-    signatureTriggerRef.current = trigger;
-    setSignaturePanelOpen(true);
-  }, [closeSignaturePanel, signaturePanelOpen]);
+    sidePanelTriggerRef.current = trigger;
+    setSidePanel("signature");
+  }, [closeSidePanel, signaturePanelOpen]);
+  const openTemplatePanel = useCallback((trigger: HTMLButtonElement) => {
+    setSignatureDeleteId(null);
+    setSignatureFormOpen(false);
+    sidePanelTriggerRef.current = trigger;
+    setSidePanel("template");
+  }, [setSignatureDeleteId, setSignatureFormOpen]);
   const closePreflight = useCallback((restoreFocus = true) => {
     setPreflightOpen(false);
     if (restoreFocus) window.requestAnimationFrame(() => printTriggerRef.current?.focus());
@@ -62,9 +71,9 @@ export function DocumentStudio() {
   const closeTransientControls = useCallback(() => {
     setNewMenuOpen(false);
     closeDocumentHistory();
-    closeSignaturePanel();
+    closeSidePanel();
     if (preflightOpen) closePreflight();
-  }, [closeDocumentHistory, closePreflight, closeSignaturePanel, preflightOpen, setNewMenuOpen]);
+  }, [closeDocumentHistory, closePreflight, closeSidePanel, preflightOpen, setNewMenuOpen]);
   useDocumentKeyboard({
     saving: workspace.saving,
     onSave: saveFromKeyboard,
@@ -75,7 +84,7 @@ export function DocumentStudio() {
   const setAssistantVisibility = useCallback((open: boolean, updateUrl = true) => {
     if (open) setAssistantActivated(true);
     if (open) {
-      closeSignaturePanel(false);
+      closeSidePanel(false);
       closePreflight(false);
     }
     setAssistantOpen(open);
@@ -84,7 +93,7 @@ export function DocumentStudio() {
     if (open) url.searchParams.set("assistant", "1");
     else url.searchParams.delete("assistant");
     window.history.pushState({}, "", `${url.pathname}${url.search}`);
-  }, [closePreflight, closeSignaturePanel]);
+  }, [closePreflight, closeSidePanel]);
 
   const openGeneratedDocument = useCallback(async (id: string) => {
     if (!(await openDocument(id))) return false;
@@ -105,7 +114,7 @@ export function DocumentStudio() {
           : "#document-professional-slot .signature-panel-trigger",
       );
       if (!signaturePanelOpen && trigger) toggleSignaturePanel(trigger);
-      else signaturePanelRef.current?.focus();
+      else sidePanelRef.current?.focus();
       return;
     }
     window.requestAnimationFrame(() => window.requestAnimationFrame(() => {
@@ -159,21 +168,20 @@ export function DocumentStudio() {
   }, []);
 
   useLayoutEffect(() => {
-    if (!signaturePanelOpen) return;
-    signaturePanelRef.current?.focus();
-  }, [signaturePanelOpen]);
+    if (sidePanel) sidePanelRef.current?.focus();
+  }, [sidePanel]);
 
   useEffect(() => {
     const syncAssistantFromUrl = () => {
       const open = new URLSearchParams(window.location.search).get("assistant") === "1";
       if (open) setAssistantActivated(true);
-      if (open) closeSignaturePanel(false);
+      if (open) closeSidePanel(false);
       setAssistantOpen(open);
     };
     syncAssistantFromUrl();
     window.addEventListener("popstate", syncAssistantFromUrl);
     return () => window.removeEventListener("popstate", syncAssistantFromUrl);
-  }, [closeSignaturePanel]);
+  }, [closeSidePanel]);
 
   return (
     <>
@@ -188,8 +196,13 @@ export function DocumentStudio() {
         professionalSlot,
       ) : null}
       {signaturePanelOpen && !assistantOpen ? (
-        <aside ref={signaturePanelRef} tabIndex={-1} id="signature-settings-panel" className="signature-settings-panel print-hide" aria-label="Configurar firma y timbre">
-          <SignatureEditor workspace={workspace} onClose={closeSignaturePanel} />
+        <aside ref={sidePanelRef} tabIndex={-1} id="signature-settings-panel" className="signature-settings-panel print-hide" aria-label="Configurar firma y timbre">
+          <SignatureEditor workspace={workspace} onClose={closeSidePanel} />
+        </aside>
+      ) : null}
+      {sidePanel === "template" && !assistantOpen ? (
+        <aside ref={sidePanelRef} tabIndex={-1} className="signature-settings-panel template-settings-panel print-hide" aria-label="Configurar plantilla del documento">
+          <TemplateSettingsEditor key={workspace.activeTemplateSetting.templateId} workspace={workspace} onClose={closeSidePanel} />
         </aside>
       ) : null}
       <div className="page-wrap studio-page simplified-studio">
@@ -244,7 +257,16 @@ export function DocumentStudio() {
 
         {assistantActivated ? (
           <div hidden={!assistantOpen}>
-            <AiStudio active={assistantOpen} embedded onOpenDocument={openGeneratedDocument} />
+            <AiStudio
+              active={assistantOpen}
+              embedded
+              initialTarget={aiTargetForDocumentTemplate(workspace.templateId) ?? undefined}
+              initialTemplateId={workspace.templateId}
+              initialTemplateTitle={workspace.activeTemplateSetting.title}
+              initialTemplateSections={workspace.activeTemplateSetting.sections}
+              initialPromptId={workspace.activeTemplateSetting.promptId}
+              onOpenDocument={openGeneratedDocument}
+            />
           </div>
         ) : null}
         <div hidden={assistantOpen}>
@@ -259,7 +281,7 @@ export function DocumentStudio() {
                 signatureOpen={signaturePanelOpen}
               />
               <AiProvenance {...workspace} />
-              <DocumentPreview {...workspace} onEditRequest={editFromPreview} />
+              <DocumentPreview {...workspace} onConfigureTemplate={openTemplatePanel} onEditRequest={editFromPreview} />
             </main>
           </div>
         </div>

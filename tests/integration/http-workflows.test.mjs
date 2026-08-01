@@ -122,6 +122,7 @@ test("requires an authenticated owner outside the local preview", async () => {
     ["/api/documents", "GET"],
     ["/api/files", "GET"],
     ["/api/signatures", "GET"],
+    ["/api/document-templates", "GET"],
     ["/api/ai/prompts", "GET"],
     ["/api/ai/prompts/from-documents", "POST"],
     ["/api/ai/providers", "GET"],
@@ -297,6 +298,7 @@ test("keeps files and signatures private across D1 and R2", async () => {
     const form = new FormData();
     form.set("file", new File([imageBytes], `${name}.png`, { type: "image/png" }));
     form.set("professionalName", `Profesional ${name}`);
+    form.set("name", name);
     form.set("specialty", "Especialidad sintética");
     form.set("kind", kind);
     return jsonResponse(await ownedFetch(ownerA, "/api/signatures", { method: "POST", body: form }), 201);
@@ -308,6 +310,7 @@ test("keeps files and signatures private across D1 and R2", async () => {
   assert.equal(firstSignature.isDefault, true);
   assert.equal(secondSignature.isDefault, false);
   assert.equal(firstSignature.kind, "signature");
+  assert.equal(firstSignature.name, "Prueba Uno");
   assert.equal(stamp.kind, "stamp");
   assert.equal(stamp.isDefault, true);
   const otherSignatures = await jsonResponse(await ownedFetch(ownerB, "/api/signatures"), 200);
@@ -318,6 +321,11 @@ test("keeps files and signatures private across D1 and R2", async () => {
   assert.deepEqual(new Uint8Array(await signatureImage.arrayBuffer()), imageBytes);
   await jsonResponse(await ownedFetch(ownerB, `/api/signatures/${firstSignature.id}`), 404);
   await jsonResponse(await jsonRequest(ownerB, `/api/signatures/${secondSignature.id}`, "PATCH", { isDefault: true }), 404);
+  await jsonResponse(await jsonRequest(ownerB, `/api/signatures/${secondSignature.id}`, "PATCH", { name: "Nombre ajeno" }), 404);
+
+  await jsonResponse(await jsonRequest(ownerA, `/api/signatures/${secondSignature.id}`, "PATCH", { name: "Firma de reemplazo" }), 200);
+  const renamedSignatures = await jsonResponse(await ownedFetch(ownerA, "/api/signatures"), 200);
+  assert.equal(renamedSignatures.signatures.find((signature) => signature.id === secondSignature.id).name, "Firma de reemplazo");
 
   await jsonResponse(await jsonRequest(ownerA, `/api/signatures/${secondSignature.id}`, "PATCH", { isDefault: true }), 200);
   const defaulted = await jsonResponse(await ownedFetch(ownerA, "/api/signatures"), 200);
@@ -333,6 +341,46 @@ test("keeps files and signatures private across D1 and R2", async () => {
   assert.equal(replacement.signatures.find((signature) => signature.id === firstSignature.id).isDefault, true);
   await jsonResponse(await ownedFetch(ownerA, `/api/signatures/${firstSignature.id}`, { method: "DELETE" }), 200);
   await jsonResponse(await ownedFetch(ownerA, `/api/signatures/${stamp.id}`, { method: "DELETE" }), 200);
+});
+
+test("stores private document template settings and validates their AI prompt", async () => {
+  const ownerA = `templates-a-${crypto.randomUUID()}@hhr.test`;
+  const ownerB = `templates-b-${crypto.randomUUID()}@hhr.test`;
+  const prompts = await jsonResponse(await ownedFetch(ownerA, "/api/ai/prompts"), 200);
+  const certificatePrompt = prompts.prompts.find((prompt) => prompt.target === "certificado" && prompt.builtIn);
+  const epicrisisPrompt = prompts.prompts.find((prompt) => prompt.target === "epicrisis" && prompt.builtIn);
+  assert.ok(certificatePrompt);
+  assert.ok(epicrisisPrompt);
+
+  const input = {
+    templateId: "certificado_general",
+    title: "Certificado para colegio",
+    sections: [
+      { id: "motivo", title: "Certificación" },
+      { id: "indicaciones", title: "Indicaciones al establecimiento" },
+    ],
+    promptId: certificatePrompt.id,
+  };
+  const saved = await jsonResponse(await jsonRequest(ownerA, "/api/document-templates", "PUT", input), 200);
+  assert.deepEqual(saved.setting, { ...input, updatedAt: saved.setting.updatedAt });
+
+  const ownerSettings = await jsonResponse(await ownedFetch(ownerA, "/api/document-templates"), 200);
+  assert.deepEqual(ownerSettings.settings[0].sections, input.sections);
+  assert.deepEqual((await jsonResponse(await ownedFetch(ownerB, "/api/document-templates"), 200)).settings, []);
+
+  const wrongPrompt = await jsonResponse(await jsonRequest(ownerA, "/api/document-templates", "PUT", {
+    ...input,
+    promptId: epicrisisPrompt.id,
+  }), 400);
+  assert.match(wrongPrompt.error, /no corresponde/);
+
+  const invalidPrescription = await jsonResponse(await jsonRequest(ownerA, "/api/document-templates", "PUT", {
+    templateId: "receta_externa",
+    title: "Receta externa",
+    sections: [{ id: "indicaciones", title: "Indicaciones" }],
+    promptId: null,
+  }), 400);
+  assert.match(invalidPrescription.error, /estructura fija/);
 });
 
 test("keeps exactly one mobile capture session active per owner", async () => {

@@ -37,6 +37,7 @@ export type StoredDocument = {
 export type SignatureRecord = {
   id: string;
   kind: SignatureAssetKind;
+  name: string;
   professionalName: string;
   professionalRut: string;
   specialty: string;
@@ -77,8 +78,8 @@ export type StoredContent = {
   patient?: Partial<PatientData> & { name?: string; insurance?: string };
   signer?: Partial<SignerData>;
   issueDate?: string;
-  signature?: Omit<PlacedSignature, "imageUrl" | "isDefault"> & { imageUrl?: string };
-  stamp?: Omit<PlacedSignature, "imageUrl" | "isDefault"> & { imageUrl?: string };
+  signature?: Omit<PlacedSignature, "imageUrl" | "isDefault" | "name"> & { imageUrl?: string; name?: string };
+  stamp?: Omit<PlacedSignature, "imageUrl" | "isDefault" | "name"> & { imageUrl?: string; name?: string };
   ai?: StoredAiMetadata;
 };
 
@@ -107,7 +108,18 @@ export type SaveDocumentInput = {
 
 export type SignatureForm = {
   file: File | null;
+  name: string;
   professionalName: string;
   professionalRut: string;
   specialty: string;
+};
+
+export type DocumentTemplateSectionSetting = Pick<DocumentSection, "id" | "title">;
+
+export type DocumentTemplateSetting = {
+  templateId: string;
+  title: string;
+  sections: DocumentTemplateSectionSetting[];
+  promptId: string | null;
+  updatedAt?: string;
 };

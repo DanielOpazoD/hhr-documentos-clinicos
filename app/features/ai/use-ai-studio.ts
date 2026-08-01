@@ -3,9 +3,10 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { fetchAiProviders, importWithAi, saveAiDraft } from "./client";
 import { fetchPromptProfiles } from "./prompt-client";
-import { defaultClinicalSigner, FREEFORM_SCHEMA_TARGET, getTargetName } from "./targets";
+import { defaultClinicalSigner, FREEFORM_SCHEMA_TARGET, getTargetName, resolveAiDraftTemplateId } from "./targets";
 import type { AiImportResult, AiPatient, AiProgress, AiPromptMode, AiProviderId, AiProviderInfo, AiSection, AiSigner, AiTargetId } from "./types";
 import type { AiPromptProfile } from "./prompt-types";
+import type { DocumentTemplateSectionSetting } from "@/app/features/documents/types";
 import { AI_WORKFLOW_MEMORY_KEY, parseAiWorkflowMemory, serializeAiWorkflowMemory } from "./workflow-memory";
 
 const AI_SELECTION_STORAGE_KEY = "hhr.ai-selection.v1";
@@ -52,18 +53,24 @@ const emptyResult: AiImportResult = {
   safetyNotice: "",
 };
 
-export function useAiStudio() {
+export function useAiStudio({ initialPromptId, initialTarget, initialTemplateId, initialTemplateSections, initialTemplateTitle }: {
+  initialPromptId?: string | null;
+  initialTarget?: AiTargetId;
+  initialTemplateId?: string;
+  initialTemplateSections?: DocumentTemplateSectionSetting[];
+  initialTemplateTitle?: string;
+} = {}) {
   const processingRef = useRef(false);
   const savingRef = useRef(false);
   const [files, setFiles] = useState<File[]>([]);
-  const [target, setTarget] = useState<AiTargetId>("epicrisis");
+  const [target, setTarget] = useState<AiTargetId>(initialTarget ?? "epicrisis");
   const [provider, setProvider] = useState<AiProviderId>("openai");
   const [model, setModel] = useState("gpt-5-mini");
   const [providers, setProviders] = useState<AiProviderInfo[]>([]);
   const [providersLoading, setProvidersLoading] = useState(true);
   const [promptProfiles, setPromptProfiles] = useState<AiPromptProfile[]>([]);
   const [promptsLoading, setPromptsLoading] = useState(true);
-  const [selectedPromptId, setSelectedPromptId] = useState("");
+  const [selectedPromptId, setSelectedPromptId] = useState(initialPromptId ?? "");
   const [promptMode, setPromptMode] = useState<AiPromptMode>("profile");
   const [additionalInstructions, setAdditionalInstructions] = useState("");
   const [freePrompt, setFreePrompt] = useState("");
@@ -77,7 +84,13 @@ export function useAiStudio() {
   const [error, setError] = useState<string | null>(null);
   const [createdId, setCreatedId] = useState<string | null>(null);
   const [draftHasChanges, setDraftHasChanges] = useState(false);
-  const [draftContext, setDraftContext] = useState<{ target: AiTargetId; promptMode: AiPromptMode } | null>(null);
+  const [draftContext, setDraftContext] = useState<{
+    target: AiTargetId;
+    promptMode: AiPromptMode;
+    templateId: string;
+    templateSections?: DocumentTemplateSectionSetting[];
+    title?: string;
+  } | null>(null);
   const [workflowMemoryReady, setWorkflowMemoryReady] = useState(false);
 
   useEffect(() => {
@@ -86,7 +99,7 @@ export function useAiStudio() {
       if (!active) return;
       let saved: ReturnType<typeof parseAiWorkflowMemory> = null;
       try {
-        saved = parseAiWorkflowMemory(window.localStorage.getItem(AI_WORKFLOW_MEMORY_KEY));
+        if (!initialTarget) saved = parseAiWorkflowMemory(window.localStorage.getItem(AI_WORKFLOW_MEMORY_KEY));
       } catch {
         // Algunos navegadores bloquean el almacenamiento local; el flujo sigue con valores seguros.
       }
@@ -98,7 +111,19 @@ export function useAiStudio() {
       setWorkflowMemoryReady(true);
     });
     return () => { active = false; };
-  }, []);
+  }, [initialTarget]);
+
+  useEffect(() => {
+    if (!initialTarget) return;
+    let active = true;
+    queueMicrotask(() => {
+      if (!active) return;
+      setTarget(initialTarget);
+      setPromptMode("profile");
+      setSelectedPromptId(initialPromptId ?? "");
+    });
+    return () => { active = false; };
+  }, [initialPromptId, initialTarget]);
 
   useEffect(() => {
     let active = true;
@@ -222,7 +247,27 @@ export function useAiStudio() {
           specialty: nextResult.signer.specialty || defaultClinicalSigner.specialty,
         },
       };
-      setDraftContext({ target: generationTarget, promptMode });
+      const generationTemplateId = resolveAiDraftTemplateId({
+        target: generationTarget,
+        promptMode,
+        sourceTarget: initialTarget,
+        sourceTemplateId: initialTemplateId,
+      });
+      const generationTitle = promptMode === "profile"
+        ? generationTemplateId === initialTemplateId && initialTemplateTitle?.trim()
+          ? initialTemplateTitle.trim()
+          : getTargetName(generationTarget)
+        : undefined;
+      const generationTemplateSections = promptMode === "profile" && generationTemplateId === initialTemplateId
+        ? initialTemplateSections?.map((section) => ({ ...section }))
+        : undefined;
+      setDraftContext({
+        target: generationTarget,
+        promptMode,
+        templateId: generationTemplateId,
+        templateSections: generationTemplateSections,
+        title: generationTitle,
+      });
       setIdentityConfirmed(false);
       setResult(preparedResult);
       setDraftHasChanges(true);
@@ -248,10 +293,18 @@ export function useAiStudio() {
     try {
       const savedTarget = draftContext?.target ?? target;
       const savedPromptMode = draftContext?.promptMode ?? promptMode;
+      const templateId = draftContext?.templateId ?? resolveAiDraftTemplateId({
+        target: savedTarget,
+        promptMode: savedPromptMode,
+        sourceTarget: initialTarget,
+        sourceTemplateId: initialTemplateId,
+      });
       const title = savedPromptMode === "free"
         ? result.documentKind.trim() || "Documento con IA"
-        : getTargetName(savedTarget);
-      const documentId = await saveAiDraft(result, savedTarget, title, savedPromptMode, createdId ?? undefined);
+        : draftContext?.title ?? (templateId === initialTemplateId && initialTemplateTitle?.trim()
+          ? initialTemplateTitle.trim()
+          : getTargetName(savedTarget));
+      const documentId = await saveAiDraft(result, title, templateId, draftContext?.templateSections, createdId ?? undefined);
       setCreatedId(documentId);
       setDraftHasChanges(false);
       return documentId;
@@ -382,7 +435,7 @@ export function useAiStudio() {
     draftPromptMode: draftContext?.promptMode ?? promptMode,
     draftTitle: draftContext?.promptMode === "free"
       ? result.documentKind.trim() || "Documento con IA"
-      : getTargetName(draftContext?.target ?? target),
+      : draftContext?.title ?? getTargetName(draftContext?.target ?? target),
     analyze,
     createDraft,
     updateSection,
