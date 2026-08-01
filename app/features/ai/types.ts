@@ -29,6 +29,25 @@ export type AiProgress = {
 
 export type AiProgressReporter = (progress: AiProgress) => void | Promise<void>;
 
+export type AiWorkflowNodeTrace = {
+  node: string;
+  status: "completed" | "degraded" | "failed";
+  durationMs: number;
+};
+
+export type AiWorkflowFinding = {
+  code: string;
+  severity: "warning" | "block";
+  count: number;
+};
+
+export type AiWorkflowSummary = {
+  version: string;
+  outcome: "pass" | "warning" | "blocked";
+  findings: AiWorkflowFinding[];
+  nodes: AiWorkflowNodeTrace[];
+};
+
 export type AiSourceInput = {
   file: File;
   mimeType: string;
@@ -44,6 +63,7 @@ export type AiSection = {
 };
 
 export type AiPromptTrace = {
+  workflowVersion: string;
   mode: AiPromptMode;
   profileId: string;
   profileName: string;
@@ -71,6 +91,7 @@ export type AiImportResult = {
   providerName: string;
   model: string;
   promptVersion: string;
+  workflow: AiWorkflowSummary;
   promptTrace: AiPromptTrace;
   originalOutput: AiGenerationSnapshot;
   sections: AiSection[];

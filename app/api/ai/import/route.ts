@@ -13,6 +13,13 @@ import { recordAiUsage } from "@/app/features/ai/server/usage";
 import type { AiPromptMode, AiTargetId } from "@/app/features/ai/types";
 import { FREEFORM_SCHEMA_TARGET } from "@/app/features/ai/targets";
 import {
+  CLINICAL_DRAFT_WORKFLOW_VERSION,
+  ClinicalDraftVerificationError,
+  createClinicalDraftWorkflowTrace,
+  runClinicalDraftWorkflow,
+  type ClinicalDraftWorkflowTrace,
+} from "@/app/features/ai/server/clinical-draft-workflow";
+import {
   AiExecutionTimeoutError,
   aiExecutionDeniedResponse,
   failAiExecution,
@@ -37,6 +44,50 @@ async function updateRunStatusBestEffort(id: string, status: string) {
   }
 }
 
+async function resolveClinicalDraftPrompt(input: {
+  owner: string;
+  target: AiTargetId;
+  promptId: string;
+  promptMode: AiPromptMode;
+  userInstructions: string;
+}) {
+  if (input.promptMode === "free") {
+    return {
+      id: "free-user-prompt",
+      name: "Prompt libre",
+      revision: null,
+      version: `${PROMPT_ENGINE_VERSION}:free:r1`,
+      instructions: composePromptInstructions({
+        mode: input.promptMode,
+        userInstructions: input.userInstructions,
+      }),
+    };
+  }
+  const prompt = await resolvePromptProfile(input.owner, input.target, input.promptId || undefined);
+  return {
+    id: prompt.id,
+    name: prompt.name,
+    revision: prompt.revision,
+    version: `${promptVersion(prompt)}${input.userInstructions.trim() ? ":supplemented" : ""}`,
+    instructions: composePromptInstructions({
+      mode: input.promptMode,
+      baseInstructions: prompt.instructions,
+      userInstructions: input.userInstructions,
+    }),
+  };
+}
+
+function auditableWorkflowSnapshot(
+  workflow: ClinicalDraftWorkflowTrace,
+  auditNode: "audit" | "audit_failure",
+) {
+  return [
+    ...workflow.snapshot(),
+    // When this payload exists, its own audit insert completed successfully.
+    { node: auditNode, status: "completed" as const, durationMs: 0 },
+  ];
+}
+
 async function importWithAi(request: Request) {
   const owner = requestOwner(request);
   if (!owner) return jsonError("Autenticación requerida.", 401);
@@ -56,39 +107,36 @@ async function importWithAi(request: Request) {
   if (!isAiProviderId(providerId)) return jsonError("Proveedor de IA no permitido.");
   const promptMode = promptModeValue as AiPromptMode;
   const target: AiTargetId = promptMode === "free" ? FREEFORM_SCHEMA_TARGET : requestedTarget;
-  let resolvedPromptId = "free-user-prompt";
-  let resolvedPromptVersion = `${PROMPT_ENGINE_VERSION}:free:r1`;
-  let resolvedPromptName = "Prompt libre";
-  let resolvedPromptRevision: number | null = null;
-  let promptInstructions: string;
-  try {
-    if (promptMode === "free") {
-      promptInstructions = composePromptInstructions({ mode: promptMode, userInstructions });
-    } else {
-      const prompt = await resolvePromptProfile(owner, target, promptId || undefined);
-      resolvedPromptId = prompt.id;
-      resolvedPromptName = prompt.name;
-      resolvedPromptRevision = prompt.revision;
-      resolvedPromptVersion = `${promptVersion(prompt)}${userInstructions.trim() ? ":supplemented" : ""}`;
-      promptInstructions = composePromptInstructions({
-        mode: promptMode,
-        baseInstructions: prompt.instructions,
-        userInstructions,
-      });
-    }
-  } catch (error) {
-    return jsonError(error instanceof Error ? error.message : "Prompt no disponible.");
+  const workflow = createClinicalDraftWorkflowTrace();
+  const [promptResult, sourcesResult] = await Promise.allSettled([
+    workflow.run("resolve_prompt", () => resolveClinicalDraftPrompt({
+      owner,
+      target,
+      promptId,
+      promptMode,
+      userInstructions,
+    })),
+    workflow.run("validate_sources", () => importSources(form)),
+  ]);
+  if (promptResult.status === "rejected") {
+    return jsonError(promptResult.reason instanceof Error ? promptResult.reason.message : "Prompt no disponible.");
   }
-  let sources: Awaited<ReturnType<typeof importSources>>;
-  try { sources = await importSources(form); } catch (error) {
-    return jsonError(error instanceof Error ? error.message : "No se pudieron validar los archivos.");
+  if (sourcesResult.status === "rejected") {
+    return jsonError(sourcesResult.reason instanceof Error ? sourcesResult.reason.message : "No se pudieron validar los archivos.");
   }
+  const resolvedPromptId = promptResult.value.id;
+  const resolvedPromptVersion = promptResult.value.version;
+  const resolvedPromptName = promptResult.value.name;
+  const resolvedPromptRevision = promptResult.value.revision;
+  const promptInstructions = promptResult.value.instructions;
+  const sources = sourcesResult.value;
 
   const reservation = await reserveAiExecution({
     owner,
     operation: "clinical_draft",
     providerId,
   });
+  workflow.record("reserve_execution", reservation.ok ? "completed" : "failed");
   if (!reservation.ok) return aiExecutionDeniedResponse(reservation.denial);
   const id = reservation.lease.id;
   const sourceLabel = sources.length === 1 ? sources[0].sourceName : `${sources[0].sourceName} + ${sources.length - 1}`;
@@ -109,9 +157,10 @@ async function importWithAi(request: Request) {
   return progressStream(async (emit) => {
     emit({ type: "status", stage: "preparing", label: "Preparando archivos", detail: `${sources.length} fuente${sources.length === 1 ? "" : "s"} lista${sources.length === 1 ? "" : "s"} para analizar` });
     try {
-      const { output: result, provider, usage } = await runAiExecution(
-        reservation.lease,
-        (signal) => generateDraftWithProvider({
+      const { output: result, provider, usage, verification } = await runClinicalDraftWorkflow({
+        trace: workflow,
+        execute: (action) => runAiExecution(reservation.lease, action),
+        generate: (signal) => generateDraftWithProvider({
           providerId,
           model,
           sources,
@@ -122,7 +171,7 @@ async function importWithAi(request: Request) {
           onProgress: (progress) => emit({ type: "status", ...progress }),
           signal,
         }),
-      );
+      });
       await updateRunStatusBestEffort(id, "completado");
       const usageRecorded = await recordAiUsage({
         owner,
@@ -131,23 +180,13 @@ async function importWithAi(request: Request) {
         model: provider.model,
         usage,
       }).then(() => true).catch(() => false);
-      await auditBestEffort(owner, "generated", "ai_import", id, {
-        sourceNames: sources.map((source) => source.sourceName),
-        target,
-        provider: provider.id,
-        model: provider.model,
-        promptId: resolvedPromptId,
-        promptVersion: resolvedPromptVersion,
-        promptMode,
-        supplemented: promptMode === "profile" && Boolean(userInstructions.trim()),
-        mimeTypes: sources.map((source) => source.mimeType),
-        totalSize: sources.reduce((total, source) => total + source.file.size, 0),
-        store: false,
-        processingAuthorized: true,
-        usageRecorded,
-        inputTokens: usage.inputTokens,
-        outputTokens: usage.outputTokens,
-      });
+      workflow.record("record_usage", usageRecorded ? "completed" : "degraded");
+      const workflowSummary = {
+        version: CLINICAL_DRAFT_WORKFLOW_VERSION,
+        outcome: verification.outcome,
+        findings: verification.findings,
+        nodes: workflow.snapshot(),
+      };
       emit({ type: "status", stage: "completed", label: "Borrador listo", detail: "Identidad, contenido y fuentes preparados para revisión" });
       const generatedAt = new Date().toISOString();
       const resultSources = [
@@ -171,7 +210,9 @@ async function importWithAi(request: Request) {
         providerName: provider.name,
         model: provider.model,
         promptVersion: resolvedPromptVersion,
+        workflow: workflowSummary,
         promptTrace: {
+          workflowVersion: CLINICAL_DRAFT_WORKFLOW_VERSION,
           mode: promptMode,
           profileId: resolvedPromptId,
           profileName: resolvedPromptName,
@@ -189,21 +230,91 @@ async function importWithAi(request: Request) {
         missingInformation: result.missingInformation,
         safetyNotice: result.safetyNotice,
       } });
+      workflow.record("deliver", "completed");
+      const auditRecorded = await auditBestEffort(owner, "generated", "ai_import", id, {
+        sourceNames: sources.map((source) => source.sourceName),
+        target,
+        provider: provider.id,
+        model: provider.model,
+        promptId: resolvedPromptId,
+        promptVersion: resolvedPromptVersion,
+        promptMode,
+        supplemented: promptMode === "profile" && Boolean(userInstructions.trim()),
+        mimeTypes: sources.map((source) => source.mimeType),
+        totalSize: sources.reduce((total, source) => total + source.file.size, 0),
+        store: false,
+        processingAuthorized: true,
+        usageRecorded,
+        inputTokens: usage.inputTokens,
+        outputTokens: usage.outputTokens,
+        workflowVersion: CLINICAL_DRAFT_WORKFLOW_VERSION,
+        workflowOutcome: verification.outcome,
+        workflowFindings: verification.findings,
+        workflowNodes: auditableWorkflowSnapshot(workflow, "audit"),
+      });
+      workflow.record("audit", auditRecorded ? "completed" : "degraded");
+      try {
+        emit({
+          type: "workflow",
+          workflow: {
+            version: CLINICAL_DRAFT_WORKFLOW_VERSION,
+            outcome: verification.outcome,
+            findings: verification.findings,
+            nodes: workflow.snapshot(),
+          },
+        });
+      } catch {
+        console.error(JSON.stringify({ level: "error", event: "ai_workflow_trace_stream_failed" }));
+      }
     } catch (error) {
+      const verificationFailure = error instanceof ClinicalDraftVerificationError;
       if (error instanceof AiExecutionTimeoutError) {
         streamCode = error.code;
         streamMessage = error.message;
         streamStatus = 504;
+      } else if (verificationFailure) {
+        streamCode = error.code;
+        streamMessage = "La IA produjo un borrador que no superó la verificación automática.";
+        streamStatus = 422;
       }
       await updateRunStatusBestEffort(id, "fallido");
-      await auditBestEffort(owner, "failed", "ai_import", id, {
+      const failureMetadata = {
         sourceNames: sources.map((source) => source.sourceName),
         target,
-        provider: providerId,
+        provider: verificationFailure ? error.provider.id : providerId,
         promptId: resolvedPromptId,
         promptVersion: resolvedPromptVersion,
         promptMode,
-      });
+        workflowVersion: CLINICAL_DRAFT_WORKFLOW_VERSION,
+      };
+      if (verificationFailure) {
+        const usageRecorded = await recordAiUsage({
+          owner,
+          runId: id,
+          providerId: error.provider.id,
+          model: error.provider.model,
+          usage: error.usage,
+        }).then(() => true).catch(() => false);
+        workflow.record("record_usage", usageRecorded ? "completed" : "degraded");
+        workflow.record("deliver", "failed");
+        const auditRecorded = await auditBestEffort(owner, "blocked", "ai_import", id, {
+          ...failureMetadata,
+          model: error.provider.model,
+          usageRecorded,
+          inputTokens: error.usage.inputTokens,
+          outputTokens: error.usage.outputTokens,
+          workflowOutcome: "blocked",
+          workflowFindings: error.findings,
+          workflowNodes: auditableWorkflowSnapshot(workflow, "audit"),
+        });
+        workflow.record("audit", auditRecorded ? "completed" : "degraded");
+      } else {
+        const auditRecorded = await auditBestEffort(owner, "failed", "ai_import", id, {
+          ...failureMetadata,
+          workflowNodes: auditableWorkflowSnapshot(workflow, "audit_failure"),
+        });
+        workflow.record("audit_failure", auditRecorded ? "completed" : "degraded");
+      }
       throw error;
     }
   }, {

@@ -538,6 +538,27 @@ test("keeps AI import offline without authorization", async () => {
   assert.match(providerError.error, /Proveedor de IA no permitido/);
 });
 
+test("keeps invalid clinical sources outside the AI execution ledger", async () => {
+  const owner = `ai-invalid-source-${crypto.randomUUID()}@hhr.test`;
+  const form = new FormData();
+  form.set("processingAuthorized", "true");
+  form.set("target", "certificado");
+  form.set("provider", "openai");
+  form.set("promptMode", "free");
+  form.set("userInstructions", "Redacte un certificado breve usando solo datos respaldados.");
+  form.set("files", new File(["not a PDF"], "resultado.pdf", { type: "application/pdf" }));
+
+  const failure = await jsonResponse(await ownedFetch(owner, "/api/ai/import", {
+    method: "POST",
+    body: form,
+  }), 400);
+  assert.match(failure.error, /no coincide con su formato/);
+
+  const usage = await jsonResponse(await ownedFetch(owner, "/api/ai/usage?days=7"), 200);
+  assert.equal(usage.availability.cloud.used, 0);
+  assert.equal(usage.availability.concurrency.cloud.active, 0);
+});
+
 test("enforces per-owner AI quotas and concurrency before contacting a provider", async () => {
   const prompt = {
     name: "Certificado seguro",

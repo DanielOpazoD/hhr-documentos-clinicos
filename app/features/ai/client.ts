@@ -43,9 +43,14 @@ export async function importWithAi(
       const event = JSON.parse(line) as
         | ({ type: "status" } & AiProgress)
         | { type: "result"; result: AiImportResult }
+        | { type: "workflow"; workflow: AiImportResult["workflow"] }
         | { type: "error"; error: string; code?: string; requestId?: string };
       if (event.type === "status") onProgress?.(event);
       if (event.type === "result") result = event.result;
+      if (event.type === "workflow") {
+        if (!result) throw new Error("La traza de generación llegó fuera de orden.");
+        result = { ...result, workflow: event.workflow };
+      }
       if (event.type === "error") {
         throw new ApiClientError({
           message: event.error,
@@ -99,6 +104,7 @@ export async function saveAiDraft(
           providerName: result.providerName,
           model: result.model,
           promptVersion: result.promptVersion,
+          workflow: result.workflow,
           promptTrace: result.promptTrace,
           originalOutput: result.originalOutput,
           evidence: Object.fromEntries(result.sections.map((section, index) => [section.key ?? `ia-${index + 1}`, section.evidence])),

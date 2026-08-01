@@ -1,5 +1,5 @@
 import type { DocumentStatus } from "@/app/lib/catalog";
-import type { AiEvidence, AiGenerationSnapshot, AiPromptTrace } from "@/app/features/ai/types";
+import type { AiEvidence, AiGenerationSnapshot, AiPromptTrace, AiWorkflowSummary } from "@/app/features/ai/types";
 
 export type DocumentSection = {
   id: string;
@@ -58,6 +58,7 @@ export type StoredAiMetadata = {
   providerName?: string;
   model?: string;
   promptVersion?: string;
+  workflow?: AiWorkflowSummary;
   promptTrace?: AiPromptTrace;
   originalOutput?: AiGenerationSnapshot;
   evidence?: Record<string, AiEvidence[]> | AiEvidence[][];

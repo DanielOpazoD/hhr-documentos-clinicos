@@ -668,6 +668,10 @@ test("integrates connections and guarded AI usage into tabbed settings", async (
     assert.match(route, /runAiExecution/);
   }
   assert.match(importRoute, /updateRunStatusBestEffort/);
+  assert.ok(
+    importRoute.indexOf('emit({ type: "result"') < importRoute.indexOf('workflow.record("deliver", "completed")'),
+    "successful delivery must be recorded only after the result is enqueued",
+  );
   for (const route of [importRoute, improveRoute, fromDocumentsRoute]) {
     assert.match(route, /auditBestEffort/);
   }
@@ -688,6 +692,7 @@ test("offers isolated OpenAI and local Gemma providers", async () => {
     "../app/features/ai/server/openai-responses.ts",
     "../app/features/ai/server/clinical-output.ts",
     "../app/features/ai/server/clinical-evidence.ts",
+    "../app/features/ai/server/clinical-draft-workflow.ts",
     "../app/features/ai/server/prompt-composition.ts",
     "../app/features/ai/server/local-lm-studio.ts",
     "../app/features/ai/server/source-extraction.ts",
@@ -787,6 +792,20 @@ test("offers isolated OpenAI and local Gemma providers", async () => {
   assert.match(source, /Revisar solicitud y salida original/);
   assert.match(source, /PROFESSIONAL_INSTRUCTION_SOURCE/);
   assert.match(source, /originalOutput/);
+  assert.match(source, /CLINICAL_DRAFT_WORKFLOW_VERSION/);
+  assert.match(source, /runClinicalDraftWorkflow/);
+  assert.match(source, /Promise\.allSettled/);
+  assert.match(source, /workflow: result\.workflow/);
+  assert.match(source, /Flujo \{aiMetadata\.workflow\.version\}/);
+  assert.match(source, /event\.type === "workflow"/);
+  assert.match(source, /type: "workflow"/);
+  assert.match(source, /ai_workflow_trace_stream_failed/);
+  assert.match(source, /auditableWorkflowSnapshot/);
+  assert.match(source, /auditBestEffort\(owner, "blocked"/);
+  assert.match(source, /auditableWorkflowSnapshot\(workflow, "audit_failure"\)/);
+  assert.match(source, /total \+ finding\.count/);
+  assert.match(source, /workflow\.record\("deliver", "failed"\)/);
+  assert.doesNotMatch(source, /langgraph|neo4j/i);
   assert.doesNotMatch(source, /merged\.slice\(0, 8\)/);
   assert.match(source, /En toda fuente PDF, incluso escaneada, usa el número de página real del PDF/);
   assert.match(source, /source\.mimeType === "application\/pdf"/);
@@ -936,7 +955,8 @@ test("ships the eight reviewed clinical prompts as configurable defaults", async
   assert.match(promptSchema, /No agregues controles, tamizajes, plazos ni planes de seguimiento/);
   const clinicalOutput = await readFile(new URL("../app/features/ai/server/clinical-output.ts", import.meta.url), "utf8");
   assert.match(clinicalOutput, /los 18 campos únicos del formulario/);
-  assert.match(clinicalOutput, /no consta\)\\s\*\[\.!\]\?\$/);
+  const clinicalEvidence = await readFile(new URL("../app/features/ai/server/clinical-evidence.ts", import.meta.url), "utf8");
+  assert.match(clinicalEvidence, /no consta\)\\s\*\[\.!\]\?\$/);
   const aiController = await readFile(new URL("../app/features/ai/use-ai-studio.ts", import.meta.url), "utf8");
   assert.match(aiController, /title, evidenceStale: true/);
   assert.match(aiController, /section\.key === "full_name"/);
