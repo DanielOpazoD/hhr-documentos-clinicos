@@ -62,6 +62,8 @@ El esquema D1 se administra mediante migraciones versionadas. Para instalaciones
 - R2 para archivos privados.
 - Rutas de servidor separadas para documentos, firmas, sesiones móviles e IA.
 
+![Blueprint del sistema HHR-documentos](./docs/assets/hhr-system-blueprint.png)
+
 El [blueprint de arquitectura](./docs/ARCHITECTURE_BLUEPRINT.md) reúne las fronteras,
 dependencias y flujos críticos que deben mantenerse al diseñar cambios. Complementa la
 [constitución del producto](./docs/PRODUCT_CONSTITUTION.md): la constitución define los

@@ -5,6 +5,12 @@ dependencias reales y flujos que necesitan verificación explícita. El código 
 siendo la autoridad de ejecución; el blueprint permite entender y modificar el
 sistema sin reconstruir su arquitectura desde cero en cada PR.
 
+![Resumen visual del sistema HHR-documentos](./assets/hhr-system-blueprint.png)
+
+La imagen resume la lectura ejecutiva del sistema. Su
+[fuente editable en Mermaid](./assets/hhr-system-blueprint.mmd) conserva los nodos y
+aristas para actualizarla junto con la arquitectura.
+
 ## Cómo usar el mapa
 
 - Un **nodo** tiene una responsabilidad y un propietario reconocible en el repositorio.
