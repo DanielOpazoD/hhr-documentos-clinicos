@@ -1,0 +1,104 @@
+import assert from "node:assert/strict";
+import test from "node:test";
+import { ApiClientError, readApiResponse } from "../../app/lib/client/http.ts";
+import { jsonError, observeApi } from "../../app/lib/server/http.ts";
+import { progressStream } from "../../app/features/ai/server/progress-stream.ts";
+
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
+
+test("observeApi correlates handled failures without logging their message", async (context) => {
+  const logs: string[] = [];
+  context.mock.method(console, "warn", (line: unknown) => logs.push(String(line)));
+  const GET = observeApi("contracts.GET", async () => jsonError("Paciente Ejemplo 11.111.111-1", 400));
+
+  const response = await GET(new Request("https://hhr.test/api/contracts"));
+  const body = await response.json() as { error: string; code: string; requestId: string };
+
+  assert.equal(response.status, 400);
+  assert.equal(body.error, "Paciente Ejemplo 11.111.111-1");
+  assert.equal(body.code, "VALIDATION_ERROR");
+  assert.match(body.requestId, UUID_PATTERN);
+  assert.equal(response.headers.get("x-request-id"), body.requestId);
+  assert.equal(logs.length, 1);
+  assert.doesNotMatch(logs[0], /Paciente|11\.111/);
+  assert.deepEqual(Object.keys(JSON.parse(logs[0])).sort(), [
+    "code",
+    "durationMs",
+    "event",
+    "level",
+    "method",
+    "requestId",
+    "route",
+    "status",
+  ]);
+});
+
+test("observeApi replaces unexpected failures with a private generic response", async (context) => {
+  const logs: string[] = [];
+  context.mock.method(console, "error", (line: unknown) => logs.push(String(line)));
+  const POST = observeApi("contracts.POST", async () => {
+    throw new Error("prompt y RUT que nunca deben llegar al log");
+  });
+
+  const response = await POST(new Request("https://hhr.test/api/contracts", { method: "POST" }));
+  const body = await response.json() as { error: string; code: string; requestId: string };
+
+  assert.equal(response.status, 500);
+  assert.equal(body.error, "No se pudo completar la operación.");
+  assert.equal(body.code, "INTERNAL_ERROR");
+  assert.match(body.requestId, UUID_PATTERN);
+  assert.equal(logs.length, 1);
+  assert.doesNotMatch(logs[0], /prompt|RUT/);
+});
+
+test("observeApi also correlates non-JSON failures", async (context) => {
+  const logs: string[] = [];
+  context.mock.method(console, "error", (line: unknown) => logs.push(String(line)));
+  const GET = observeApi("contracts.binary.GET", async () => new Response(null, { status: 503 }));
+
+  const response = await GET(new Request("https://hhr.test/api/contracts/binary"));
+
+  assert.equal(response.status, 503);
+  assert.match(response.headers.get("x-request-id") ?? "", UUID_PATTERN);
+  assert.equal(JSON.parse(logs[0]).code, "SERVICE_UNAVAILABLE");
+});
+
+test("readApiResponse preserves status, code and support reference", async () => {
+  const requestId = crypto.randomUUID();
+  const response = Response.json({
+    error: "El documento cambió en otra pestaña.",
+    code: "CONFLICT",
+    requestId,
+  }, { status: 409, headers: { "x-request-id": requestId } });
+
+  await assert.rejects(
+    () => readApiResponse(response),
+    (error: unknown) => {
+      assert.ok(error instanceof ApiClientError);
+      assert.equal(error.status, 409);
+      assert.equal(error.code, "CONFLICT");
+      assert.equal(error.requestId, requestId);
+      assert.match(error.message, new RegExp(requestId));
+      return true;
+    },
+  );
+});
+
+test("progressStream correlates failures that occur after streaming starts", async () => {
+  const requestId = crypto.randomUUID();
+  let failures = 0;
+  const response = progressStream(async () => {
+    throw new Error("El proveedor no respondió.");
+  }, {
+    code: "AI_GENERATION_FAILED",
+    requestId,
+    onError: () => { failures += 1; },
+  });
+
+  const event = JSON.parse((await response.text()).trim()) as Record<string, unknown>;
+  assert.equal(failures, 1);
+  assert.equal(event.type, "error");
+  assert.equal(event.code, "AI_GENERATION_FAILED");
+  assert.equal(event.requestId, requestId);
+  assert.equal(event.error, "El proveedor no respondió.");
+});

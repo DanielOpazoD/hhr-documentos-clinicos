@@ -6,7 +6,7 @@ import {
 import { cleanupPendingFileDeletes } from "@/app/features/files/server/delete-files";
 import { requestOwner } from "@/app/lib/server/auth";
 import { ensureDatabase } from "@/app/lib/server/database";
-import { jsonError, readJsonObject } from "@/app/lib/server/http";
+import { jsonError, observeApi, readJsonObject } from "@/app/lib/server/http";
 import { sha256 } from "@/app/lib/server/security";
 import { after } from "next/server";
 
@@ -79,7 +79,7 @@ async function fenceExpiredSession(
   return { session: fencedSession, files };
 }
 
-export async function GET(request: Request) {
+async function getMobileSession(request: Request) {
   const owner = requestOwner(request);
   if (!owner) return jsonError("Autenticación requerida.", 401);
 
@@ -112,7 +112,7 @@ export async function GET(request: Request) {
   }, { headers: privateResponse });
 }
 
-export async function POST(request: Request) {
+async function createMobileSession(request: Request) {
   const owner = requestOwner(request);
   if (!owner) return jsonError("Autenticación requerida.", 401);
   after(() => cleanupPendingFileDeletes(owner).catch(() => undefined));
@@ -160,7 +160,7 @@ export async function POST(request: Request) {
   }, { status: 201, headers: privateResponse });
 }
 
-export async function PATCH(request: Request) {
+async function revokeMobileSession(request: Request) {
   const owner = requestOwner(request);
   if (!owner) return jsonError("Autenticación requerida.", 401);
 
@@ -200,3 +200,7 @@ export async function PATCH(request: Request) {
     session: sessionResponse(session),
   }, { headers: privateResponse });
 }
+
+export const GET = observeApi("mobile-sessions.GET", getMobileSession);
+export const POST = observeApi("mobile-sessions.POST", createMobileSession);
+export const PATCH = observeApi("mobile-sessions.PATCH", revokeMobileSession);

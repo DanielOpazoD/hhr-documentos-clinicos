@@ -2,7 +2,7 @@ import { audit } from "@/app/lib/server/audit";
 import { requestOwner } from "@/app/lib/server/auth";
 import { ensureDatabase } from "@/app/lib/server/database";
 import { appEnv } from "@/app/lib/server/environment";
-import { jsonError } from "@/app/lib/server/http";
+import { jsonError, observeApi } from "@/app/lib/server/http";
 import { safeFileName } from "@/app/lib/server/security";
 
 const MAX_SIGNATURE_SIZE = 1024 * 1024;
@@ -20,7 +20,7 @@ type SignatureListRow = {
   createdAt: string;
 };
 
-export async function GET(request: Request) {
+async function getSignatures(request: Request) {
   const owner = requestOwner(request);
   if (!owner) return jsonError("Autenticación requerida.", 401);
   const db = await ensureDatabase();
@@ -33,7 +33,7 @@ export async function GET(request: Request) {
   return Response.json({ signatures: result.results.map((item) => ({ ...item, isDefault: Boolean(item.isDefault), imageUrl: `/api/signatures/${item.id}` })) });
 }
 
-export async function POST(request: Request) {
+async function createSignature(request: Request) {
   const owner = requestOwner(request);
   if (!owner) return jsonError("Autenticación requerida.", 401);
   const form = await request.formData();
@@ -61,3 +61,6 @@ export async function POST(request: Request) {
   await audit(owner, "created", kind, id, { professionalName });
   return Response.json({ signature: { id, kind, professionalName, professionalRut, specialty, mimeType: file.type, size: file.size, isDefault, imageUrl: `/api/signatures/${id}` } }, { status: 201 });
 }
+
+export const GET = observeApi("signatures.GET", getSignatures);
+export const POST = observeApi("signatures.POST", createSignature);

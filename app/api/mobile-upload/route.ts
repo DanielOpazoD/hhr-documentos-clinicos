@@ -2,6 +2,7 @@ import { isActiveMobileSession, MOBILE_CAPTURE_MAX_FILES } from "@/app/features/
 import { discardPendingFile } from "@/app/features/files/server/delete-files";
 import { ensureDatabase } from "@/app/lib/server/database";
 import { appEnv } from "@/app/lib/server/environment";
+import { observeApi } from "@/app/lib/server/http";
 import { safeFileName, sha256 } from "@/app/lib/server/security";
 
 const allowedTypes = new Set([
@@ -74,7 +75,7 @@ async function resolveSession(request: Request) {
   return session ? { db, session, tokenHash } : null;
 }
 
-export async function GET(request: Request) {
+async function getCaptureSession(request: Request) {
   const resolved = await resolveSession(request);
   if (!resolved || !isActiveMobileSession(resolved.session)) {
     return captureError("Este enlace expiró o fue revocado.", 410);
@@ -90,7 +91,7 @@ export async function GET(request: Request) {
   });
 }
 
-export async function POST(request: Request) {
+async function uploadCapturedFile(request: Request) {
   const resolved = await resolveSession(request);
   if (!resolved || !isActiveMobileSession(resolved.session)) {
     return captureError("Este enlace expiró o fue revocado.", 410);
@@ -304,3 +305,6 @@ export async function POST(request: Request) {
     remainingFiles,
   }, 201);
 }
+
+export const GET = observeApi("mobile-upload.GET", getCaptureSession);
+export const POST = observeApi("mobile-upload.POST", uploadCapturedFile);

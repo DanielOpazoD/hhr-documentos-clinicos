@@ -1,7 +1,7 @@
 import { audit } from "@/app/lib/server/audit";
 import { requestOwner } from "@/app/lib/server/auth";
 import { ensureDatabase } from "@/app/lib/server/database";
-import { jsonError, readJsonObject } from "@/app/lib/server/http";
+import { jsonError, observeApi, readJsonObject } from "@/app/lib/server/http";
 import { isDocumentWriteConflict, normalizeDocumentStatus } from "@/app/features/documents/document-policy";
 import { nextRestorationVersions, parseDocumentVersionSnapshot } from "@/app/features/documents/document-version";
 
@@ -48,7 +48,7 @@ function currentSnapshot(current: CurrentDocument) {
   };
 }
 
-export async function GET(request: Request, context: { params: Promise<{ id: string }> }) {
+async function getVersions(request: Request, context: { params: Promise<{ id: string }> }) {
   const owner = requestOwner(request);
   if (!owner) return jsonError("Autenticación requerida.", 401);
   const { id } = await context.params;
@@ -73,7 +73,7 @@ export async function GET(request: Request, context: { params: Promise<{ id: str
   });
 }
 
-export async function POST(request: Request, context: { params: Promise<{ id: string }> }) {
+async function restoreVersion(request: Request, context: { params: Promise<{ id: string }> }) {
   const owner = requestOwner(request);
   if (!owner) return jsonError("Autenticación requerida.", 401);
   const payload = await readJsonObject(request);
@@ -121,3 +121,6 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
   });
   return Response.json({ ok: true, sourceVersion: requestedVersion, restoredVersion, updatedAt: now });
 }
+
+export const GET = observeApi("documents.id.versions.GET", getVersions);
+export const POST = observeApi("documents.id.versions.POST", restoreVersion);

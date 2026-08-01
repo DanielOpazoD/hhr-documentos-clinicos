@@ -4,7 +4,7 @@ import { validatePromptInput } from "@/app/features/ai/server/prompt-validation"
 import { audit } from "@/app/lib/server/audit";
 import { requestOwner } from "@/app/lib/server/auth";
 import { ensureDatabase } from "@/app/lib/server/database";
-import { jsonError, readJsonObject } from "@/app/lib/server/http";
+import { jsonError, observeApi, readJsonObject } from "@/app/lib/server/http";
 
 type PromptRow = { id: string; name: string; target: string; instructions: string; revision: number; isDefault: number };
 
@@ -14,7 +14,7 @@ async function customPrompt(owner: string, id: string): Promise<PromptRow | null
     FROM ai_prompts WHERE id = ? AND owner_email = ?`).bind(id, owner).first<PromptRow>();
 }
 
-export async function PATCH(request: Request, context: { params: Promise<{ id: string }> }) {
+async function updatePrompt(request: Request, context: { params: Promise<{ id: string }> }) {
   const owner = requestOwner(request);
   if (!owner) return jsonError("Autenticación requerida.", 401);
   const { id } = await context.params;
@@ -59,7 +59,7 @@ export async function PATCH(request: Request, context: { params: Promise<{ id: s
   return Response.json({ prompt: prompts.find((item) => item.id === id), prompts });
 }
 
-export async function DELETE(request: Request, context: { params: Promise<{ id: string }> }) {
+async function deletePrompt(request: Request, context: { params: Promise<{ id: string }> }) {
   const owner = requestOwner(request);
   if (!owner) return jsonError("Autenticación requerida.", 401);
   const { id } = await context.params;
@@ -71,3 +71,6 @@ export async function DELETE(request: Request, context: { params: Promise<{ id: 
   await audit(owner, "deleted", "ai_prompt", id, { target: current.target, revision: current.revision });
   return Response.json({ ok: true, prompts: await listPromptProfiles(owner) });
 }
+
+export const PATCH = observeApi("ai.prompts.id.PATCH", updatePrompt);
+export const DELETE = observeApi("ai.prompts.id.DELETE", deletePrompt);

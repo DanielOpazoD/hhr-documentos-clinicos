@@ -2,9 +2,9 @@ import { improvePrompt } from "@/app/features/ai/server/prompt-improvement";
 import { validatePromptInput } from "@/app/features/ai/server/prompt-validation";
 import { audit } from "@/app/lib/server/audit";
 import { requestOwner } from "@/app/lib/server/auth";
-import { jsonError, readJsonObject } from "@/app/lib/server/http";
+import { jsonError, observeApi, readJsonObject } from "@/app/lib/server/http";
 
-export async function POST(request: Request) {
+async function improveSavedPrompt(request: Request) {
   const owner = requestOwner(request);
   if (!owner) return jsonError("Autenticación requerida.", 401);
   const body = await readJsonObject(request);
@@ -28,3 +28,5 @@ export async function POST(request: Request) {
     return jsonError(error instanceof Error ? error.message : "No se pudo mejorar el prompt.", 502);
   }
 }
+
+export const POST = observeApi("ai.prompts.improve.POST", improveSavedPrompt);

@@ -2,10 +2,10 @@ import { audit } from "@/app/lib/server/audit";
 import { requestOwner } from "@/app/lib/server/auth";
 import { ensureDatabase } from "@/app/lib/server/database";
 import { appEnv } from "@/app/lib/server/environment";
-import { jsonError } from "@/app/lib/server/http";
+import { jsonError, observeApi } from "@/app/lib/server/http";
 import { deleteOwnedFiles } from "@/app/features/files/server/delete-files";
 
-export async function GET(request: Request, context: { params: Promise<{ id: string }> }) {
+async function getFile(request: Request, context: { params: Promise<{ id: string }> }) {
   const owner = requestOwner(request);
   if (!owner) return jsonError("Autenticación requerida.", 401);
   const { id } = await context.params;
@@ -19,7 +19,7 @@ export async function GET(request: Request, context: { params: Promise<{ id: str
   return new Response(object.body, { headers: { "Content-Type": row.mimeType, "Content-Disposition": disposition, "Cache-Control": "private, max-age=60" } });
 }
 
-export async function DELETE(request: Request, context: { params: Promise<{ id: string }> }) {
+async function deleteFile(request: Request, context: { params: Promise<{ id: string }> }) {
   const owner = requestOwner(request);
   if (!owner) return jsonError("Autenticación requerida.", 401);
   const { id } = await context.params;
@@ -27,3 +27,6 @@ export async function DELETE(request: Request, context: { params: Promise<{ id: 
   if (!deletedIds.length) return jsonError("Archivo no encontrado.", 404);
   return Response.json({ ok: true, deletedIds });
 }
+
+export const GET = observeApi("files.id.GET", getFile);
+export const DELETE = observeApi("files.id.DELETE", deleteFile);

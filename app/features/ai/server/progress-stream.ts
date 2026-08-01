@@ -2,6 +2,11 @@ type StreamEvent = Record<string, unknown>;
 
 export function progressStream(
   produce: (emit: (event: StreamEvent) => void) => Promise<void>,
+  options: {
+    code?: string;
+    requestId?: string;
+    onError?: () => void;
+  } = {},
 ): Response {
   const encoder = new TextEncoder();
   const stream = new ReadableStream<Uint8Array>({
@@ -13,7 +18,13 @@ export function progressStream(
       try {
         await produce(emit);
       } catch (error) {
-        emit({ type: "error", error: error instanceof Error ? error.message : "No se pudo generar el borrador." });
+        options.onError?.();
+        emit({
+          type: "error",
+          error: error instanceof Error ? error.message : "No se pudo generar el borrador.",
+          code: options.code,
+          requestId: options.requestId,
+        });
       } finally {
         open = false;
         controller.close();
