@@ -65,6 +65,8 @@ async function createPromptFromSavedDocuments(request: Request) {
     `SELECT id, template_id AS templateId, content_json AS contentJson FROM documents WHERE owner_email = ? AND id IN (${placeholders})`,
   ).bind(owner, ...ids).all<DocumentRow>();
   if (selected.results.length !== ids.length) return jsonError("Uno o más documentos no están disponibles.", 404);
+  const selectedById = new Map(selected.results.map((row) => [row.id, row]));
+  const orderedDocuments = ids.map((id) => sourceDocument(selectedById.get(id)!));
   const reservation = await reserveAiExecution({
     owner,
     operation: "prompt_from_documents",
@@ -72,8 +74,6 @@ async function createPromptFromSavedDocuments(request: Request) {
   });
   if (!reservation.ok) return aiExecutionDeniedResponse(reservation.denial);
   try {
-    const selectedById = new Map(selected.results.map((row) => [row.id, row]));
-    const orderedDocuments = ids.map((id) => sourceDocument(selectedById.get(id)!));
     const proposal = await runAiExecution(
       reservation.lease,
       (signal) => createPromptFromDocuments(orderedDocuments, { signal }),

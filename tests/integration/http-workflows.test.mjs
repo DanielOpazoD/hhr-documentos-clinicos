@@ -6,6 +6,8 @@ let app;
 const requestIdPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
 const aiQuotaOwner = "ai-quota@hhr.test";
 const aiConcurrencyOwner = "ai-concurrency@hhr.test";
+const aiMalformedSourceOwner = "ai-malformed-source@hhr.test";
+const aiMalformedSourceId = "malformed-prompt-source";
 
 before(async () => {
   const createdAt = new Date().toISOString();
@@ -26,6 +28,11 @@ before(async () => {
       INSERT INTO ai_operation_runs
         (id, owner_email, operation, provider_id, status, created_at, finished_at)
       VALUES ${[...quotaRows, ...concurrentRows].join(",")}
+    `, `
+      INSERT INTO documents
+        (id, owner_email, template_id, title, patient_name, patient_rut_masked, status, content_json, version, created_at, updated_at)
+      VALUES
+        ('${aiMalformedSourceId}', '${aiMalformedSourceOwner}', 'documento_libre', 'Documento malformado', '', '', 'Borrador', '{"sections":{}}', 1, '${createdAt}', '${createdAt}')
     `],
   });
 });
@@ -556,4 +563,18 @@ test("enforces per-owner AI quotas and concurrency before contacting a provider"
   });
   assert.match(usage.availability.cloud.nextAvailableAt, /^\d{4}-\d{2}-\d{2}T/);
   assert.deepEqual(usage.availability.concurrency.cloud, { limit: 2, active: 0 });
+});
+
+test("does not reserve AI capacity when saved-document preparation fails", async () => {
+  const failure = await jsonResponse(
+    await jsonRequest(aiMalformedSourceOwner, "/api/ai/prompts/from-documents", "POST", {
+      ids: [aiMalformedSourceId],
+    }),
+    500,
+  );
+  assert.equal(failure.code, "INTERNAL_ERROR");
+
+  const usage = await jsonResponse(await ownedFetch(aiMalformedSourceOwner, "/api/ai/usage?days=7"), 200);
+  assert.equal(usage.availability.cloud.used, 0);
+  assert.equal(usage.availability.concurrency.cloud.active, 0);
 });

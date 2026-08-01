@@ -661,6 +661,10 @@ test("integrates connections and guarded AI usage into tabbed settings", async (
     assert.match(route, /reserveAiExecution/);
     assert.match(route, /runAiExecution/);
   }
+  assert.ok(
+    fromDocumentsRoute.indexOf("const orderedDocuments") < fromDocumentsRoute.indexOf("const reservation"),
+    "saved documents must be prepared before AI capacity is reserved",
+  );
 });
 
 test("offers isolated OpenAI and local Gemma providers", async () => {
