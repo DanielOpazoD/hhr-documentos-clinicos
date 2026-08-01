@@ -38,6 +38,8 @@ También puede conectarse a un servidor local compatible con la API de OpenAI me
 
 Las operaciones costosas se reservan en D1 antes de contactar al modelo. Por defecto, cada usuario dispone de 40 intentos de OpenAI en una ventana móvil de 24 horas, con hasta 2 ejecuciones cloud simultáneas; el proveedor local tiene una ejecución simultánea independiente. Puede ajustar límites acotados mediante `AI_DAILY_CLOUD_LIMIT`, `AI_MAX_CONCURRENT_CLOUD` y `AI_MAX_CONCURRENT_LOCAL`. Los intentos cloud fallidos también consumen la ventana para impedir reintentos abusivos. Los borradores tienen 180 segundos y las operaciones de prompts 90 segundos antes de cancelarse de forma segura.
 
+La [generación clínica](./docs/AI_CLINICAL_DRAFT_WORKFLOW.md) se organiza como un grafo pequeño y versionado: resuelve prompt y fuentes en paralelo, reserva capacidad, realiza una sola llamada al modelo y aplica un verificador determinista antes de entregar el borrador.
+
 ## Verificación
 
 ```bash
