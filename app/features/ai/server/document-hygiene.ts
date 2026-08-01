@@ -47,7 +47,10 @@ function identityValueVariants(patient: StructuredPatientIdentity): string[] {
   return [...new Set(values)].sort((left, right) => right.length - left.length);
 }
 
-function isFullyRepresentedIdentitySection(section: DraftSectionLike, patient: StructuredPatientIdentity): boolean {
+export function isRedundantIdentitySection(
+  section: DraftSectionLike,
+  patient: StructuredPatientIdentity,
+): boolean {
   if (
     typeof section.title !== "string"
     || !redundantIdentityTitles.has(normalizedSectionTitle(section.title))
@@ -74,7 +77,7 @@ export function withoutRedundantIdentitySections<T extends DraftSectionLike>(
   sections: T[],
   patient: StructuredPatientIdentity,
 ): T[] {
-  const filtered = sections.filter((section) => !isFullyRepresentedIdentitySection(section, patient));
+  const filtered = sections.filter((section) => !isRedundantIdentitySection(section, patient));
   return filtered.length ? filtered : sections;
 }
 

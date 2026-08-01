@@ -5,6 +5,11 @@ export type EvidenceCandidate = {
   status?: unknown;
 };
 
+export function isDeclaredClinicalAbsence(value: string): boolean {
+  const normalized = value.trim().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+  return /^(?:no consignad[oa]|no se dispone|no disponible|sin informacion|no aparece|no consta)\s*[.!]?$/i.test(normalized);
+}
+
 export function sanitizeEvidenceCandidates(
   value: unknown,
   sources: Array<{

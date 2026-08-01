@@ -18,7 +18,14 @@ const emptyResult: AiImportResult = {
   providerName: "",
   model: "",
   promptVersion: "",
+  workflow: {
+    version: "",
+    outcome: "pass",
+    findings: [],
+    nodes: [],
+  },
   promptTrace: {
+    workflowVersion: "",
     mode: "profile",
     profileId: "",
     profileName: "",

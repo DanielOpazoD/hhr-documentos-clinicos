@@ -12,6 +12,7 @@ La aplicación está preparada como un entorno privado funcional, pero no se dec
 - Límites explícitos de tamaño y tipo para archivos, capturas y firmas.
 - Borradores de IA editables, sin finalización o firma automática.
 - Reserva atómica en D1 antes de cada operación de IA, con cuota móvil por usuario, concurrencia separada para nube y modelo local, caducidad de ejecuciones abandonadas y timeouts acotados.
+- Grafo clínico versionado con una sola llamada al modelo, preparación independiente en paralelo, verificación determinista y trazas operacionales sin contenido clínico.
 - Consumo de tokens registrado para borradores, mejora de prompts y plantillas derivadas; disponibilidad de la ventana de 24 horas visible sin añadir telemetría clínica.
 - Registro de creación, actualización, carga, generación y errores relevantes.
 - Errores API correlacionados mediante un código de soporte, contrato estable y logs estructurados sin cuerpos ni identificadores clínicos.

@@ -10,6 +10,10 @@ export function AiProvenance({ aiMetadata, sections }: Props) {
   const evidenceBySection: Record<string, AiEvidence[]> = Array.isArray(evidence)
     ? Object.fromEntries(sections.map((section, index) => [section.id, evidence[index] ?? []]))
     : evidence ?? {};
+  const workflowFindingCount = aiMetadata.workflow?.findings.reduce(
+    (total, finding) => total + finding.count,
+    0,
+  ) ?? 0;
 
   return (
     <aside id="ai-document-origin" tabIndex={-1} className="ai-document-origin print-hide">
@@ -69,6 +73,11 @@ export function AiProvenance({ aiMetadata, sections }: Props) {
                 </section>
               </div>
             </details>
+          ) : null}
+          {aiMetadata.workflow ? (
+            <small>
+              Flujo {aiMetadata.workflow.version} · Verificación {aiMetadata.workflow.outcome === "pass" ? "completa" : `${workflowFindingCount} advertencia${workflowFindingCount === 1 ? "" : "s"}`}
+            </small>
           ) : null}
           {aiMetadata.promptVersion ? <small>Prompt {aiMetadata.promptVersion}</small> : null}
         </div>
