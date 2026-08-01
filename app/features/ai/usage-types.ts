@@ -16,6 +16,18 @@ export type AiUsageModelSummary = AiTokenUsage & {
 
 export type AiUsageSummary = {
   periodDays: number;
+  availability: {
+    cloud: {
+      limit: number;
+      used: number;
+      remaining: number;
+      nextAvailableAt: string | null;
+    };
+    concurrency: {
+      cloud: { limit: number; active: number };
+      local: { limit: number; active: number };
+    };
+  };
   totals: {
     requests: number;
     totalTokens: number;

@@ -1,6 +1,7 @@
 import { requestOwner } from "@/app/lib/server/auth";
 import { ensureDatabase } from "@/app/lib/server/database";
 import { jsonError, observeApi } from "@/app/lib/server/http";
+import { getAiExecutionAvailability } from "@/app/features/ai/server/execution";
 
 type UsageRow = {
   providerId: "openai" | "gemma_local";
@@ -22,7 +23,7 @@ async function getUsage(request: Request) {
   const periodDays = [7, 30, 90].includes(requestedDays) ? requestedDays : 30;
   const since = new Date(Date.now() - periodDays * 86_400_000).toISOString();
   const db = await ensureDatabase();
-  const result = await db.prepare(`
+  const [result, availability] = await Promise.all([db.prepare(`
     SELECT
       provider_id AS providerId,
       model,
@@ -38,13 +39,14 @@ async function getUsage(request: Request) {
     WHERE owner_email = ? AND created_at >= ?
     GROUP BY provider_id, model
     ORDER BY lastUsedAt DESC
-  `).bind(owner, since).all<UsageRow>();
+  `).bind(owner, since).all<UsageRow>(), getAiExecutionAvailability(owner)]);
   const models = result.results.map((row) => ({
     ...row,
     estimatedCostUsd: row.estimatedCostMicrousd / 1_000_000,
   }));
   return Response.json({
     periodDays,
+    availability,
     totals: models.reduce((totals, row) => ({
       requests: totals.requests + row.requests,
       totalTokens: totals.totalTokens + row.totalTokens,

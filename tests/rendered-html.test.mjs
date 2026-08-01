@@ -610,17 +610,23 @@ test("contains no production sample workflow or fictitious record creation", asy
   assert.match(headersConfig, /Permissions-Policy/);
 });
 
-test("integrates connections and measured AI usage into tabbed settings", async () => {
-  const [navigation, settings, redirect, dashboard, usageApi, usageStore, database, schema, migration] = await Promise.all([
+test("integrates connections and guarded AI usage into tabbed settings", async () => {
+  const [navigation, settings, redirect, dashboard, usageApi, usageStore, execution, policy, database, schema, usageMigration, executionMigration, importRoute, improveRoute, fromDocumentsRoute] = await Promise.all([
     readFile(new URL("../app/components/AppFrame.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/configuracion/page.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/conexiones/page.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/features/ai/AiUsageDashboard.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/api/ai/usage/route.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/features/ai/server/usage.ts", import.meta.url), "utf8"),
+    readFile(new URL("../app/features/ai/server/execution.ts", import.meta.url), "utf8"),
+    readFile(new URL("../app/features/ai/server/execution-policy.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/lib/server/database.ts", import.meta.url), "utf8"),
     readFile(new URL("../db/schema.ts", import.meta.url), "utf8"),
     readFile(new URL("../drizzle/0002_zippy_electro.sql", import.meta.url), "utf8"),
+    readFile(new URL("../drizzle/0007_ai_execution_guard.sql", import.meta.url), "utf8"),
+    readFile(new URL("../app/api/ai/import/route.ts", import.meta.url), "utf8"),
+    readFile(new URL("../app/api/ai/prompts/improve/route.ts", import.meta.url), "utf8"),
+    readFile(new URL("../app/api/ai/prompts/from-documents/route.ts", import.meta.url), "utf8"),
   ]);
   assert.doesNotMatch(navigation, /href: "\/conexiones"/);
   assert.match(navigation, /mobile-settings-link/);
@@ -631,17 +637,30 @@ test("integrates connections and measured AI usage into tabbed settings", async 
   assert.match(settings, /SystemSettings/);
   assert.match(dashboard, /Costo estimado/);
   assert.match(dashboard, /Tokens/);
+  assert.match(dashboard, /Disponibles · 24 h/);
   assert.match(dashboard, /Modelo/);
   assert.match(dashboard, /No reemplaza la facturación del proveedor/);
   assert.match(usageApi, /GROUP BY provider_id, model/);
   assert.match(usageApi, /owner_email = \?/);
+  assert.match(usageApi, /getAiExecutionAvailability/);
   assert.match(usageStore, /gpt-5\.6-sol/);
   assert.match(usageStore, /gpt-5-mini/);
   assert.match(usageStore, /estimated_cost_microusd/);
   assert.doesNotMatch(database, /\b(?:CREATE|ALTER|DROP)\s+(?:TABLE|INDEX)\b/i);
   assert.match(schema, /aiUsageEvents/);
-  assert.match(migration, /CREATE TABLE IF NOT EXISTS `ai_usage_events`/);
-  assert.doesNotMatch(migration, /ALTER TABLE `signatures`/);
+  assert.match(schema, /aiOperationRuns/);
+  assert.match(usageMigration, /CREATE TABLE IF NOT EXISTS `ai_usage_events`/);
+  assert.doesNotMatch(usageMigration, /ALTER TABLE `signatures`/);
+  assert.match(executionMigration, /CREATE TABLE `ai_operation_runs`/);
+  assert.match(execution, /db\.batch/);
+  assert.match(execution, /INSERT INTO ai_operation_runs/);
+  assert.match(execution, /retry-after/);
+  assert.match(policy, /cloudDailyLimit: 40/);
+  assert.match(policy, /withAiExecutionTimeout/);
+  for (const route of [importRoute, improveRoute, fromDocumentsRoute]) {
+    assert.match(route, /reserveAiExecution/);
+    assert.match(route, /runAiExecution/);
+  }
 });
 
 test("offers isolated OpenAI and local Gemma providers", async () => {
