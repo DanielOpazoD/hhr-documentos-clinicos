@@ -5,9 +5,10 @@ export type ApiErrorDetails = {
   requestId?: string;
 };
 
-type ApiResponseOptions = {
+type ApiResponseOptions<T> = {
   fallbackMessage?: string;
   createError?: (details: ApiErrorDetails) => Error;
+  validate?: (value: unknown) => value is T;
 };
 
 const REQUEST_ID_PATTERN = /^[a-zA-Z0-9-]{8,80}$/;
@@ -37,12 +38,15 @@ export class ApiClientError extends Error {
   }
 }
 
-export async function readApiResponse<T>(response: Response, options: ApiResponseOptions = {}): Promise<T> {
+export async function readApiResponse<T>(response: Response, options: ApiResponseOptions<T> = {}): Promise<T> {
   let parsed = false;
   const value = await response.json().then((data: unknown) => {
     parsed = true;
     return data;
-  }).catch(() => null);
+  }).catch((cause: unknown) => {
+    if (cause instanceof Error && cause.name === "AbortError") throw cause;
+    return null;
+  });
   const payload = value && typeof value === "object" && !Array.isArray(value)
     ? value as Record<string, unknown>
     : null;
@@ -50,7 +54,8 @@ export async function readApiResponse<T>(response: Response, options: ApiRespons
   const requestId = optionalValue(payload?.requestId, REQUEST_ID_PATTERN)
     ?? optionalValue(response.headers.get("x-request-id"), REQUEST_ID_PATTERN);
   if (response.ok) {
-    if (parsed && value !== null && typeof value === "object") return value as T;
+    const validObject = parsed && value !== null && typeof value === "object" && !Array.isArray(value);
+    if (validObject && (!options.validate || options.validate(value))) return value as T;
     const details: ApiErrorDetails = {
       message: options.fallbackMessage ?? "El servidor devolvió una respuesta inválida.",
       status: response.status,

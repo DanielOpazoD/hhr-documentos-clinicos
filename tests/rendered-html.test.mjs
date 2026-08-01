@@ -829,12 +829,14 @@ test("organizes, archives and deletes stored files through owned server routes",
 });
 
 test("keeps operational failures traceable without exposing clinical context", async () => {
-  const [errorPage, clientHttp, serverHttp, aiClient, aiRoute, diagnostics, styles] = await Promise.all([
+  const [errorPage, clientHttp, serverHttp, aiClient, aiRoute, progressStream, filesClient, diagnostics, styles] = await Promise.all([
     readFile(new URL("../app/error.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/lib/client/http.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/lib/server/http.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/features/ai/client.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/api/ai/import/route.ts", import.meta.url), "utf8"),
+    readFile(new URL("../app/features/ai/server/progress-stream.ts", import.meta.url), "utf8"),
+    readFile(new URL("../app/features/files/client.ts", import.meta.url), "utf8"),
     readFile(new URL("../docs/ERROR_DIAGNOSTICS.md", import.meta.url), "utf8"),
     readFile(new URL("../app/globals.css", import.meta.url), "utf8"),
   ]);
@@ -844,9 +846,13 @@ test("keeps operational failures traceable without exposing clinical context", a
   assert.doesNotMatch(errorPage, /error\.message/);
   assert.match(clientHttp, /class ApiClientError extends Error/);
   assert.match(clientHttp, /Código de soporte/);
+  assert.match(clientHttp, /options\.validate/);
   assert.match(serverHttp, /event: "api_request_failed"/);
   assert.match(aiClient, /AI_GENERATION_FAILED|requestId/);
   assert.match(aiRoute, /reportApiFailure/);
+  assert.match(progressStream, /No se pudo completar la operación/);
+  assert.doesNotMatch(progressStream, /error instanceof Error \? error\.message/);
+  assert.equal((filesClient.match(/validate: has/g) ?? []).length, 4);
   assert.match(diagnostics, /No se registran cuerpos/);
   assert.match(styles, /\.unexpected-error-page/);
 });

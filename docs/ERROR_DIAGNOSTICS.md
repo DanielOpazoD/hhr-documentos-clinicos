@@ -6,6 +6,7 @@ La aplicación asigna un `requestId` nuevo a cada solicitud API. Cuando una oper
 
 Cada evento `api_request_failed` contiene exclusivamente:
 
+- evento `api_request_failed`;
 - `requestId`, ruta lógica y método HTTP;
 - estado, código estable y duración;
 - nivel `warn` para errores esperables y `error` para fallos del servidor.

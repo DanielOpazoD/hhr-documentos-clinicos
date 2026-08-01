@@ -25,7 +25,7 @@ export function AiUsageDashboard() {
       }))
       .then(setSummary)
       .catch((cause) => {
-        if (!(cause instanceof DOMException && cause.name === "AbortError")) {
+        if (!controller.signal.aborted && !(cause instanceof DOMException && cause.name === "AbortError")) {
           setError(cause instanceof Error ? cause.message : "No se pudo consultar el uso.");
         }
       });

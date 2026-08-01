@@ -104,6 +104,36 @@ test("readApiResponse rejects malformed successful responses", async () => {
   );
 });
 
+test("readApiResponse rejects array responses and invalid endpoint envelopes", async () => {
+  await assert.rejects(
+    () => readApiResponse(new Response("[]", {
+      status: 200,
+      headers: { "content-type": "application/json" },
+    })),
+    (error: unknown) => error instanceof ApiClientError && error.code === "INVALID_RESPONSE",
+  );
+
+  await assert.rejects(
+    () => readApiResponse<{ files: unknown[] }>(Response.json({}), {
+      validate: (value): value is { files: unknown[] } => {
+        return value !== null
+          && typeof value === "object"
+          && "files" in value
+          && Array.isArray(value.files);
+      },
+    }),
+    (error: unknown) => error instanceof ApiClientError && error.code === "INVALID_RESPONSE",
+  );
+});
+
+test("readApiResponse preserves cancellation while reading the body", async () => {
+  const response = Response.json({ ok: true });
+  const abortError = new DOMException("cancelled", "AbortError");
+  Object.defineProperty(response, "json", { value: async () => { throw abortError; } });
+
+  await assert.rejects(() => readApiResponse(response), (error: unknown) => error === abortError);
+});
+
 test("progressStream correlates failures that occur after streaming starts", async () => {
   const requestId = crypto.randomUUID();
   let failures = 0;
@@ -120,5 +150,5 @@ test("progressStream correlates failures that occur after streaming starts", asy
   assert.equal(event.type, "error");
   assert.equal(event.code, "AI_GENERATION_FAILED");
   assert.equal(event.requestId, requestId);
-  assert.equal(event.error, "El proveedor no respondió.");
+  assert.equal(event.error, "No se pudo completar la operación.");
 });

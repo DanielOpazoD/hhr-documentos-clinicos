@@ -17,11 +17,11 @@ export function progressStream(
       };
       try {
         await produce(emit);
-      } catch (error) {
+      } catch {
         options.onError?.();
         emit({
           type: "error",
-          error: error instanceof Error ? error.message : "No se pudo generar el borrador.",
+          error: "No se pudo completar la operación.",
           code: options.code,
           requestId: options.requestId,
         });
