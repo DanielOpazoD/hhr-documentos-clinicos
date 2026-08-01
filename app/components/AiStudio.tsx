@@ -5,15 +5,22 @@ import { Sparkles } from "@/app/components/Icons";
 import { AiDraftResult } from "@/app/features/ai/AiDraftResult";
 import { AiImportForm } from "@/app/features/ai/AiImportForm";
 import { useAiStudio } from "@/app/features/ai/use-ai-studio";
+import type { AiTargetId } from "@/app/features/ai/types";
+import type { DocumentTemplateSectionSetting } from "@/app/features/documents/types";
 
 type Props = {
   active?: boolean;
   embedded?: boolean;
   onOpenDocument?: (id: string) => boolean | void | Promise<boolean | void>;
+  initialTarget?: AiTargetId;
+  initialTemplateId?: string;
+  initialTemplateTitle?: string;
+  initialTemplateSections?: DocumentTemplateSectionSetting[];
+  initialPromptId?: string | null;
 };
 
-export function AiStudio({ active = true, embedded = false, onOpenDocument }: Props) {
-  const controller = useAiStudio();
+export function AiStudio({ active = true, embedded = false, initialPromptId, initialTarget, initialTemplateId, initialTemplateSections, initialTemplateTitle, onOpenDocument }: Props) {
+  const controller = useAiStudio({ initialPromptId, initialTarget, initialTemplateId, initialTemplateSections, initialTemplateTitle });
   const headingRef = useRef<HTMLHeadingElement>(null);
   useEffect(() => {
     if (embedded && active) headingRef.current?.focus({ preventScroll: true });

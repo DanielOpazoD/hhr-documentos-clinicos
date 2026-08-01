@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { PointerEvent as ReactPointerEvent } from "react";
-import { createSignature, deleteSignature, listSignatures, setDefaultSignature } from "./api";
+import { createSignature, deleteSignature, listSignatures, renameSignature, setDefaultSignature } from "./api";
 import {
   DEFAULT_SIGNATURE_IMAGE_SETTINGS,
   prepareSignatureUpload,
@@ -13,6 +13,7 @@ import { clampSignatureY, clampSigningImageWidth, defaultImagePlacement } from "
 
 const emptySignatureForm: SignatureForm = {
   file: null,
+  name: "",
   professionalName: "",
   professionalRut: "",
   specialty: "",
@@ -102,9 +103,12 @@ export function useSignatureWorkspace(markDirty: () => void) {
     markDirty();
   }, [markDirty]);
 
-  const openSignatureForm = useCallback((kind: SignatureAssetKind) => {
+  const openSignatureForm = useCallback((kind: SignatureAssetKind, signer?: SignerData) => {
     setSignatureFormKind(kind);
-    setSignatureForm({ ...emptySignatureForm });
+    setSignatureForm({
+      ...emptySignatureForm,
+      name: signer?.name.trim() ? `${kind === "stamp" ? "Timbre" : "Firma"} de ${signer.name.trim()}` : "",
+    });
     setSignatureImageSettings({ ...DEFAULT_SIGNATURE_IMAGE_SETTINGS });
     setSignatureError(null);
     setSignatureFormOpen(true);
@@ -122,6 +126,7 @@ export function useSignatureWorkspace(markDirty: () => void) {
       const preparedFile = await prepareSignatureUpload(signatureForm.file, signatureImageSettings);
       const created = await createSignature({
         file: preparedFile,
+        name: signatureForm.name.trim(),
         professionalName: signer.name.trim(),
         professionalRut: signer.rut.trim(),
         specialty: signer.specialty.trim(),
@@ -152,6 +157,25 @@ export function useSignatureWorkspace(markDirty: () => void) {
       });
     } catch (error) {
       setSignatureError(error instanceof Error ? error.message : "No se pudo definir la imagen predeterminada.");
+    } finally {
+      setSignatureBusy(false);
+    }
+  }, []);
+
+  const renameSignatureProfile = useCallback(async (id: string, name: string) => {
+    const normalizedName = name.trim();
+    if (!normalizedName) return false;
+    setSignatureBusy(true);
+    setSignatureError(null);
+    try {
+      await renameSignature(id, normalizedName);
+      setSignatures((current) => current.map((asset) => asset.id === id ? { ...asset, name: normalizedName } : asset));
+      setPlacedSignature((current) => current?.id === id ? { ...current, name: normalizedName } : current);
+      setPlacedStamp((current) => current?.id === id ? { ...current, name: normalizedName } : current);
+      return true;
+    } catch (error) {
+      setSignatureError(error instanceof Error ? error.message : "No se pudo cambiar el nombre de la imagen.");
+      return false;
     } finally {
       setSignatureBusy(false);
     }
@@ -214,6 +238,7 @@ export function useSignatureWorkspace(markDirty: () => void) {
     openSignatureForm,
     saveSignature,
     makeDefaultSignature,
+    renameSignatureProfile,
     removeSignatureProfile,
   };
 }

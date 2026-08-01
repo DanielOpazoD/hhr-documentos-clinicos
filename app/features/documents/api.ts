@@ -1,5 +1,6 @@
 import type {
   SaveDocumentInput,
+  DocumentTemplateSetting,
   SignatureAssetKind,
   SignatureForm,
   SignatureRecord,
@@ -71,6 +72,7 @@ export async function createSignature(input: SignatureForm, kind: SignatureAsset
   const form = new FormData();
   form.set("file", input.file);
   form.set("kind", kind);
+  form.set("name", input.name);
   form.set("professionalName", input.professionalName);
   form.set("professionalRut", input.professionalRut);
   form.set("specialty", input.specialty);
@@ -88,7 +90,32 @@ export async function setDefaultSignature(id: string): Promise<void> {
   await readApiResponse<{ ok: true }>(response);
 }
 
+export async function renameSignature(id: string, name: string): Promise<void> {
+  const response = await fetch(`/api/signatures/${encodeURIComponent(id)}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ name }),
+  });
+  await readApiResponse<{ ok: true }>(response);
+}
+
 export async function deleteSignature(id: string): Promise<void> {
   const response = await fetch(`/api/signatures/${encodeURIComponent(id)}`, { method: "DELETE" });
   await readApiResponse<{ ok: true }>(response);
+}
+
+export async function listDocumentTemplateSettings(signal?: AbortSignal): Promise<DocumentTemplateSetting[]> {
+  const response = await fetch("/api/document-templates", { signal, cache: "no-store" });
+  const data = await readApiResponse<{ settings?: DocumentTemplateSetting[] }>(response);
+  return data.settings ?? [];
+}
+
+export async function saveDocumentTemplateSetting(input: DocumentTemplateSetting): Promise<DocumentTemplateSetting> {
+  const response = await fetch("/api/document-templates", {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(input),
+  });
+  const data = await readApiResponse<{ setting: DocumentTemplateSetting }>(response);
+  return data.setting;
 }

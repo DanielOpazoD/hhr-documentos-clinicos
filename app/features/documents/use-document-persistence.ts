@@ -120,6 +120,7 @@ function storedPlacement(asset: PlacedSignature | null) {
   return asset ? {
     id: asset.id,
     kind: asset.kind,
+    name: asset.name,
     professionalName: asset.professionalName,
     professionalRut: asset.professionalRut,
     specialty: asset.specialty,

@@ -1,5 +1,7 @@
 import type { AiImportResult, AiProgress, AiPromptMode, AiProviderId, AiProviderInfo, AiTargetId } from "./types";
-import { documentTemplateForAiTarget } from "./targets";
+import { mergeAiSectionsWithTemplate } from "@/app/features/documents/template-ai-sections";
+import { createSections } from "@/app/features/documents/templates";
+import type { DocumentTemplateSectionSetting } from "@/app/features/documents/types";
 import { ApiClientError, readApiResponse } from "@/app/lib/client/http";
 
 export async function importWithAi(
@@ -74,18 +76,19 @@ export async function fetchAiProviders(): Promise<AiProviderInfo[]> {
 
 export async function saveAiDraft(
   result: AiImportResult,
-  target: AiTargetId,
   title: string,
-  promptMode: AiPromptMode,
+  templateId: string,
+  templateSections?: DocumentTemplateSectionSetting[],
   documentId?: string,
 ) {
   const patientName = [result.patient.firstNames, result.patient.lastNames].filter(Boolean).join(" ");
+  const sections = mergeAiSectionsWithTemplate(result.sections, templateSections, createSections(templateId));
   const response = await fetch("/api/documents", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       ...(documentId ? { id: documentId } : {}),
-      templateId: promptMode === "free" ? "documento_libre" : documentTemplateForAiTarget(target),
+      templateId,
       title,
       patientName,
       patientRutMasked: result.patient.rut,
@@ -93,11 +96,7 @@ export async function saveAiDraft(
       content: {
         patient: result.patient,
         signer: result.signer,
-        sections: result.sections.map((section, index) => ({
-          id: section.key ?? `ia-${index + 1}`,
-          title: section.title,
-          body: section.text,
-        })),
+        sections: sections.map(({ id, title: sectionTitle, body }) => ({ id, title: sectionTitle, body })),
         ai: {
           sources: result.sources,
           provider: result.providerId,
@@ -107,8 +106,8 @@ export async function saveAiDraft(
           workflow: result.workflow,
           promptTrace: result.promptTrace,
           originalOutput: result.originalOutput,
-          evidence: Object.fromEntries(result.sections.map((section, index) => [section.key ?? `ia-${index + 1}`, section.evidence])),
-          editedSectionIds: result.sections.flatMap((section, index) => section.evidenceStale ? [section.key ?? `ia-${index + 1}`] : []),
+          evidence: Object.fromEntries(sections.map((section) => [section.id, section.evidence])),
+          editedSectionIds: sections.flatMap((section) => section.evidenceStale ? [section.id] : []),
           missingInformation: result.missingInformation,
           safetyNotice: result.safetyNotice,
         },

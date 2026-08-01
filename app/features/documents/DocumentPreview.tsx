@@ -1,6 +1,6 @@
 import NextImage from "next/image";
 import { useLayoutEffect, useRef, useState, type CSSProperties } from "react";
-import { ArrowDown, ArrowUp, GripVertical, MoreHorizontal, Plus, Trash2 } from "@/app/components/Icons";
+import { ArrowDown, ArrowUp, GripVertical, MoreHorizontal, Plus, Settings, Trash2 } from "@/app/components/Icons";
 import { TypographyControl } from "./DocumentTypographyControl";
 import { formatStoredDate } from "./formatters";
 import { patientFullName } from "./identity";
@@ -33,13 +33,13 @@ type Props = Pick<
   | "status"
   | "startSignatureMove"
   | "updatePlacedImage"
-  | "templateId"
+  | "templateId" | "templateSettingsError" | "templateSettingsLoaded" | "retryTemplateSettings"
   | "version"
   | "visibleTitle"
   | "markDirty"
   | "setDocumentTitle"
   | "updateSection"
-> & { onEditRequest: (fieldId: string) => void };
+> & { onConfigureTemplate: (trigger: HTMLButtonElement) => void; onEditRequest: (fieldId: string) => void };
 
 export function DocumentPreview({
   addSection,
@@ -66,12 +66,13 @@ export function DocumentPreview({
   status,
   startSignatureMove,
   updatePlacedImage,
-  templateId,
+  templateId, templateSettingsError, templateSettingsLoaded, retryTemplateSettings,
   version,
   visibleTitle,
   markDirty,
   setDocumentTitle,
   updateSection,
+  onConfigureTemplate,
   onEditRequest,
 }: Props) {
   const [editingTitle, setEditingTitle] = useState(false);
@@ -84,6 +85,7 @@ export function DocumentPreview({
       <div className="paper-toolbar print-hide">
         <span><span className={`status-pill ${status.toLowerCase()}`}>{status}</span> v{version}</span>
         <div className="paper-toolbar-actions">
+          <button type="button" className="paper-template-settings" disabled={!templateSettingsLoaded && !templateSettingsError} onClick={(event) => templateSettingsError ? retryTemplateSettings() : onConfigureTemplate(event.currentTarget)}><Settings size={13} /> {templateSettingsError ? "Reintentar" : "Plantilla"}</button>
           {templateId !== "receta_externa" ? (
             <button type="button" className="paper-add-section" onClick={addSection}><Plus size={13} /> Agregar sección</button>
           ) : null}
