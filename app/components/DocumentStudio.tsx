@@ -235,7 +235,7 @@ export function DocumentStudio() {
         {preflightOpen && !assistantOpen ? (
           <DocumentPreflight
             readiness={readiness}
-            onClose={closePreflight}
+            onClose={() => closePreflight()}
             onNavigate={editFromPreview}
             onPrint={() => printWhenReady(true)}
             printingDisabled={saving}

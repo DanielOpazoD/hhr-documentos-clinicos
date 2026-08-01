@@ -27,14 +27,13 @@ export function DocumentPreflight({
       id="document-print-preflight"
       className="document-preflight print-hide"
       aria-labelledby="document-preflight-title"
-      aria-live="polite"
     >
       <header>
         <div>
           <h2 id="document-preflight-title" ref={headingRef} tabIndex={-1}>
             {ready ? "Documento listo para imprimir" : "Revisar antes de imprimir"}
           </h2>
-          <p>
+          <p role="status" aria-live="polite">
             {ready
               ? "Los datos esenciales y el contenido están completos."
               : readiness.blockers.length

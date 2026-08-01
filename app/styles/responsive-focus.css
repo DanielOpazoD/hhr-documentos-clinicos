@@ -101,8 +101,13 @@
   border-top: 0;
 }
 
-.document-preflight-issue:hover,
+.document-preflight-issue:hover {
+  background: #f6f9f9;
+}
+
 .document-preflight-issue:focus-visible {
+  outline: 2px solid rgba(20, 118, 129, .55);
+  outline-offset: -2px;
   background: #f6f9f9;
 }
 

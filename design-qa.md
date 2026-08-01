@@ -18,8 +18,8 @@
 
 ## PR11 · Clinical print preflight
 
-- Desktop evidence: `/Users/daniel/.codex/visualizations/2026/07/27/019fa4e4-d3d6-7fc2-b1f5-ca9260b8c3db/pr11-qa/preflight-desktop.png`.
-- Mobile evidence: `/Users/daniel/.codex/visualizations/2026/07/27/019fa4e4-d3d6-7fc2-b1f5-ca9260b8c3db/pr11-qa/preflight-mobile.png`.
+- Desktop evidence: [preflight at 1440 × 900](docs/qa/pr11/preflight-desktop.jpg).
+- Mobile evidence: [preflight at 390 × 844](docs/qa/pr11/preflight-mobile.jpg).
 - Viewports: 1440 × 900 px and 390 × 844 px.
 - State: saved draft with no clinical blockers and six explicitly acceptable warnings.
 
@@ -45,8 +45,8 @@
 ### Bundle evidence
 
 - Projected rebased baseline: `723249 / 715000` bytes.
-- Final client JS/CSS: `710231 / 715000` bytes.
-- Margin: 4769 bytes without changing the budget.
+- Final client JS/CSS: `710318 / 715000` bytes.
+- Margin: 4682 bytes without changing the budget.
 - Duplicate preflight styling was consolidated and the unused Tailwind runtime import was removed after confirming the application uses its existing semantic CSS classes.
 
 final result: passed

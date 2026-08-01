@@ -57,6 +57,13 @@ test("blocks printing when patient identity, date, or all clinical content are m
   assert.equal(result.blockers.at(-1)?.targetId, "section-antecedentes");
 });
 
+test("falls back to the preview when a document has no sections", () => {
+  const result = evaluateDocumentReadiness({ ...completeInput, sections: [] });
+
+  assert.deepEqual(result.blockers.map((issue) => issue.code), ["document-content"]);
+  assert.equal(result.blockers[0]?.targetId, "document-preview");
+});
+
 test("keeps optional professional, signature, and partial-section findings as warnings", () => {
   const result = evaluateDocumentReadiness({
     ...completeInput,
