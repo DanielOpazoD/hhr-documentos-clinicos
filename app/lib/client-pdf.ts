@@ -8,6 +8,7 @@ import {
   SIGNATURE_Y_MIN_PERCENT,
 } from "./document-layout";
 import { jpegExifOrientation } from "./image-orientation";
+import { readApiResponse } from "./client/http";
 
 type PdfSection = { title?: string; body: string };
 type PdfSignature = { imageUrl: string; professionalName: string; professionalRut: string; specialty: string; x: number; y: number; width: number };
@@ -129,7 +130,11 @@ export async function downloadClinicalPdf(options: { fileName: string; title: st
 
 async function imageData(url: string) {
   const response = await fetch(url);
-  if (!response.ok) throw new Error("No se pudo incluir una imagen de firma en el PDF.");
+  if (!response.ok) {
+    await readApiResponse<never>(response, {
+      fallbackMessage: "No se pudo incluir una imagen de firma en el PDF.",
+    });
+  }
   const blob = await response.blob();
   const dataUrl = await new Promise<string>((resolve, reject) => {
     const reader = new FileReader();

@@ -1,12 +1,11 @@
 import type { AiPromptImprovement, AiPromptInput, AiPromptProfile, AiPromptProposal } from "./prompt-types";
+import { readApiResponse } from "@/app/lib/client/http";
 
 async function promptResponse(response: Response): Promise<{ prompts: AiPromptProfile[]; prompt?: AiPromptProfile }> {
-  const data = await response.json().catch(() => ({ error: "No se pudo leer la respuesta." })) as {
+  const data = await readApiResponse<{
     prompts?: AiPromptProfile[];
     prompt?: AiPromptProfile;
-    error?: string;
-  };
-  if (!response.ok) throw new Error(data.error ?? "No se pudo completar la operación.");
+  }>(response, { fallbackMessage: "No se pudo leer la respuesta." });
   return { prompts: data.prompts ?? [], prompt: data.prompt };
 }
 
@@ -29,12 +28,11 @@ export async function proposePromptProfileFromDocuments(ids: string[]): Promise<
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ ids }),
   });
-  const data = await response.json().catch(() => ({ error: "No se pudo leer la respuesta." })) as {
+  const data = await readApiResponse<{
     proposal?: AiPromptInput;
     summary?: string;
-    error?: string;
-  };
-  if (!response.ok || !data.proposal || !data.summary) throw new Error(data.error ?? "No se pudo crear la propuesta.");
+  }>(response, { fallbackMessage: "No se pudo crear la propuesta." });
+  if (!data.proposal || !data.summary) throw new Error("No se pudo crear la propuesta.");
   return { ...data.proposal, summary: data.summary };
 }
 
@@ -56,10 +54,9 @@ export async function improvePromptProfile(input: AiPromptInput): Promise<AiProm
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(input),
   });
-  const data = await response.json().catch(() => ({ error: "No se pudo leer la respuesta." })) as {
+  const data = await readApiResponse<{
     improvement?: AiPromptImprovement;
-    error?: string;
-  };
-  if (!response.ok || !data.improvement) throw new Error(data.error ?? "No se pudo mejorar el prompt.");
+  }>(response, { fallbackMessage: "No se pudo mejorar el prompt." });
+  if (!data.improvement) throw new Error("No se pudo mejorar el prompt.");
   return data.improvement;
 }

@@ -1,4 +1,5 @@
 import type { SavedFile } from "./types";
+import { ApiClientError, type ApiErrorDetails, readApiResponse } from "@/app/lib/client/http";
 
 export const MOBILE_CAPTURE_STORAGE_KEY = "hhr:mobile-capture-token";
 export const MOBILE_CAPTURE_TOKEN_PATTERN = /^[a-f0-9]{48}$/;
@@ -29,19 +30,17 @@ export type CapturedUpload = {
   remainingFiles: number;
 };
 
-export class MobileSessionClientError extends Error {
-  constructor(message: string, readonly status: number, readonly code?: string) {
-    super(message);
+export class MobileSessionClientError extends ApiClientError {
+  constructor(details: ApiErrorDetails) {
+    super(details);
     this.name = "MobileSessionClientError";
   }
 }
 
 async function responseData<T>(response: Response): Promise<T> {
-  const data = await response.json().catch(() => ({})) as T & { error?: string; code?: string };
-  if (!response.ok) {
-    throw new MobileSessionClientError(data.error ?? "No se pudo completar la operación.", response.status, data.code);
-  }
-  return data;
+  return readApiResponse<T>(response, {
+    createError: (details) => new MobileSessionClientError(details),
+  });
 }
 
 export function isCaptureToken(value: string): boolean {

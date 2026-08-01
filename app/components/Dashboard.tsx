@@ -4,6 +4,7 @@ import Link from "next/link";
 import { ArrowRight, Clock3, FileCheck2, FilePlus2, FolderOpen, ScanLine, Sparkles, Stethoscope } from "@/app/components/Icons";
 import { useEffect, useState } from "react";
 import { formatBytes } from "@/app/lib/client-pdf";
+import { readApiResponse } from "@/app/lib/client/http";
 
 type RecentDocument = { id: string; title: string; patientName: string; patientRutMasked: string; status: string; version: number; updatedAt: string };
 type RecentFile = { id: string; name: string; mimeType: string; size: number; origin: string; createdAt: string };
@@ -18,17 +19,29 @@ const actions = [
 export function Dashboard() {
   const [documents, setDocuments] = useState<RecentDocument[]>([]);
   const [files, setFiles] = useState<RecentFile[]>([]);
+  const [loadError, setLoadError] = useState<string | null>(null);
   useEffect(() => {
+    const controller = new AbortController();
     void Promise.all([
-      fetch("/api/documents").then(r => r.json()),
-      fetch("/api/files").then(r => r.json()),
-    ]).then(([docs, saved]) => { setDocuments(docs.documents ?? []); setFiles(saved.files ?? []); });
+      fetch("/api/documents", { signal: controller.signal }).then((response) => readApiResponse<{ documents?: RecentDocument[] }>(response)),
+      fetch("/api/files", { signal: controller.signal }).then((response) => readApiResponse<{ files?: RecentFile[] }>(response)),
+    ]).then(([docs, saved]) => {
+      setDocuments(docs.documents ?? []);
+      setFiles(saved.files ?? []);
+    }).catch((cause) => {
+      if (!(cause instanceof DOMException && cause.name === "AbortError")) {
+        setLoadError(cause instanceof Error ? cause.message : "No se pudo cargar la actividad reciente.");
+      }
+    });
+    return () => controller.abort();
   }, []);
 
   return <div className="page-wrap dashboard-page">
     <section className="hero-row">
       <div><span className="eyebrow">Centro documental clínico</span><h1>¿Qué necesita hacer?</h1><p>Cree, revise, imprima y respalde documentos desde un solo lugar.</p></div>
     </section>
+
+    {loadError ? <p className="form-error standalone" role="status">{loadError}</p> : null}
 
     <section aria-labelledby="quick-title">
       <div className="section-heading"><div><span className="eyebrow">Comenzar</span><h2 id="quick-title">Acciones principales</h2></div></div>

@@ -1,15 +1,6 @@
 import type { AiImportResult, AiProgress, AiPromptMode, AiProviderId, AiProviderInfo, AiTargetId } from "./types";
 import { documentTemplateForAiTarget } from "./targets";
-
-async function responseData<T>(response: Response): Promise<T> {
-  const data = await response.json().catch(() => ({
-    error: response.status === 413
-      ? "El archivo es demasiado grande. Use una versión más liviana."
-      : "No se pudo leer la respuesta del servidor.",
-  })) as T & { error?: string };
-  if (!response.ok) throw new Error(data.error ?? "No se pudo completar la operación.");
-  return data;
-}
+import { ApiClientError, readApiResponse } from "@/app/lib/client/http";
 
 export async function importWithAi(
   input: {
@@ -34,7 +25,9 @@ export async function importWithAi(
   form.set("userInstructions", input.userInstructions);
   form.set("processingAuthorized", String(input.processingAuthorized));
   const response = await fetch("/api/ai/import", { method: "POST", body: form });
-  if (!response.ok) return responseData<AiImportResult>(response);
+  if (!response.ok) return readApiResponse<AiImportResult>(response, {
+    fallbackMessage: "No se pudo leer la respuesta del servidor.",
+  });
   if (!response.body) throw new Error("El servidor no inició el procesamiento.");
 
   const reader = response.body.pipeThrough(new TextDecoderStream()).getReader();
@@ -50,10 +43,17 @@ export async function importWithAi(
       const event = JSON.parse(line) as
         | ({ type: "status" } & AiProgress)
         | { type: "result"; result: AiImportResult }
-        | { type: "error"; error: string };
+        | { type: "error"; error: string; code?: string; requestId?: string };
       if (event.type === "status") onProgress?.(event);
       if (event.type === "result") result = event.result;
-      if (event.type === "error") throw new Error(event.error);
+      if (event.type === "error") {
+        throw new ApiClientError({
+          message: event.error,
+          status: 502,
+          code: event.code,
+          requestId: event.requestId,
+        });
+      }
     }
     if (chunk.done) break;
   }
@@ -63,7 +63,7 @@ export async function importWithAi(
 
 export async function fetchAiProviders(): Promise<AiProviderInfo[]> {
   const response = await fetch("/api/ai/providers", { cache: "no-store" });
-  const data = await responseData<{ providers: AiProviderInfo[] }>(response);
+  const data = await readApiResponse<{ providers: AiProviderInfo[] }>(response);
   return data.providers;
 }
 
@@ -109,6 +109,6 @@ export async function saveAiDraft(
       },
     }),
   });
-  const data = await responseData<{ document: { id: string } }>(response);
+  const data = await readApiResponse<{ document: { id: string } }>(response);
   return data.document.id;
 }

@@ -1,3 +1,5 @@
+import { readApiResponse } from "@/app/lib/client/http";
+
 export type GoogleDriveConfig = {
   configured: boolean;
   clientId?: string;
@@ -75,9 +77,9 @@ function loadScript(src: string): Promise<void> {
 
 export async function fetchGoogleDriveConfig(): Promise<GoogleDriveConfig> {
   const response = await fetch("/api/integrations/google-drive/config", { cache: "no-store" });
-  const data = await response.json().catch(() => ({ configured: false, scope: "" })) as GoogleDriveConfig & { error?: string };
-  if (!response.ok) throw new Error(data.error ?? "No se pudo consultar Google Drive.");
-  return data;
+  return readApiResponse<GoogleDriveConfig>(response, {
+    fallbackMessage: "No se pudo consultar Google Drive.",
+  });
 }
 
 async function accessToken(config: GoogleDriveConfig): Promise<string> {
