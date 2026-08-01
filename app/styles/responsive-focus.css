@@ -36,6 +36,105 @@
   display: none;
 }
 
+/* One compact review surface, opened only by the existing print action. */
+.document-preflight {
+  margin-bottom: 10px;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: #fff;
+}
+
+.document-preflight > header,
+.document-preflight > footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px 12px;
+}
+
+.document-preflight > header > div {
+  min-width: 0;
+}
+
+.document-preflight h2,
+.document-preflight p {
+  margin: 0;
+}
+
+.document-preflight h2 {
+  color: var(--navy);
+  font-size: 13px;
+}
+
+.document-preflight h2:focus {
+  outline: none;
+}
+
+.document-preflight p,
+.document-preflight small {
+  color: var(--muted);
+  font-size: 10px;
+}
+
+.document-preflight-issues {
+  border-block: 1px solid #e8eded;
+}
+
+.document-preflight-issue {
+  width: 100%;
+  min-height: 44px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 12px;
+  border: 0;
+  border-top: 1px solid #edf1f1;
+  background: #fff;
+  color: var(--cyan);
+  text-align: left;
+}
+
+.document-preflight-issue:first-child {
+  border-top: 0;
+}
+
+.document-preflight-issue:hover {
+  background: #f6f9f9;
+}
+
+.document-preflight-issue:focus-visible {
+  outline: 2px solid rgba(20, 118, 129, .55);
+  outline-offset: -2px;
+  background: #f6f9f9;
+}
+
+.document-preflight-issue > span:first-child {
+  min-width: 0;
+  display: grid;
+  gap: 1px;
+}
+
+.document-preflight-issue strong {
+  overflow: hidden;
+  color: var(--ink);
+  font-size: 11px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.document-preflight-issue.blocker small {
+  color: var(--danger);
+}
+
+.document-preflight > footer .button {
+  min-height: 34px;
+  padding-inline: 10px;
+  white-space: nowrap;
+}
+
 @media (max-width: 820px) {
   .main-area {
     padding-bottom: calc(78px + env(safe-area-inset-bottom));
@@ -60,6 +159,7 @@
   .document-studio-header .document-header-context {
     width: 100%;
   }
+
 }
 
 @media (max-width: 520px) {
@@ -300,6 +400,20 @@
 
   .document-save-button > span {
     display: none;
+  }
+
+  .document-preflight > footer {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .document-preflight-issue {
+    min-height: 48px;
+  }
+
+  .document-preflight > footer .button {
+    width: 100%;
+    min-height: 42px;
   }
 
 }

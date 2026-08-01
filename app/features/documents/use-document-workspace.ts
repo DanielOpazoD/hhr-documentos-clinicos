@@ -76,6 +76,7 @@ export function useDocumentWorkspace() {
     setSaveError(null);
     setStatus((current) => current === "Borrador" ? current : "Borrador");
   }, [setDirty, setSaveError, setStatus]);
+  const hasUnsavedChanges = useCallback(() => dirtyRef.current, []);
   const markSignatureDirty = useCallback(() => {
     defaultProfileApplied.current = true;
     markDirty();
@@ -340,7 +341,7 @@ export function useDocumentWorkspace() {
     ...historyWorkspace,
     ...signatureWorkspace,
     ...typographyWorkspace,
-    markDirty, markSignatureDirty, persist, openDocument, reloadDocument, createDocument, deleteDocument,
+    markDirty, markSignatureDirty, hasUnsavedChanges, persist, openDocument, reloadDocument, createDocument, deleteDocument,
     deleteDocuments, addSection, removeSection, updateSection, moveSection, downloadPdf,
   };
 }
