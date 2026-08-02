@@ -1,6 +1,6 @@
 import { useRef } from "react";
 import Link from "next/link";
-import { ArrowRight, FileText, FileUp, Settings, Sparkles, Trash2 } from "@/app/components/Icons";
+import { ArrowRight, FileText, FileUp, Settings, Sparkles, Trash2, X } from "@/app/components/Icons";
 import { AiProcessingStatus } from "./AiProcessingStatus";
 import { AiModelPicker } from "./AiModelPicker";
 import { GoogleDrivePicker } from "./GoogleDrivePicker";
@@ -188,11 +188,18 @@ export function AiImportForm({ controller }: Props) {
               <GoogleDrivePicker compact disabled={controller.processing} fileCount={controller.files.length} onFiles={controller.addFiles} />
             </div>
             <button
-              type="submit"
-              className="button primary ai-generate-action"
-              disabled={!controller.files.length || !controller.processingAuthorized || !controller.selectedProvider?.available || !instructionsReady || controller.processing}
+              type={controller.processing ? "button" : "submit"}
+              className={controller.processing ? "button secondary ai-generate-action" : "button primary ai-generate-action"}
+              disabled={controller.processing
+                ? controller.cancelling
+                : !controller.files.length || !controller.processingAuthorized || !controller.selectedProvider?.available || !instructionsReady}
+              onClick={controller.processing ? controller.cancelProcessing : undefined}
             >
-              <Sparkles size={16} /> {controller.processing ? "Generando…" : "Generar"}<ArrowRight size={16} />
+              {controller.processing ? <>
+                <X size={16} /> {controller.cancelling ? "Cancelando…" : "Cancelar"}
+              </> : <>
+                <Sparkles size={16} /> Generar<ArrowRight size={16} />
+              </>}
             </button>
           </footer>
         </form>
