@@ -38,6 +38,11 @@ export class ApiClientError extends Error {
   }
 }
 
+export function isApiConflict(error: unknown): error is ApiClientError {
+  return error instanceof ApiClientError
+    && (error.status === 409 || error.code === "CONFLICT");
+}
+
 export async function readApiResponse<T>(response: Response, options: ApiResponseOptions<T> = {}): Promise<T> {
   let parsed = false;
   const value = await response.json().then((data: unknown) => {

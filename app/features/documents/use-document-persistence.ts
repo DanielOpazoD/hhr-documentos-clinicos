@@ -6,8 +6,14 @@ import type { DocumentSection, PatientData, PlacedSignature, SignerData, StoredA
 import { patientFullName } from "./identity";
 import { saveDocument } from "./api";
 import { formatSavedTime } from "./formatters";
+import { isApiConflict } from "@/app/lib/client/http";
 
 type MutableValue<T> = { current: T };
+
+export type DocumentSaveFailure = {
+  message: string;
+  recovery: "reload" | "retry";
+};
 
 export type DocumentPersistenceSnapshot = {
   aiMetadata: StoredAiMetadata | null;
@@ -38,7 +44,7 @@ export function useDocumentPersistence(options: {
   setSavedAt: Dispatch<SetStateAction<string | null>>;
   setStatus: Dispatch<SetStateAction<DocumentStatus>>;
   setVersion: Dispatch<SetStateAction<number>>;
-  setSaveError: Dispatch<SetStateAction<string | null>>;
+  setSaveError: Dispatch<SetStateAction<DocumentSaveFailure | null>>;
 }) {
   const [saving, setSaving] = useState(false);
   const [saveEpoch, setSaveEpoch] = useState(0);
@@ -54,13 +60,17 @@ export function useDocumentPersistence(options: {
     const snapshot = current.snapshot;
     const nextStatus = requestedStatus ?? snapshot.status;
     if (nextStatus !== "Borrador" && !patientFullName(snapshot.patient)) {
-      current.setSaveError("Ingrese el nombre del paciente para guardar.");
+      current.setSaveError({
+        message: "Ingrese el nombre del paciente para guardar.",
+        recovery: "retry",
+      });
       return Promise.resolve(false);
     }
     const signature = storedPlacement(snapshot.placedSignature);
     const stamp = storedPlacement(snapshot.placedStamp);
     const revision = current.editRevision.current;
     const requestWorkspaceEpoch = current.workspaceEpoch.current;
+    current.setSaveError(null);
     setSaving(true);
     const operation = (async () => {
       try {
@@ -87,7 +97,10 @@ export function useDocumentPersistence(options: {
         return true;
       } catch (error) {
         if (current.workspaceEpoch.current === requestWorkspaceEpoch) {
-          current.setSaveError(error instanceof Error ? error.message : "No se pudo guardar.");
+          current.setSaveError({
+            message: error instanceof Error ? error.message : "No se pudo guardar.",
+            recovery: isApiConflict(error) ? "reload" : "retry",
+          });
         }
         return false;
       } finally {

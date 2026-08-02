@@ -232,6 +232,7 @@ export function DocumentStudio() {
             {!assistantOpen ? <DocumentLibrary {...workspace} /> : null}
           </div>
           <div className="header-actions">
+            {!assistantOpen ? <DocumentCommandActions {...workspace} /> : null}
             <button
               type="button"
               className={assistantOpen ? "button secondary document-assistant-toggle active" : "button secondary document-assistant-toggle"}
@@ -243,7 +244,7 @@ export function DocumentStudio() {
               {assistantOpen ? <X size={16} /> : <Sparkles size={16} />}
               <span>{assistantOpen ? "Volver al editor" : "Usar IA"}</span>
             </button>
-            {!assistantOpen ? <>
+            {!assistantOpen ? (
               <button
                 ref={printTriggerRef}
                 aria-label="Imprimir documento"
@@ -255,13 +256,12 @@ export function DocumentStudio() {
               >
                 <Printer size={16} /><span>Imprimir</span>
               </button>
-              <DocumentCommandActions {...workspace} />
-            </> : null}
+            ) : null}
           </div>
         </header>
 
         {workspace.loadError ? <p className="form-error standalone">{workspace.loadError}</p> : null}
-        <DocumentSaveError saveError={workspace.saveError} reloadDocument={workspace.reloadDocument} />
+        <DocumentSaveError {...workspace} />
         {preflightOpen && !assistantOpen ? (
           <DocumentPreflight
             readiness={readiness}

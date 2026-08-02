@@ -30,11 +30,9 @@ type Props = Pick<
   | "removeSection"
   | "sections"
   | "signer"
-  | "status"
   | "startSignatureMove"
   | "updatePlacedImage"
   | "templateId" | "templateSettingsError" | "templateSettingsLoaded" | "retryTemplateSettings"
-  | "version"
   | "visibleTitle"
   | "markDirty"
   | "setDocumentTitle"
@@ -63,11 +61,9 @@ export function DocumentPreview({
   removeSection,
   sections,
   signer,
-  status,
   startSignatureMove,
   updatePlacedImage,
   templateId, templateSettingsError, templateSettingsLoaded, retryTemplateSettings,
-  version,
   visibleTitle,
   markDirty,
   setDocumentTitle,
@@ -83,9 +79,14 @@ export function DocumentPreview({
   return (
     <section id="document-preview" className="paper-panel">
       <div className="paper-toolbar print-hide">
-        <span><span className={`status-pill ${status.toLowerCase()}`}>{status}</span> v{version}</span>
         <div className="paper-toolbar-actions">
-          <button type="button" className="paper-template-settings" disabled={!templateSettingsLoaded && !templateSettingsError} onClick={(event) => templateSettingsError ? retryTemplateSettings() : onConfigureTemplate(event.currentTarget)}><Settings size={13} /> {templateSettingsError ? "Reintentar" : "Plantilla"}</button>
+          {templateSettingsError ? (
+            <button type="button" className="paper-template-settings error" aria-label="No se pudo cargar la plantilla. Reintentar" onClick={retryTemplateSettings}>
+              <Settings size={13} /> <span>No se pudo cargar la plantilla</span> <strong>Reintentar</strong>
+            </button>
+          ) : (
+            <button type="button" className="paper-template-settings" disabled={!templateSettingsLoaded} onClick={(event) => onConfigureTemplate(event.currentTarget)}><Settings size={13} /> Plantilla</button>
+          )}
           {templateId !== "receta_externa" ? (
             <button type="button" className="paper-add-section" onClick={addSection}><Plus size={13} /> Agregar sección</button>
           ) : null}

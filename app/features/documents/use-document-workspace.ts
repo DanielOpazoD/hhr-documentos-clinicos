@@ -17,7 +17,7 @@ import { useDocumentIdentity } from "./use-document-identity";
 import { normalizeAiMetadata } from "./ai-metadata";
 import { applySignatureProfile } from "./signature-profile";
 import { clampSignatureY, clampSigningImageWidth, defaultImagePlacement, normalizeStoredSignatureY } from "@/app/lib/document-layout";
-import { useDocumentPersistence } from "./use-document-persistence";
+import { useDocumentPersistence, type DocumentSaveFailure } from "./use-document-persistence";
 import { useDocumentHistory } from "./use-document-history";
 import { useDocumentTypography } from "./use-document-typography";
 import { sectionsFromTemplateSetting, templateSettingFor } from "./template-settings";
@@ -37,7 +37,7 @@ export function useDocumentWorkspace() {
   const [recentQuery, setRecentQuery] = useState("");
   const [newMenuOpen, setNewMenuOpen] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
-  const [saveError, setSaveError] = useState<string | null>(null);
+  const [saveError, setSaveError] = useState<DocumentSaveFailure | null>(null);
   const [deletingDocumentIds, setDeletingDocumentIds] = useState<Set<string>>(() => new Set());
   const [aiMetadata, setAiMetadata] = useState<StoredAiMetadata | null>(null);
   const editRevision = useRef(0);
