@@ -102,9 +102,11 @@ visible traduce ese grafo a lenguaje de tarea:
 - como requisito verificable, la traza operacional se limita a nodo, estado y duración; las
   [pruebas del grafo clínico](../tests/contracts/clinical-draft-workflow.test.ts) impiden que
   incorpore valores clínicos;
-- los registros operacionales se limitan a metadatos permitidos; las
-  [pruebas del contrato HTTP](../tests/contracts/http-errors.test.ts) confirman que nombres,
-  RUT, prompts y detalles privados no llegan al log.
+- los registros operacionales se limitan a metadatos permitidos; el
+  [contrato de metadata operacional](../tests/contracts/ai-operational-metadata.test.ts), las
+  [pruebas del contrato HTTP](../tests/contracts/http-errors.test.ts) y las
+  [pruebas de migración](../tests/database/migrations.test.mjs) impiden que nombres, RUT,
+  prompts y detalles privados lleguen al log o permanezcan en una bitácora redundante.
 
 No se añade reparación autónoma, un enjambre de agentes ni un editor visual. La revisión y
 la firma continúan siendo responsabilidad del profesional.

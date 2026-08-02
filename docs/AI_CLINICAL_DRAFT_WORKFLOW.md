@@ -44,14 +44,24 @@ Las imágenes y los PDF escaneados pueden producir evidencia `unverified` cuando
 
 ## Trazabilidad y privacidad
 
-Cada ejecución conserva únicamente:
+La trazabilidad se reparte entre autoridades distintas y no duplica el contenido clínico:
+
+| Autoridad | Conserva | No conserva |
+| --- | --- | --- |
+| `ai_operation_runs` | Reserva, proveedor, operación, estado y tiempos necesarios para cuota y concurrencia. | Fuentes, prompts, contenido clínico o resultado. |
+| `ai_usage_events` | Tokens, coste estimado y referencia a la ejecución. | Fuentes, prompts o contenido clínico. |
+| `audit_events` | Resultado terminal y resumen operacional acotado de las fuentes. | Nombres de archivo, RUT, prompts, extractos o texto clínico. |
+| Documento del propietario | Prompt aplicado, fuentes visibles, evidencia y borrador que el profesional debe revisar. | No es un log operacional ni alimenta la cuota. |
+
+La auditoría operacional puede conservar únicamente:
 
 - versión del workflow;
 - nodo, estado y duración;
 - resultado global de la verificación;
-- código y cantidad de hallazgos.
+- código y cantidad de hallazgos;
+- cantidad, tamaño total y conteo por tipo MIME de las fuentes.
 
-La traza no contiene nombres, RUT, texto clínico, prompts ni extractos. La entrada y salida clínica permanecen bajo la trazabilidad documental ya existente y no se duplican en logs operacionales.
+La traza no contiene nombres de archivo, nombres de personas, RUT, texto clínico, prompts ni extractos. La entrada y salida clínica permanecen bajo la trazabilidad documental visible y aislada por propietario; no se duplican en bitácoras operacionales.
 
 ## Cancelación y reintento
 
