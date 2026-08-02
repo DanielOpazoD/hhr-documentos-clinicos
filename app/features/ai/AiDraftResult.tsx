@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import Link from "next/link";
 import { Check, Download, FileSearch, FileText, Sparkles, Trash2 } from "@/app/components/Icons";
 import { AiIdentityEditor } from "./AiIdentityEditor";
 import { AiSectionEvidence } from "./AiSectionEvidence";
@@ -14,7 +13,7 @@ export function AiDraftResult({
   onOpenDocument,
 }: {
   controller: AiStudioController;
-  onOpenDocument?: (id: string) => boolean | void | Promise<boolean | void>;
+  onOpenDocument: (id: string) => boolean | void | Promise<boolean | void>;
 }) {
   const [downloading, setDownloading] = useState(false);
   const [downloadError, setDownloadError] = useState<string | null>(null);
@@ -37,7 +36,6 @@ export function AiDraftResult({
   }
 
   async function openSavedDraft(documentId: string) {
-    if (!onOpenDocument) return;
     setOpenError(null);
     try {
       if (await onOpenDocument(documentId) === false) {
@@ -88,14 +86,10 @@ export function AiDraftResult({
             </button>
           ) : null}
           {controller.createdId && !controller.draftHasChanges ? (
-            onOpenDocument ? (
-              <button className="button primary" onClick={() => void openSavedDraft(controller.createdId!)}><FileSearch size={16} /> Continuar en el editor</button>
-            ) : (
-              <Link className="button primary" href={`/documentos?document=${encodeURIComponent(controller.createdId)}`}><FileSearch size={16} /> Abrir en Documentos</Link>
-            )
+            <button className="button primary" onClick={() => void openSavedDraft(controller.createdId!)}><FileSearch size={16} /> Continuar en el editor</button>
           ) : (
             <button className="button primary" disabled={controller.saving || !controller.identityConfirmed} onClick={() => void saveAndContinue()}>
-              <FileSearch size={16} /> {controller.saving ? "Guardando…" : controller.createdId ? "Actualizar borrador" : onOpenDocument ? "Guardar y abrir en el editor" : "Guardar borrador"}
+              <FileSearch size={16} /> {controller.saving ? "Guardando…" : controller.createdId ? "Actualizar borrador" : "Guardar y abrir en el editor"}
             </button>
           )}
         </div>
