@@ -53,6 +53,12 @@ Cada ejecución conserva únicamente:
 
 La traza no contiene nombres, RUT, texto clínico, prompts ni extractos. La entrada y salida clínica permanecen bajo la trazabilidad documental ya existente y no se duplican en logs operacionales.
 
+## Cancelación y reintento
+
+Mientras el nodo `generate` está activo, la acción principal cambia a `Cancelar`. La señal del navegador atraviesa el stream y la reserva de ejecución hasta el proveedor; una desconexión produce el mismo cierre controlado. El estado terminal `cancelled` se conserva separado de `timed_out` y `failed`, y no se informa como una falla operacional.
+
+Cancelar no borra fuentes, autorización ni indicaciones, por lo que el profesional puede corregir o reintentar inmediatamente. La ejecución cancelada conserva su reserva y se incluye en la cuota: evita reintentos ilimitados y refleja que el proveedor pudo haber comenzado a procesar la solicitud. La auditoría registra solo identificadores operacionales, cantidad de fuentes y traza del workflow; nunca contenido clínico.
+
 ## Límites intencionales
 
 - Una sola llamada al modelo por borrador.
