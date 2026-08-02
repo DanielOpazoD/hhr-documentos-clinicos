@@ -170,3 +170,49 @@ test("progressStream exposes only the route-selected safe timeout message", asyn
   assert.equal(event.error, "La operación de IA tardó demasiado.");
   assert.doesNotMatch(JSON.stringify(event), /upstream host|private prompt/);
 });
+
+test("progressStream aborts disconnected work without reporting an operational failure", async () => {
+  let observedAbort = false;
+  let failures = 0;
+  let notifyStarted: (() => void) | undefined;
+  const started = new Promise<void>((resolve) => { notifyStarted = resolve; });
+  const response = progressStream(async (_emit, signal) => {
+    notifyStarted?.();
+    await new Promise<void>((resolve) => {
+      signal.addEventListener("abort", () => {
+        observedAbort = true;
+        resolve();
+      }, { once: true });
+    });
+  }, {
+    onError: () => { failures += 1; },
+  });
+  const reader = response.body!.getReader();
+
+  await started;
+  await reader.cancel();
+
+  assert.equal(observedAbort, true);
+  assert.equal(failures, 0);
+});
+
+test("progressStream forwards request cancellation to its producer", async () => {
+  const requestController = new AbortController();
+  let observedAbort = false;
+  let notifyStarted: (() => void) | undefined;
+  const started = new Promise<void>((resolve) => { notifyStarted = resolve; });
+  const response = progressStream(async (_emit, signal) => {
+    notifyStarted?.();
+    await new Promise<void>((resolve) => {
+      signal.addEventListener("abort", () => {
+        observedAbort = true;
+        resolve();
+      }, { once: true });
+    });
+  }, { signal: requestController.signal });
+
+  await started;
+  requestController.abort();
+  assert.equal(await response.text(), "");
+  assert.equal(observedAbort, true);
+});

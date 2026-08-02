@@ -5,7 +5,7 @@ export type AiOperation =
   | "prompt_improvement"
   | "prompt_from_documents";
 
-export type AiExecutionStatus = "active" | "completed" | "failed" | "timed_out" | "expired";
+export type AiExecutionStatus = "active" | "completed" | "failed" | "timed_out" | "cancelled" | "expired";
 
 export type AiExecutionPolicy = {
   cloudDailyLimit: number;
@@ -63,13 +63,44 @@ export class AiExecutionTimeoutError extends Error {
   }
 }
 
+export class AiExecutionCancelledError extends Error {
+  readonly code = "AI_EXECUTION_CANCELLED";
+
+  constructor() {
+    super("La operación de IA fue cancelada.");
+    this.name = "AiExecutionCancelledError";
+  }
+}
+
+export function aiExecutionFailureStatus(
+  error: unknown,
+): Exclude<AiExecutionStatus, "active" | "completed" | "expired"> {
+  if (error instanceof AiExecutionCancelledError) return "cancelled";
+  if (error instanceof AiExecutionTimeoutError) return "timed_out";
+  return "failed";
+}
+
 export async function withAiExecutionTimeout<T>(
   action: (signal: AbortSignal) => Promise<T>,
   timeoutMs: number,
+  externalSignal?: AbortSignal,
 ): Promise<T> {
+  if (externalSignal?.aborted) throw new AiExecutionCancelledError();
   const controller = new AbortController();
   let timedOut = false;
+  let cancelled = false;
   let timer: ReturnType<typeof setTimeout> | undefined;
+  let rejectCancellation: ((error: AiExecutionCancelledError) => void) | undefined;
+  const cancel = () => {
+    if (cancelled || timedOut) return;
+    cancelled = true;
+    controller.abort();
+    rejectCancellation?.(new AiExecutionCancelledError());
+  };
+  externalSignal?.addEventListener("abort", cancel, { once: true });
+  const cancellation = new Promise<never>((_, reject) => {
+    rejectCancellation = reject;
+  });
   const timeout = new Promise<never>((_, reject) => {
     timer = setTimeout(() => {
       timedOut = true;
@@ -78,11 +109,17 @@ export async function withAiExecutionTimeout<T>(
     }, timeoutMs);
   });
   try {
-    return await Promise.race([action(controller.signal), timeout]);
+    const execution = Promise.resolve().then(() => {
+      if (cancelled) throw new AiExecutionCancelledError();
+      return action(controller.signal);
+    });
+    return await Promise.race([execution, timeout, cancellation]);
   } catch (error) {
+    if (cancelled || error instanceof AiExecutionCancelledError) throw new AiExecutionCancelledError();
     if (timedOut || error instanceof AiExecutionTimeoutError) throw new AiExecutionTimeoutError();
     throw error;
   } finally {
     if (timer) clearTimeout(timer);
+    externalSignal?.removeEventListener("abort", cancel);
   }
 }

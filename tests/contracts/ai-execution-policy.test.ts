@@ -3,6 +3,8 @@ import test from "node:test";
 import {
   AI_ACTIVE_STALE_MS,
   AI_CLOUD_WINDOW_MS,
+  AiExecutionCancelledError,
+  aiExecutionFailureStatus,
   aiExecutionPolicy,
   aiOperationTimeoutMs,
   aiProviderConcurrencyLimit,
@@ -76,6 +78,52 @@ test("preserves non-timeout failures for the route-specific safe mapper", async 
     () => withAiExecutionTimeout(async () => { throw providerError; }, 100),
     (error: unknown) => error === providerError,
   );
+});
+
+test("cancels provider work through an external signal without turning it into a timeout", async () => {
+  const controller = new AbortController();
+  let observedAbort = false;
+  let notifyStarted: (() => void) | undefined;
+  const started = new Promise<void>((resolve) => { notifyStarted = resolve; });
+  const operation = withAiExecutionTimeout(async (signal) => {
+    notifyStarted?.();
+    await new Promise<void>((resolve) => {
+      signal.addEventListener("abort", () => {
+        observedAbort = true;
+        resolve();
+      }, { once: true });
+    });
+    throw new Error("provider detail after cancellation");
+  }, 1_000, controller.signal);
+
+  await started;
+  controller.abort();
+
+  await assert.rejects(operation, (error: unknown) => {
+    assert.ok(error instanceof AiExecutionCancelledError);
+    assert.equal(error.code, "AI_EXECUTION_CANCELLED");
+    assert.doesNotMatch(error.message, /provider detail/);
+    return true;
+  });
+  assert.equal(observedAbort, true);
+  assert.equal(aiExecutionFailureStatus(new AiExecutionCancelledError()), "cancelled");
+  assert.equal(aiExecutionFailureStatus(new AiExecutionTimeoutError()), "timed_out");
+  assert.equal(aiExecutionFailureStatus(new Error("provider")), "failed");
+});
+
+test("does not start provider work when the request is already cancelled", async () => {
+  const controller = new AbortController();
+  controller.abort();
+  let started = false;
+
+  await assert.rejects(
+    () => withAiExecutionTimeout(async () => {
+      started = true;
+      return "unexpected";
+    }, 1_000, controller.signal),
+    (error: unknown) => error instanceof AiExecutionCancelledError,
+  );
+  assert.equal(started, false);
 });
 
 test("normalizes provider usage without negative, cached or malformed token inflation", () => {
