@@ -229,6 +229,17 @@ test("a fresh database reaches the canonical schema without request-time DDL", a
   try {
     await applyPendingMigrations(db);
     seedData(db, { legacy: false });
+    db.prepare(`INSERT INTO ai_operation_runs
+      (id, owner_email, operation, provider_id, status, created_at, finished_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?)`).run(
+      "cancelled-run",
+      "owner@hhr.test",
+      "clinical_draft",
+      "openai",
+      "cancelled",
+      "2026-07-01T12:00:00.000Z",
+      "2026-07-01T12:00:01.000Z",
+    );
     const result = await verifyDatabase(db);
     assert.equal(result.ok, true, JSON.stringify(result.findings));
     assert.deepEqual(
@@ -287,7 +298,9 @@ test("upgrades canonical migration 0007 with template preferences and named sign
   const path = join(temporaryRoot, "canonical-6.sqlite");
   const db = createDatabase(path);
   try {
-    for (const name of migrationNames.slice(0, -1)) {
+    const templateMigrationIndex = migrationNames.indexOf("0008_nebulous_slayback.sql");
+    assert.notEqual(templateMigrationIndex, -1);
+    for (const name of migrationNames.slice(0, templateMigrationIndex)) {
       await applyRepositoryMigration(db, name);
     }
     seedData(db, { legacy: false });
@@ -305,6 +318,83 @@ test("upgrades canonical migration 0007 with template preferences and named sign
       WHERE owner_email = ? AND provider_id = ? AND status = 'active'
     `).all("owner@hhr.test", "openai").map((row) => row.detail).join(" ");
     assert.match(concurrencyPlan, /ai_operation_runs_owner_provider_status_idx/);
+    assert.equal((await verifyDatabase(db)).ok, true);
+  } finally {
+    db.close();
+  }
+});
+
+test("upgrades canonical migration 0008 without retaining operational source names", async () => {
+  const path = join(temporaryRoot, "canonical-8-privacy.sqlite");
+  const db = createDatabase(path);
+  try {
+    const privacyMigrationIndex = migrationNames.indexOf("0009_ai_trace_privacy.sql");
+    assert.notEqual(privacyMigrationIndex, -1);
+    for (const name of migrationNames.slice(0, privacyMigrationIndex)) {
+      await applyRepositoryMigration(db, name);
+    }
+    seedData(db, { legacy: false });
+    db.prepare(`INSERT INTO ai_import_runs
+      (id, owner_email, source_name, target_type, status, created_at)
+      VALUES (?, ?, ?, ?, ?, ?)`).run(
+      "legacy-ai-import",
+      "owner@hhr.test",
+      "Paciente 11.111.111-1 laboratorio.pdf",
+      "certificado",
+      "completado",
+      "2026-07-01T12:00:00.000Z",
+    );
+    db.prepare(`INSERT INTO audit_events
+      (id, owner_email, action, entity_type, entity_id, metadata_json, created_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?)`).run(
+      "legacy-ai-audit",
+      "owner@hhr.test",
+      "generated",
+      "ai_import",
+      "legacy-ai-import",
+      JSON.stringify({ sourceNames: ["Paciente 11.111.111-1 laboratorio.pdf"], sourceCount: 1, workflowVersion: "v1" }),
+      "2026-07-01T12:00:00.000Z",
+    );
+    db.prepare(`INSERT INTO audit_events
+      (id, owner_email, action, entity_type, entity_id, metadata_json, created_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?)`).run(
+      "legacy-malformed-audit",
+      "owner@hhr.test",
+      "failed",
+      "ai_import",
+      "legacy-ai-import",
+      "not-json",
+      "2026-07-01T12:00:01.000Z",
+    );
+    const protectedBefore = {
+      documents: db.prepare("SELECT * FROM documents ORDER BY id").all(),
+      documentVersions: db.prepare("SELECT * FROM document_versions ORDER BY id").all(),
+      documentFiles: db.prepare("SELECT * FROM document_files ORDER BY id").all(),
+      files: db.prepare("SELECT * FROM files ORDER BY id").all(),
+      prompts: db.prepare("SELECT * FROM ai_prompts ORDER BY id").all(),
+    };
+
+    await applyPendingMigrations(db);
+
+    assert.equal(
+      db.prepare("SELECT COUNT(*) AS count FROM sqlite_schema WHERE type = 'table' AND name = 'ai_import_runs'").get().count,
+      0,
+    );
+    assert.deepEqual(
+      JSON.parse(db.prepare("SELECT metadata_json FROM audit_events WHERE id = ?").get("legacy-ai-audit").metadata_json),
+      { sourceCount: 1, workflowVersion: "v1" },
+    );
+    assert.equal(
+      db.prepare("SELECT metadata_json FROM audit_events WHERE id = ?").get("legacy-malformed-audit").metadata_json,
+      "not-json",
+    );
+    assert.deepEqual({
+      documents: db.prepare("SELECT * FROM documents ORDER BY id").all(),
+      documentVersions: db.prepare("SELECT * FROM document_versions ORDER BY id").all(),
+      documentFiles: db.prepare("SELECT * FROM document_files ORDER BY id").all(),
+      files: db.prepare("SELECT * FROM files ORDER BY id").all(),
+      prompts: db.prepare("SELECT * FROM ai_prompts ORDER BY id").all(),
+    }, protectedBefore);
     assert.equal((await verifyDatabase(db)).ok, true);
   } finally {
     db.close();
@@ -421,6 +511,27 @@ test("restores the exact pre-migration database from a disposable backup", async
   const backupPath = join(temporaryRoot, "rollback-before.sqlite");
   let db = await createLegacyDatabase(4, path);
   seedData(db, { legacy: true });
+  db.prepare(`INSERT INTO ai_import_runs
+    (id, owner_email, source_name, target_type, status, created_at)
+    VALUES (?, ?, ?, ?, ?, ?)`).run(
+    "rollback-ai-import",
+    "owner@hhr.test",
+    "Paciente 11.111.111-1 laboratorio.pdf",
+    "certificado",
+    "completado",
+    "2026-07-01T12:00:00.000Z",
+  );
+  db.prepare(`INSERT INTO audit_events
+    (id, owner_email, action, entity_type, entity_id, metadata_json, created_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?)`).run(
+    "rollback-ai-audit",
+    "owner@hhr.test",
+    "generated",
+    "ai_import",
+    "rollback-ai-import",
+    JSON.stringify({ sourceNames: ["Paciente 11.111.111-1 laboratorio.pdf"], sourceCount: 1 }),
+    "2026-07-01T12:00:00.000Z",
+  );
   const before = businessSnapshot(db);
   const appliedBefore = db.prepare("SELECT name FROM d1_migrations ORDER BY id").all();
   db.close();
@@ -438,6 +549,10 @@ test("restores the exact pre-migration database from a disposable backup", async
   try {
     assert.deepEqual(businessSnapshot(db), before);
     assert.deepEqual(db.prepare("SELECT name FROM d1_migrations ORDER BY id").all(), appliedBefore);
+    assert.equal(
+      db.prepare("SELECT source_name FROM ai_import_runs WHERE id = ?").get("rollback-ai-import").source_name,
+      "Paciente 11.111.111-1 laboratorio.pdf",
+    );
   } finally {
     db.close();
   }

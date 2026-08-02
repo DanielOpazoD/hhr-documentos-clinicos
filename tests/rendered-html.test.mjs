@@ -637,7 +637,7 @@ test("contains no production sample workflow or fictitious record creation", asy
 });
 
 test("integrates connections and guarded AI usage into tabbed settings", async () => {
-  const [navigation, settings, redirect, dashboard, usageApi, usageStore, execution, policy, database, auditSupport, schema, usageMigration, executionMigration, importRoute, improveRoute, fromDocumentsRoute] = await Promise.all([
+  const [navigation, settings, redirect, dashboard, usageApi, usageStore, execution, policy, database, auditSupport, schema, usageMigration, executionMigration, privacyMigration, importRoute, improveRoute, fromDocumentsRoute] = await Promise.all([
     readFile(new URL("../app/components/AppFrame.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/configuracion/page.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/conexiones/page.tsx", import.meta.url), "utf8"),
@@ -651,6 +651,7 @@ test("integrates connections and guarded AI usage into tabbed settings", async (
     readFile(new URL("../db/schema.ts", import.meta.url), "utf8"),
     readFile(new URL("../drizzle/0002_zippy_electro.sql", import.meta.url), "utf8"),
     readFile(new URL("../drizzle/0007_ai_execution_guard.sql", import.meta.url), "utf8"),
+    readFile(new URL("../drizzle/0009_ai_trace_privacy.sql", import.meta.url), "utf8"),
     readFile(new URL("../app/api/ai/import/route.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/api/ai/prompts/improve/route.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/api/ai/prompts/from-documents/route.ts", import.meta.url), "utf8"),
@@ -677,12 +678,15 @@ test("integrates connections and guarded AI usage into tabbed settings", async (
   assert.match(schema, /aiUsageEvents/);
   assert.match(schema, /aiOperationRuns/);
   assert.match(schema, /ai_operation_runs_owner_provider_status_idx/);
+  assert.doesNotMatch(schema, /aiImportRuns|ai_import_runs/);
   assert.match(auditSupport, /auditBestEffort/);
   assert.match(auditSupport, /audit_write_failed/);
   assert.match(usageMigration, /CREATE TABLE IF NOT EXISTS `ai_usage_events`/);
   assert.doesNotMatch(usageMigration, /ALTER TABLE `signatures`/);
   assert.match(executionMigration, /CREATE TABLE `ai_operation_runs`/);
   assert.match(executionMigration, /ai_operation_runs_owner_provider_status_idx/);
+  assert.match(privacyMigration, /json_remove\(`metadata_json`, '\$\.sourceNames'\)/);
+  assert.match(privacyMigration, /DROP TABLE `ai_import_runs`/);
   assert.match(execution, /db\.batch/);
   assert.match(execution, /INSERT INTO ai_operation_runs/);
   assert.match(execution, /retry-after/);
@@ -693,7 +697,7 @@ test("integrates connections and guarded AI usage into tabbed settings", async (
     assert.match(route, /reserveAiExecution/);
     assert.match(route, /runAiExecution/);
   }
-  assert.match(importRoute, /updateRunStatusBestEffort/);
+  assert.doesNotMatch(importRoute, /updateRunStatusBestEffort|ai_import_runs/);
   assert.ok(
     importRoute.indexOf('emit({ type: "result"') < importRoute.indexOf('workflow.record("deliver", "completed")'),
     "successful delivery must be recorded only after the result is enqueued",
@@ -773,7 +777,7 @@ test("offers isolated OpenAI and local Gemma providers", async () => {
   assert.match(source, /signal: request\.signal/);
   assert.match(source, /AiExecutionCancelledError/);
   assert.match(source, /AI_EXECUTION_CANCELLED/);
-  assert.match(source, /runClinicalDraftWorkflow\([\s\S]*?requireActiveAiRequest\(signal\)[\s\S]*?updateRunStatusBestEffort\(id, "completado"\)/);
+  assert.match(source, /runClinicalDraftWorkflow\([\s\S]*?requireActiveAiRequest\(signal\)[\s\S]*?recordAiUsage\(/);
   assert.match(source, /Modelo de OpenAI no permitido/);
   assert.match(source, /Privado · sin salir del equipo/);
   assert.match(source, /getResolvedPDFJS/);
@@ -916,12 +920,13 @@ test("organizes, archives and deletes stored files through owned server routes",
 });
 
 test("keeps operational failures traceable without exposing clinical context", async () => {
-  const [errorPage, clientHttp, serverHttp, aiClient, aiRoute, progressStream, filesClient, diagnostics, styles] = await Promise.all([
+  const [errorPage, clientHttp, serverHttp, aiClient, aiRoute, operationalMetadata, progressStream, filesClient, diagnostics, styles] = await Promise.all([
     readFile(new URL("../app/error.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/lib/client/http.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/lib/server/http.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/features/ai/client.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/api/ai/import/route.ts", import.meta.url), "utf8"),
+    readFile(new URL("../app/features/ai/server/operational-metadata.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/features/ai/server/progress-stream.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/features/files/client.ts", import.meta.url), "utf8"),
     readFile(new URL("../docs/ERROR_DIAGNOSTICS.md", import.meta.url), "utf8"),
@@ -943,14 +948,19 @@ test("keeps operational failures traceable without exposing clinical context", a
     "const failureMetadata",
   );
   assert.match(cancellation, /auditBestEffort\(owner, "cancelled"/);
-  assert.match(cancellation, /sourceCount: sources\.length/);
+  assert.match(cancellation, /\.\.\.sourceAuditMetadata/);
   assert.doesNotMatch(cancellation, /sourceNames|userInstructions/);
   const successfulImport = sourceSection(
     aiRoute,
     "const auditRecorded = await auditBestEffort(owner, \"generated\"",
     "} catch (error) {",
   );
+  assert.match(successfulImport, /\.\.\.sourceAuditMetadata/);
   assert.match(successfulImport, /requireActiveAiRequest\(signal\)[\s\S]*?type: "result"[\s\S]*?workflow\.record\("deliver", "completed"\)/);
+  assert.doesNotMatch(aiRoute, /\bsourceNames\s*:/);
+  assert.match(aiRoute, /sources: resultSources/);
+  assert.match(operationalMetadata, /sourceCount[\s\S]*totalSize[\s\S]*sourceTypeCounts/);
+  assert.doesNotMatch(operationalMetadata, /sourceName|prompt|instructions|excerpt/);
   assert.match(progressStream, /No se pudo completar la operación/);
   assert.match(progressStream, /lifetime\.signal\.aborted/);
   assert.doesNotMatch(progressStream, /error instanceof Error \? error\.message/);

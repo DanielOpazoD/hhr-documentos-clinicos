@@ -4,10 +4,10 @@ import { resolvePromptProfile } from "@/app/features/ai/server/prompt-store";
 import { PROMPT_ENGINE_VERSION, promptVersion } from "@/app/features/ai/prompt-catalog";
 import { generateDraftWithProvider, isAiProviderId } from "@/app/features/ai/server/providers";
 import { importSources } from "@/app/features/ai/server/import-request";
+import { summarizeAiSourcesForAudit } from "@/app/features/ai/server/operational-metadata";
 import { progressStream } from "@/app/features/ai/server/progress-stream";
 import { auditBestEffort } from "@/app/lib/server/audit";
 import { requestOwner } from "@/app/lib/server/auth";
-import { ensureDatabase } from "@/app/lib/server/database";
 import { apiTrace, jsonError, observeApi, reportApiFailure } from "@/app/lib/server/http";
 import { recordAiUsage } from "@/app/features/ai/server/usage";
 import type { AiPromptMode, AiTargetId } from "@/app/features/ai/types";
@@ -23,27 +23,9 @@ import {
   AiExecutionCancelledError,
   AiExecutionTimeoutError,
   aiExecutionDeniedResponse,
-  failAiExecution,
   reserveAiExecution,
   runAiExecution,
 } from "@/app/features/ai/server/execution";
-
-async function updateRunStatus(id: string, status: string) {
-  const db = await ensureDatabase();
-  await db.prepare("UPDATE ai_import_runs SET status = ? WHERE id = ?").bind(status, id).run();
-}
-
-async function updateRunStatusBestEffort(id: string, status: string) {
-  try {
-    await updateRunStatus(id, status);
-  } catch {
-    console.error(JSON.stringify({
-      level: "error",
-      event: "ai_import_status_update_failed",
-      status,
-    }));
-  }
-}
 
 async function resolveClinicalDraftPrompt(input: {
   owner: string;
@@ -140,6 +122,7 @@ async function importWithAi(request: Request) {
   const resolvedPromptRevision = promptResult.value.revision;
   const promptInstructions = promptResult.value.instructions;
   const sources = sourcesResult.value;
+  const sourceAuditMetadata = summarizeAiSourcesForAudit(sources);
 
   const reservation = await reserveAiExecution({
     owner,
@@ -149,16 +132,6 @@ async function importWithAi(request: Request) {
   workflow.record("reserve_execution", reservation.ok ? "completed" : "failed");
   if (!reservation.ok) return aiExecutionDeniedResponse(reservation.denial);
   const id = reservation.lease.id;
-  const sourceLabel = sources.length === 1 ? sources[0].sourceName : `${sources[0].sourceName} + ${sources.length - 1}`;
-  const db = await ensureDatabase();
-  try {
-    await db.prepare(
-      "INSERT INTO ai_import_runs (id, owner_email, source_name, target_type, status, created_at) VALUES (?, ?, ?, ?, 'procesando', ?)",
-    ).bind(id, owner, sourceLabel, promptMode === "free" ? "libre" : target, new Date().toISOString()).run();
-  } catch (error) {
-    await failAiExecution(reservation.lease).catch(() => undefined);
-    throw error;
-  }
 
   const trace = apiTrace(request);
   let streamCode = "AI_GENERATION_FAILED";
@@ -182,8 +155,6 @@ async function importWithAi(request: Request) {
           signal,
         }),
       });
-      requireActiveAiRequest(signal);
-      await updateRunStatusBestEffort(id, "completado");
       requireActiveAiRequest(signal);
       const usageRecorded = await recordAiUsage({
         owner,
@@ -210,7 +181,7 @@ async function importWithAi(request: Request) {
       };
       requireActiveAiRequest(signal);
       const auditRecorded = await auditBestEffort(owner, "generated", "ai_import", id, {
-        sourceNames: sources.map((source) => source.sourceName),
+        ...sourceAuditMetadata,
         target,
         provider: provider.id,
         model: provider.model,
@@ -218,8 +189,6 @@ async function importWithAi(request: Request) {
         promptVersion: resolvedPromptVersion,
         promptMode,
         supplemented: promptMode === "profile" && Boolean(userInstructions.trim()),
-        mimeTypes: sources.map((source) => source.mimeType),
-        totalSize: sources.reduce((total, source) => total + source.file.size, 0),
         store: false,
         processingAuthorized: true,
         usageRecorded,
@@ -291,15 +260,14 @@ async function importWithAi(request: Request) {
         streamMessage = "La IA produjo un borrador que no superó la verificación automática.";
         streamStatus = 422;
       }
-      await updateRunStatusBestEffort(id, error instanceof AiExecutionCancelledError ? "cancelado" : "fallido");
       if (error instanceof AiExecutionCancelledError) {
         const auditRecorded = await auditBestEffort(owner, "cancelled", "ai_import", id, {
+          ...sourceAuditMetadata,
           target,
           provider: providerId,
           promptId: resolvedPromptId,
           promptVersion: resolvedPromptVersion,
           promptMode,
-          sourceCount: sources.length,
           workflowVersion: CLINICAL_DRAFT_WORKFLOW_VERSION,
           workflowNodes: auditableWorkflowSnapshot(workflow, "audit_failure"),
         });
@@ -307,7 +275,7 @@ async function importWithAi(request: Request) {
         throw error;
       }
       const failureMetadata = {
-        sourceNames: sources.map((source) => source.sourceName),
+        ...sourceAuditMetadata,
         target,
         provider: verificationFailure ? error.provider.id : providerId,
         promptId: resolvedPromptId,

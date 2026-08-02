@@ -14,6 +14,8 @@ Para cambiar el esquema:
 
 No edite una migración ya desplegada. La única excepción histórica es `0001_large_luminals.sql`: este repositorio corrige allí la columna `signatures.is_default` para que una instalación nueva no dependa del antiguo reparador HTTP. Las bases que ya registraron la versión original no la vuelven a ejecutar. Antes de `0005_schema_authority.sql`, `db:prepare` resuelve una sola vez esa diferencia histórica fuera del camino HTTP; la migración versionada completa después índices, destinos de prompts y firmas predeterminadas sin borrar registros.
 
+`0009_ai_trace_privacy.sql` es una limpieza deliberada: elimina `ai_import_runs`, una bitácora operacional redundante que no tenía lectores, y retira `sourceNames` del JSON válido de auditorías históricas `ai_import`. No modifica documentos, archivos, prompts ni la procedencia visible del borrador. Si encuentra metadata histórica que no es JSON válido, la conserva para que la migración no destruya evidencia que no puede interpretar.
+
 ## Verificación privada
 
 El verificador acepta una base SQLite o una exportación SQL de D1. Solo informa nombres de controles y cantidades; no imprime identificadores, contenido clínico ni valores de usuarios.
@@ -84,7 +86,7 @@ Los comandos remotos requieren una configuración operativa de Wrangler fuera de
    wrangler d1 migrations list <database> --remote --config <operator-config>
    ```
 
-   Detenga aquí la promoción si `0005_schema_authority.sql` y la migración más reciente (`0007_ai_execution_guard.sql`) no aparecen aplicadas. El despliegue de Sites no sustituye este bloqueo operativo.
+   Detenga aquí la promoción si `0005_schema_authority.sql` y la migración más reciente (`0009_ai_trace_privacy.sql`) no aparecen aplicadas. El despliegue de Sites no sustituye este bloqueo operativo.
 
 7. Despliegue mediante Sites reutilizando `.openai/hosting.json`.
 8. Verifique una exportación posterior sin permitir pendientes:
@@ -108,6 +110,8 @@ Una migración D1 se ejecuta como una unidad: si falla, no debe registrarse en `
 
 Si una migración aplicada produjo daño, revierta juntos datos y aplicación al punto anterior. Time Travel modifica la base remota: confirme el nombre, el bookmark y la ventana antes de ejecutar el restore.
 
+La reversión de `0009` debe usar el bookmark o respaldo previo: volver solo al código anterior no recrea `ai_import_runs` ni restaura los nombres retirados de auditorías históricas.
+
 ```bash
 wrangler d1 time-travel restore <database> \
   --bookmark <bookmark-previo> \
@@ -118,4 +122,4 @@ Después de restaurar, vuelva a exportar y compare el historial y los conteos de
 
 ## Ensayo desechable
 
-`npm run test:database` construye una instalación vacía, actualiza las cuatro versiones históricas y las dos versiones canónicas anteriores, conserva sus registros salvo las normalizaciones explícitas, provoca divergencias para comprobar el verificador y restaura byte a byte el estado lógico previo desde una copia desechable. No usa la D1 remota ni datos reales.
+`npm run test:database` construye una instalación vacía, actualiza las cuatro versiones históricas y los cortes canónicos `0005`, `0007` y `0008`, conserva sus registros salvo las normalizaciones explícitas, comprueba la limpieza privada de `0009`, provoca divergencias para probar el verificador y restaura exactamente el estado lógico previo —incluida la bitácora retirada— desde una copia desechable. No usa la D1 remota ni datos reales.

@@ -101,6 +101,14 @@ flowchart LR
 | Configuración e integraciones | Preferencias operacionales y acceso puntual a servicios externos. | Persistencia de tokens OAuth o escritura externa. |
 | Plataforma | Autenticación, entorno, base de datos, auditoría, errores y migraciones. | Decisiones visuales o clínicas de cada feature. |
 
+### Autoridad de trazas de IA
+
+Cada dato operacional tiene un solo propietario: `ai_operation_runs` controla reserva,
+cuota y estado; `ai_usage_events` contabiliza consumo; `audit_events` registra el resultado
+terminal con conteos acotados. Los nombres de fuentes, prompts, evidencia y contenido del
+borrador pertenecen exclusivamente al documento aislado por propietario. No existe una
+segunda bitácora de importaciones ni se copian nombres de archivo a la auditoría operacional.
+
 ## Registro de flujos críticos
 
 | Flujo | Contrato canónico | Estado terminal esperado |

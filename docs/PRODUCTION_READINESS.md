@@ -12,7 +12,8 @@ La aplicación está preparada como un entorno privado funcional, pero no se dec
 - Límites explícitos de tamaño y tipo para archivos, capturas y firmas.
 - Borradores de IA editables, sin finalización o firma automática.
 - Reserva atómica en D1 antes de cada operación de IA, con cuota móvil por usuario, concurrencia separada para nube y modelo local, caducidad de ejecuciones abandonadas y timeouts acotados.
-- Grafo clínico versionado con una sola llamada al modelo, preparación independiente en paralelo, verificación determinista y trazas operacionales sin contenido clínico.
+- Grafo clínico versionado con una sola llamada al modelo, preparación independiente en paralelo, verificación determinista y una sola autoridad por cada clase de traza operacional.
+- Auditorías de IA limitadas a identificadores, estados y conteos acotados; los nombres de archivo, prompts, evidencia y contenido clínico permanecen únicamente en el documento privado del propietario.
 - Consumo de tokens registrado para borradores, mejora de prompts y plantillas derivadas; disponibilidad de la ventana de 24 horas visible sin añadir telemetría clínica.
 - Registro de creación, actualización, carga, generación y errores relevantes.
 - Errores API correlacionados mediante un código de soporte, contrato estable y logs estructurados sin cuerpos ni identificadores clínicos.
@@ -33,7 +34,7 @@ La aplicación está preparada como un entorno privado funcional, pero no se dec
 - Recorridos de integración para autenticación, aislamiento por propietario, concurrencia y restauración documental, archivos, firmas, ciclo de vida y procedencia de sesiones móviles, y límites de IA sin proveedores externos.
 - Gate de integración continua con verificación de build, migraciones, presupuesto de JavaScript/CSS e integración del runtime privado.
 - Esquema D1 administrado exclusivamente por migraciones versionadas; ninguna solicitud crea tablas, altera columnas o aplica compatibilidades históricas.
-- Pruebas de instalación vacía, actualización desde las versiones históricas `0001` a `0004` mediante `db:prepare` y desde las versiones canónicas `0005` y `0006`, con conservación de registros y rollback sobre una copia desechable.
+- Pruebas de instalación vacía, actualización desde las versiones históricas `0001` a `0004` mediante `db:prepare` y desde los cortes canónicos `0005`, `0007` y `0008`, con conservación de registros, limpieza privada y rollback sobre una copia desechable.
 - Verificador privado de migraciones, índices, versiones documentales, relaciones huérfanas y firmas predeterminadas que solo emite conteos.
 
 ## Controles pendientes antes de uso clínico institucional
