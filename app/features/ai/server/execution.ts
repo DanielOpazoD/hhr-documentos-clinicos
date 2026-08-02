@@ -6,7 +6,7 @@ import type { AiUsageSummary } from "../usage-types";
 import {
   AI_ACTIVE_STALE_MS,
   AI_CLOUD_WINDOW_MS,
-  AiExecutionTimeoutError,
+  aiExecutionFailureStatus,
   aiExecutionPolicy,
   aiOperationTimeoutMs,
   aiProviderConcurrencyLimit,
@@ -16,7 +16,7 @@ import {
   type AiOperation,
 } from "./execution-policy";
 
-export { AiExecutionTimeoutError } from "./execution-policy";
+export { AiExecutionCancelledError, AiExecutionTimeoutError } from "./execution-policy";
 
 export type AiExecutionLease = {
   id: string;
@@ -227,16 +227,17 @@ async function finishAiExecutionBestEffort(
 export async function runAiExecution<T>(
   lease: AiExecutionLease,
   action: (signal: AbortSignal) => Promise<T>,
-  timeoutMs = aiOperationTimeoutMs(lease.operation),
+  options: { signal?: AbortSignal; timeoutMs?: number } = {},
 ): Promise<T> {
   let result: T;
   try {
-    result = await withAiExecutionTimeout(action, timeoutMs);
-  } catch (error) {
-    await finishAiExecutionBestEffort(
-      lease,
-      error instanceof AiExecutionTimeoutError ? "timed_out" : "failed",
+    result = await withAiExecutionTimeout(
+      action,
+      options.timeoutMs ?? aiOperationTimeoutMs(lease.operation),
+      options.signal,
     );
+  } catch (error) {
+    await finishAiExecutionBestEffort(lease, aiExecutionFailureStatus(error));
     throw error;
   }
   await finishAiExecutionBestEffort(lease, "completed");

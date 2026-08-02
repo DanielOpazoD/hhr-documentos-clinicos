@@ -61,6 +61,7 @@ export function useAiStudio({ initialPromptId, initialTarget, initialTemplateId,
   initialTemplateTitle?: string;
 } = {}) {
   const processingRef = useRef(false);
+  const processingControllerRef = useRef<AbortController | null>(null);
   const savingRef = useRef(false);
   const [files, setFiles] = useState<File[]>([]);
   const [target, setTarget] = useState<AiTargetId>(initialTarget ?? "epicrisis");
@@ -77,6 +78,7 @@ export function useAiStudio({ initialPromptId, initialTarget, initialTemplateId,
   const [processingAuthorized, setProcessingAuthorized] = useState(false);
   const [result, setResult] = useState<AiImportResult>(emptyResult);
   const [processing, setProcessing] = useState(false);
+  const [cancelling, setCancelling] = useState(false);
   const [progress, setProgress] = useState<AiProgress | null>(null);
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const [saving, setSaving] = useState(false);
@@ -218,13 +220,18 @@ export function useAiStudio({ initialPromptId, initialTarget, initialTemplateId,
     return () => window.clearInterval(timer);
   }, [processing]);
 
+  useEffect(() => () => processingControllerRef.current?.abort(), []);
+
   async function analyze() {
     if (!files.length || !processingAuthorized || processingRef.current) return null;
     processingRef.current = true;
+    const controller = new AbortController();
+    processingControllerRef.current = controller;
     const generationTarget: AiTargetId = promptMode === "free" ? FREEFORM_SCHEMA_TARGET : target;
     const userInstructions = promptMode === "free" ? freePrompt : additionalInstructions;
     setElapsedSeconds(0);
     setProcessing(true);
+    setCancelling(false);
     setProgress({ stage: "preparing", label: "Preparando archivos", detail: "Validando formatos y tamaños" });
     setError(null);
     setCreatedId(null);
@@ -238,7 +245,7 @@ export function useAiStudio({ initialPromptId, initialTarget, initialTemplateId,
         promptMode,
         userInstructions,
         processingAuthorized,
-      }, setProgress);
+      }, setProgress, controller.signal);
       const preparedResult: AiImportResult = {
         ...nextResult,
         signer: generationTarget === "traslado_salvador" ? defaultClinicalSigner : {
@@ -273,12 +280,28 @@ export function useAiStudio({ initialPromptId, initialTarget, initialTemplateId,
       setDraftHasChanges(true);
       return preparedResult;
     } catch (cause) {
+      if (controller.signal.aborted || isAiCancellation(cause)) {
+        setError(null);
+        setProgress(null);
+        return null;
+      }
       setError(cause instanceof Error ? cause.message : "No se pudo conectar con el servicio de IA.");
       return null;
     } finally {
-      processingRef.current = false;
-      setProcessing(false);
+      if (processingControllerRef.current === controller) {
+        processingControllerRef.current = null;
+        processingRef.current = false;
+        setCancelling(false);
+        setProcessing(false);
+      }
     }
+  }
+
+  function cancelProcessing() {
+    const controller = processingControllerRef.current;
+    if (!processingRef.current || !controller || controller.signal.aborted) return;
+    setCancelling(true);
+    controller.abort();
   }
 
   async function createDraft() {
@@ -423,6 +446,7 @@ export function useAiStudio({ initialPromptId, initialTarget, initialTemplateId,
     setProcessingAuthorized,
     result,
     processing,
+    cancelling,
     progress,
     elapsedSeconds,
     saving,
@@ -437,6 +461,7 @@ export function useAiStudio({ initialPromptId, initialTarget, initialTemplateId,
       ? result.documentKind.trim() || "Documento con IA"
       : draftContext?.title ?? getTargetName(draftContext?.target ?? target),
     analyze,
+    cancelProcessing,
     createDraft,
     updateSection,
     updateSectionTitle,
@@ -448,3 +473,9 @@ export function useAiStudio({ initialPromptId, initialTarget, initialTemplateId,
 
 export type AiStudioController = ReturnType<typeof useAiStudio>;
 export type { AiSection };
+
+function isAiCancellation(cause: unknown): boolean {
+  if (!(cause instanceof Error)) return false;
+  if (cause.name === "AbortError") return true;
+  return "code" in cause && cause.code === "AI_EXECUTION_CANCELLED";
+}

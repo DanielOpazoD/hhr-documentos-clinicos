@@ -16,6 +16,7 @@ export async function importWithAi(
     processingAuthorized: boolean;
   },
   onProgress?: (progress: AiProgress) => void,
+  signal?: AbortSignal,
 ): Promise<AiImportResult> {
   const form = new FormData();
   input.files.forEach((file) => form.append("files", file));
@@ -26,44 +27,52 @@ export async function importWithAi(
   form.set("promptMode", input.promptMode);
   form.set("userInstructions", input.userInstructions);
   form.set("processingAuthorized", String(input.processingAuthorized));
-  const response = await fetch("/api/ai/import", { method: "POST", body: form });
+  const response = await fetch("/api/ai/import", { method: "POST", body: form, signal });
   if (!response.ok) return readApiResponse<AiImportResult>(response, {
     fallbackMessage: "No se pudo leer la respuesta del servidor.",
   });
   if (!response.body) throw new Error("El servidor no inició el procesamiento.");
 
   const reader = response.body.pipeThrough(new TextDecoderStream()).getReader();
+  const cancelReader = () => { void reader.cancel().catch(() => undefined); };
+  if (signal?.aborted) cancelReader();
+  else signal?.addEventListener("abort", cancelReader, { once: true });
   let buffer = "";
   let result: AiImportResult | null = null;
-  while (true) {
-    const chunk = await reader.read();
-    buffer += chunk.value ?? "";
-    const lines = buffer.split("\n");
-    buffer = lines.pop() ?? "";
-    for (const line of lines) {
-      if (!line.trim()) continue;
-      const event = JSON.parse(line) as
-        | ({ type: "status" } & AiProgress)
-        | { type: "result"; result: AiImportResult }
-        | { type: "workflow"; workflow: AiImportResult["workflow"] }
-        | { type: "error"; error: string; code?: string; requestId?: string };
-      if (event.type === "status") onProgress?.(event);
-      if (event.type === "result") result = event.result;
-      if (event.type === "workflow") {
-        if (!result) throw new Error("La traza de generación llegó fuera de orden.");
-        result = { ...result, workflow: event.workflow };
+  try {
+    while (true) {
+      const chunk = await reader.read();
+      buffer += chunk.value ?? "";
+      const lines = buffer.split("\n");
+      buffer = lines.pop() ?? "";
+      for (const line of lines) {
+        if (!line.trim()) continue;
+        const event = JSON.parse(line) as
+          | ({ type: "status" } & AiProgress)
+          | { type: "result"; result: AiImportResult }
+          | { type: "workflow"; workflow: AiImportResult["workflow"] }
+          | { type: "error"; error: string; code?: string; requestId?: string };
+        if (event.type === "status") onProgress?.(event);
+        if (event.type === "result") result = event.result;
+        if (event.type === "workflow") {
+          if (!result) throw new Error("La traza de generación llegó fuera de orden.");
+          result = { ...result, workflow: event.workflow };
+        }
+        if (event.type === "error") {
+          throw new ApiClientError({
+            message: event.error,
+            status: 502,
+            code: event.code,
+            requestId: event.requestId,
+          });
+        }
       }
-      if (event.type === "error") {
-        throw new ApiClientError({
-          message: event.error,
-          status: 502,
-          code: event.code,
-          requestId: event.requestId,
-        });
-      }
+      if (chunk.done) break;
     }
-    if (chunk.done) break;
+  } finally {
+    signal?.removeEventListener("abort", cancelReader);
   }
+  if (signal?.aborted) throw new DOMException("Operación cancelada.", "AbortError");
   if (!result) throw new Error("La IA no devolvió un borrador utilizable.");
   return result;
 }

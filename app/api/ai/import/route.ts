@@ -20,6 +20,7 @@ import {
   type ClinicalDraftWorkflowTrace,
 } from "@/app/features/ai/server/clinical-draft-workflow";
 import {
+  AiExecutionCancelledError,
   AiExecutionTimeoutError,
   aiExecutionDeniedResponse,
   failAiExecution,
@@ -86,6 +87,10 @@ function auditableWorkflowSnapshot(
     // When this payload exists, its own audit insert completed successfully.
     { node: auditNode, status: "completed" as const, durationMs: 0 },
   ];
+}
+
+function requireActiveAiRequest(signal: AbortSignal) {
+  if (signal.aborted) throw new AiExecutionCancelledError();
 }
 
 async function importWithAi(request: Request) {
@@ -159,12 +164,12 @@ async function importWithAi(request: Request) {
   let streamCode = "AI_GENERATION_FAILED";
   let streamMessage = "No se pudo completar la operación.";
   let streamStatus = 502;
-  return progressStream(async (emit) => {
+  return progressStream(async (emit, signal) => {
     emit({ type: "status", stage: "preparing", label: "Preparando archivos", detail: `${sources.length} fuente${sources.length === 1 ? "" : "s"} lista${sources.length === 1 ? "" : "s"} para analizar` });
     try {
       const { output: result, provider, usage, verification } = await runClinicalDraftWorkflow({
         trace: workflow,
-        execute: (action) => runAiExecution(reservation.lease, action),
+        execute: (action) => runAiExecution(reservation.lease, action, { signal }),
         generate: (signal) => generateDraftWithProvider({
           providerId,
           model,
@@ -177,7 +182,9 @@ async function importWithAi(request: Request) {
           signal,
         }),
       });
+      requireActiveAiRequest(signal);
       await updateRunStatusBestEffort(id, "completado");
+      requireActiveAiRequest(signal);
       const usageRecorded = await recordAiUsage({
         owner,
         runId: id,
@@ -186,13 +193,7 @@ async function importWithAi(request: Request) {
         usage,
       }).then(() => true).catch(() => false);
       workflow.record("record_usage", usageRecorded ? "completed" : "degraded");
-      const workflowSummary = {
-        version: CLINICAL_DRAFT_WORKFLOW_VERSION,
-        outcome: verification.outcome,
-        findings: verification.findings,
-        nodes: workflow.snapshot(),
-      };
-      emit({ type: "status", stage: "completed", label: "Borrador listo", detail: "Identidad, contenido y fuentes preparados para revisión" });
+      requireActiveAiRequest(signal);
       const generatedAt = new Date().toISOString();
       const resultSources = [
         ...sources.map((source) => source.sourceName),
@@ -207,6 +208,37 @@ async function importWithAi(request: Request) {
         missingInformation: result.missingInformation,
         safetyNotice: result.safetyNotice,
       };
+      requireActiveAiRequest(signal);
+      const auditRecorded = await auditBestEffort(owner, "generated", "ai_import", id, {
+        sourceNames: sources.map((source) => source.sourceName),
+        target,
+        provider: provider.id,
+        model: provider.model,
+        promptId: resolvedPromptId,
+        promptVersion: resolvedPromptVersion,
+        promptMode,
+        supplemented: promptMode === "profile" && Boolean(userInstructions.trim()),
+        mimeTypes: sources.map((source) => source.mimeType),
+        totalSize: sources.reduce((total, source) => total + source.file.size, 0),
+        store: false,
+        processingAuthorized: true,
+        usageRecorded,
+        inputTokens: usage.inputTokens,
+        outputTokens: usage.outputTokens,
+        workflowVersion: CLINICAL_DRAFT_WORKFLOW_VERSION,
+        workflowOutcome: verification.outcome,
+        workflowFindings: verification.findings,
+        workflowNodes: auditableWorkflowSnapshot(workflow, "audit"),
+      });
+      workflow.record("audit", auditRecorded ? "completed" : "degraded");
+      requireActiveAiRequest(signal);
+      const workflowSummary = {
+        version: CLINICAL_DRAFT_WORKFLOW_VERSION,
+        outcome: verification.outcome,
+        findings: verification.findings,
+        nodes: workflow.snapshot(),
+      };
+      emit({ type: "status", stage: "completed", label: "Borrador listo", detail: "Identidad, contenido y fuentes preparados para revisión" });
       emit({ type: "result", result: {
         runId: id,
         documentKind: result.documentKind,
@@ -236,44 +268,21 @@ async function importWithAi(request: Request) {
         safetyNotice: result.safetyNotice,
       } });
       workflow.record("deliver", "completed");
-      const auditRecorded = await auditBestEffort(owner, "generated", "ai_import", id, {
-        sourceNames: sources.map((source) => source.sourceName),
-        target,
-        provider: provider.id,
-        model: provider.model,
-        promptId: resolvedPromptId,
-        promptVersion: resolvedPromptVersion,
-        promptMode,
-        supplemented: promptMode === "profile" && Boolean(userInstructions.trim()),
-        mimeTypes: sources.map((source) => source.mimeType),
-        totalSize: sources.reduce((total, source) => total + source.file.size, 0),
-        store: false,
-        processingAuthorized: true,
-        usageRecorded,
-        inputTokens: usage.inputTokens,
-        outputTokens: usage.outputTokens,
-        workflowVersion: CLINICAL_DRAFT_WORKFLOW_VERSION,
-        workflowOutcome: verification.outcome,
-        workflowFindings: verification.findings,
-        workflowNodes: auditableWorkflowSnapshot(workflow, "audit"),
-      });
-      workflow.record("audit", auditRecorded ? "completed" : "degraded");
       try {
         emit({
           type: "workflow",
-          workflow: {
-            version: CLINICAL_DRAFT_WORKFLOW_VERSION,
-            outcome: verification.outcome,
-            findings: verification.findings,
-            nodes: workflow.snapshot(),
-          },
+          workflow: { ...workflowSummary, nodes: workflow.snapshot() },
         });
       } catch {
         console.error(JSON.stringify({ level: "error", event: "ai_workflow_trace_stream_failed" }));
       }
     } catch (error) {
       const verificationFailure = error instanceof ClinicalDraftVerificationError;
-      if (error instanceof AiExecutionTimeoutError) {
+      if (error instanceof AiExecutionCancelledError) {
+        streamCode = error.code;
+        streamMessage = error.message;
+        streamStatus = 499;
+      } else if (error instanceof AiExecutionTimeoutError) {
         streamCode = error.code;
         streamMessage = error.message;
         streamStatus = 504;
@@ -282,7 +291,21 @@ async function importWithAi(request: Request) {
         streamMessage = "La IA produjo un borrador que no superó la verificación automática.";
         streamStatus = 422;
       }
-      await updateRunStatusBestEffort(id, "fallido");
+      await updateRunStatusBestEffort(id, error instanceof AiExecutionCancelledError ? "cancelado" : "fallido");
+      if (error instanceof AiExecutionCancelledError) {
+        const auditRecorded = await auditBestEffort(owner, "cancelled", "ai_import", id, {
+          target,
+          provider: providerId,
+          promptId: resolvedPromptId,
+          promptVersion: resolvedPromptVersion,
+          promptMode,
+          sourceCount: sources.length,
+          workflowVersion: CLINICAL_DRAFT_WORKFLOW_VERSION,
+          workflowNodes: auditableWorkflowSnapshot(workflow, "audit_failure"),
+        });
+        workflow.record("audit_failure", auditRecorded ? "completed" : "degraded");
+        throw error;
+      }
       const failureMetadata = {
         sourceNames: sources.map((source) => source.sourceName),
         target,
@@ -326,6 +349,7 @@ async function importWithAi(request: Request) {
     code: () => streamCode,
     errorMessage: () => streamMessage,
     requestId: trace?.requestId,
+    signal: request.signal,
     onError: () => {
       if (trace) reportApiFailure({ ...trace, status: streamStatus, code: streamCode });
     },

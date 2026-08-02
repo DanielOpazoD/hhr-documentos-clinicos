@@ -767,6 +767,13 @@ test("offers isolated OpenAI and local Gemma providers", async () => {
   assert.match(source, /hhr\.ai-selection\.v1/);
   assert.match(source, /localStorage\.setItem/);
   assert.match(source, /form\.set\("model", input\.model\)/);
+  assert.match(source, /processingControllerRef/);
+  assert.match(source, /cancelProcessing/);
+  assert.match(source, /controller\.cancelling \? "Cancelando…" : "Cancelar"/);
+  assert.match(source, /signal: request\.signal/);
+  assert.match(source, /AiExecutionCancelledError/);
+  assert.match(source, /AI_EXECUTION_CANCELLED/);
+  assert.match(source, /runClinicalDraftWorkflow\([\s\S]*?requireActiveAiRequest\(signal\)[\s\S]*?updateRunStatusBestEffort\(id, "completado"\)/);
   assert.match(source, /Modelo de OpenAI no permitido/);
   assert.match(source, /Privado · sin salir del equipo/);
   assert.match(source, /getResolvedPDFJS/);
@@ -785,7 +792,7 @@ test("offers isolated OpenAI and local Gemma providers", async () => {
   assert.match(source, /processingRef\.current/);
   assert.match(source, /savingRef\.current/);
   assert.match(source, /El borrador quedó guardado, pero no se pudo abrir/);
-  assert.match(source, /type="submit"/);
+  assert.match(source, /type=\{controller\.processing \? "button" : "submit"\}/);
   assert.match(source, /return preparedResult/);
   assert.match(documentStudio, /window\.history\.replaceState[\s\S]*?return true/);
   assert.match(source, /ai-composer-shell/);
@@ -930,7 +937,22 @@ test("keeps operational failures traceable without exposing clinical context", a
   assert.match(serverHttp, /event: "api_request_failed"/);
   assert.match(aiClient, /AI_GENERATION_FAILED|requestId/);
   assert.match(aiRoute, /reportApiFailure/);
+  const cancellation = sourceSection(
+    aiRoute,
+    "if (error instanceof AiExecutionCancelledError) {",
+    "const failureMetadata",
+  );
+  assert.match(cancellation, /auditBestEffort\(owner, "cancelled"/);
+  assert.match(cancellation, /sourceCount: sources\.length/);
+  assert.doesNotMatch(cancellation, /sourceNames|userInstructions/);
+  const successfulImport = sourceSection(
+    aiRoute,
+    "const auditRecorded = await auditBestEffort(owner, \"generated\"",
+    "} catch (error) {",
+  );
+  assert.match(successfulImport, /requireActiveAiRequest\(signal\)[\s\S]*?type: "result"[\s\S]*?workflow\.record\("deliver", "completed"\)/);
   assert.match(progressStream, /No se pudo completar la operación/);
+  assert.match(progressStream, /lifetime\.signal\.aborted/);
   assert.doesNotMatch(progressStream, /error instanceof Error \? error\.message/);
   assert.equal((filesClient.match(/validate: has/g) ?? []).length, 4);
   assert.match(diagnostics, /No se registran cuerpos/);
