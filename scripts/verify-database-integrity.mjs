@@ -135,7 +135,7 @@ function businessChecks() {
        FROM ai_operation_runs
        WHERE operation NOT IN ('clinical_draft', 'prompt_improvement', 'prompt_from_documents')
           OR provider_id NOT IN ('openai', 'gemma_local')
-          OR status NOT IN ('active', 'completed', 'failed', 'timed_out', 'expired')
+          OR status NOT IN ('active', 'completed', 'failed', 'timed_out', 'cancelled', 'expired')
           OR (status = 'active' AND finished_at IS NOT NULL)
           OR (status <> 'active' AND finished_at IS NULL)`,
     },

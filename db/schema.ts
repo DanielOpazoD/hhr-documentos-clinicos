@@ -129,15 +129,6 @@ export const mobileUploadSessions = sqliteTable("mobile_upload_sessions", {
   ...timestamps,
 });
 
-export const aiImportRuns = sqliteTable("ai_import_runs", {
-  id: text("id").primaryKey(),
-  ownerEmail: text("owner_email").notNull(),
-  sourceName: text("source_name").notNull(),
-  targetType: text("target_type").notNull(),
-  status: text("status").notNull(),
-  createdAt: text("created_at").notNull(),
-});
-
 export const aiPrompts = sqliteTable("ai_prompts", {
   id: text("id").primaryKey(),
   ownerEmail: text("owner_email").notNull(),
