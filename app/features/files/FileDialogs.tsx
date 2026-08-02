@@ -1,7 +1,7 @@
 /* eslint-disable @next/next/no-img-element -- Private authenticated previews are served dynamically. */
 
 import { Download, File, Trash2, X } from "@/app/components/Icons";
-import { formatBytes } from "@/app/lib/client-pdf";
+import { formatBytes } from "@/app/lib/client/format-bytes";
 import type { FilesLibraryController } from "./use-files-library";
 
 type Props = Pick<FilesLibraryController,

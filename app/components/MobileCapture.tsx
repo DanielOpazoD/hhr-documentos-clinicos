@@ -4,7 +4,7 @@
 
 import { ArrowDown, ArrowUp, Camera, Check, FileImage, Loader2, Pencil, RotateCw, Trash2, UploadCloud, X } from "@/app/components/Icons";
 import { useEffect, useRef, useState } from "react";
-import { createScannedPdf } from "@/app/lib/client-pdf";
+import { createScannedPdf } from "@/app/features/scanner/scanned-pdf";
 import { prepareScanSource, renderScannedPage, scanAdjustmentsForFilter, type ScanAdjustments, type ScanCorners, type ScanFilter, type ScanQuality } from "@/app/lib/scan-processing";
 import { detectDocumentCorners } from "@/app/features/scanner/document-detection";
 import { cloneScanCorners, SCAN_FILTER_OPTIONS, ScanReviewEditor, type ScanReviewState } from "@/app/features/scanner/ScanReviewEditor";

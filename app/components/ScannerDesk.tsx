@@ -8,7 +8,7 @@ import QRCode from "@/app/vendor/qrcode/browser";
 import { Check, Clipboard, Clock3, FileImage, QrCode, RefreshCw, ScanLine, Smartphone, XCircle } from "@/app/components/Icons";
 import { DesktopImageScanner } from "@/app/features/scanner/DesktopImageScanner";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { formatBytes } from "@/app/lib/client-pdf";
+import { formatBytes } from "@/app/lib/client/format-bytes";
 import {
   createMobileSession,
   getMobileSession,

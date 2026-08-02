@@ -10,7 +10,8 @@ import {
   ScanReviewEditor,
   type ScanReviewState,
 } from "@/app/features/scanner/ScanReviewEditor";
-import { createScannedPdf, formatBytes } from "@/app/lib/client-pdf";
+import { createScannedPdf } from "@/app/features/scanner/scanned-pdf";
+import { formatBytes } from "@/app/lib/client/format-bytes";
 import {
   prepareScanSource,
   renderScannedPage,

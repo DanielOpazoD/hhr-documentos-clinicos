@@ -44,6 +44,9 @@ test("builds the clinical document workspace from a production product identity"
   assert.match(packageJson, /node scripts\/check-database-state\.mjs/);
   assert.match(qualityWorkflow, /npm run verify/);
   assert.match(buildBudget, /maxTotalBytes/);
+  assert.match(buildBudget, /routeBudgets/);
+  assert.match(buildBudget, /maxDeferredPdfBytes/);
+  assert.match(buildBudget, /manifest\.json/);
   assert.match(databaseCheck, /mkdtemp/);
   assert.match(databaseCheck, /directorySnapshot/);
   assert.equal(nodeVersion.trim(), "22.13.0");
@@ -77,7 +80,7 @@ test("ships the clinical routes, storage bindings and source templates", async (
   ];
   await Promise.all(required.map(path => access(new URL(path, import.meta.url))));
 
-  const [hosting, scanner, desktopImageScanner, scanReviewEditor, mobileCapture, captureEntry, mobileSessionClient, mobileSessionPolicy, mobilePage, scanProcessing, documentDetection, scanEnhancement, clientPdf, imageOrientation, mobileUpload] = await Promise.all([
+  const [hosting, scanner, desktopImageScanner, scanReviewEditor, mobileCapture, captureEntry, mobileSessionClient, mobileSessionPolicy, mobilePage, scanProcessing, documentDetection, scanEnhancement, scannedPdf, jsPdf, imageOrientation, mobileUpload] = await Promise.all([
     readFile(new URL("../.openai/hosting.json", import.meta.url), "utf8"),
     readFile(new URL("../app/components/ScannerDesk.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/features/scanner/DesktopImageScanner.tsx", import.meta.url), "utf8"),
@@ -90,7 +93,8 @@ test("ships the clinical routes, storage bindings and source templates", async (
     readFile(new URL("../app/lib/scan-processing.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/features/scanner/document-detection.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/features/scanner/scan-enhancement.ts", import.meta.url), "utf8"),
-    readFile(new URL("../app/lib/client-pdf.ts", import.meta.url), "utf8"),
+    readFile(new URL("../app/features/scanner/scanned-pdf.ts", import.meta.url), "utf8"),
+    readFile(new URL("../app/lib/client/js-pdf.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/lib/image-orientation.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/api/mobile-upload/route.ts", import.meta.url), "utf8"),
   ]);
@@ -166,13 +170,14 @@ test("ships the clinical routes, storage bindings and source templates", async (
   assert.match(scanEnhancement, /brightnessValue/);
   assert.match(scanEnhancement, /saturationValue/);
   assert.match(scanEnhancement, /bwSoftness/);
-  assert.match(clientPdf, /fileDataUrl/);
-  assert.match(clientPdf, /sourceFormat/);
-  assert.match(clientPdf, /imageSmoothingQuality = "high"/);
-  assert.match(clientPdf, /jpegExifOrientation/);
-  assert.match(clientPdf, /imageOrientation: "from-image"/);
+  assert.match(scannedPdf, /fileDataUrl/);
+  assert.match(scannedPdf, /sourceFormat/);
+  assert.match(scannedPdf, /imageSmoothingQuality = "high"/);
+  assert.match(scannedPdf, /jpegExifOrientation/);
+  assert.match(scannedPdf, /imageOrientation: "from-image"/);
+  assert.match(jsPdf, /jsPdfPromise = null/);
   assert.match(imageOrientation, /0x0112/);
-  assert.match(clientPdf, /image\.format === "PNG" \? "FAST" : "NONE"/);
+  assert.match(scannedPdf, /image\.format === "PNG" \? "FAST" : "NONE"/);
   assert.match(mobileUpload, /15 \* 1024 \* 1024/);
   assert.match(mobileUpload, /appEnv\(\)\.FILES/);
   assert.match(mobileUpload, /bucket\.put/);
@@ -337,7 +342,6 @@ test("keeps the clinical studios usable from mobile through desktop", async () =
     "../app/features/documents/PatientEditor.tsx",
     "../app/features/documents/ProfessionalEditor.tsx",
     "../app/features/documents/DocumentPreview.tsx",
-    "../app/features/documents/document-pdf.ts",
     "../app/features/documents/document-readiness.ts",
     "../app/lib/document-layout.ts",
     "../app/features/documents/SignatureEditor.tsx",
@@ -360,7 +364,6 @@ test("keeps the clinical studios usable from mobile through desktop", async () =
     "../app/api/documents/route.ts",
     "../app/api/documents/[id]/versions/route.ts",
     "../app/api/document-templates/route.ts",
-    "../app/lib/client-pdf.ts",
   ];
   const [moduleSources, globalStyles, responsiveStyles, layout, dashboard] = await Promise.all([
     Promise.all(documentModules.map((path) => readFile(new URL(path, import.meta.url), "utf8"))),
@@ -515,10 +518,8 @@ test("keeps the clinical studios usable from mobile through desktop", async () =
   assert.match(documentStudio, /asset\.kind === removed\.kind/);
   assert.match(documentStudio, /kind === "signature"\) workspace\.loadSignerProfile/);
   assert.match(documentStudio, /Servicio de Salud Metropolitano Oriente/);
-  assert.match(documentStudio, /date: formatStoredDate\(input\.issueDate\)/);
   assert.doesNotMatch(await readFile(new URL("../app/features/documents/DocumentPreview.tsx", import.meta.url), "utf8"), /<h3>Paciente<\/h3>/);
   assert.match(await readFile(new URL("../app/features/documents/PatientEditor.tsx", import.meta.url), "utf8"), /aria-labelledby="patient-editor-title"/);
-  assert.match(await readFile(new URL("../app/features/documents/document-pdf.ts", import.meta.url), "utf8"), /title: "",\s*body: `Nombre:/);
   assert.match(documentStudio, /SIGNATURE_Y_MAX_PERCENT = 67/);
   assert.match(documentStudio, /defaultProfileApplied\.current = true/);
   assert.match(documentStudio, /Boolean\(defaultProfile \|\| defaultStamp\)/);
@@ -531,14 +532,8 @@ test("keeps the clinical studios usable from mobile through desktop", async () =
   assert.match(documentStudio, /Math\.min\(100 - half, Math\.max\(half/);
   assert.match(documentStudio, /dragOffsets/);
   assert.match(documentStudio, /event\.currentTarget\.value = ""/);
-  assert.match(documentStudio, /signatureBlockHeight/);
   assert.match(documentStudio, /SIGNING_IMAGE_WIDTH_MAX_PERCENT = 72/);
   assert.match(documentStudio, /aria-label=\{`Tamaño de/);
-  assert.match(documentStudio, /splitTextToSize\(options\.signer\.name, signoffWidth\)/);
-  assert.match(documentStudio, /signoffCursorY/);
-  assert.match(documentStudio, /imageCenterY - imageHeight \/ 2/);
-  assert.doesNotMatch(documentStudio, /left \+ width, 746/);
-  assert.match(documentStudio, /availableLines/);
   assert.match(documentStudio, /Tamaño del contenido/);
   assert.match(documentStudio, /Tamaño de firma y fecha/);
   const commandBarSource = await readFile(new URL("../app/features/documents/DocumentCommandBar.tsx", import.meta.url), "utf8");
@@ -563,6 +558,7 @@ test("keeps the clinical studios usable from mobile through desktop", async () =
   assert.doesNotMatch(previewSource, /paper-edit-hint|onEditRequest\("document-title"\)/);
   const documentStudioSource = await readFile(new URL("../app/components/DocumentStudio.tsx", import.meta.url), "utf8");
   assert.doesNotMatch(documentStudioSource, /DocumentEditor|SectionsEditor|studio-view-switch/);
+  assert.doesNotMatch(documentStudio, /downloadDocumentPdf|downloadPdf/);
   assert.match(documentStudioSource, /document-header-context[\s\S]*<DocumentLibrary/);
   assert.doesNotMatch(documentStudioSource, /document-workspace-shell">\s*<DocumentLibrary/);
   assert.match(documentStudio, /DOCUMENT_FONT_SIZE_DEFAULT = 16/);
@@ -570,7 +566,6 @@ test("keeps the clinical studios usable from mobile through desktop", async () =
   assert.match(documentStudio, /hhr-document-signoff-font-size-v1/);
   assert.match(documentStudio, /localStorage\.setItem\(SIGNOFF_STORAGE_KEY, String\(initialSignoffSize\)\)/);
   assert.match(documentStudio, /browser storage is blocked or full/);
-  assert.match(documentStudio, /signatureAssets/);
   assert.match(documentStudio, /normalizeStoredSignatureY/);
   assert.equal(moduleSources.filter((source) => source.split("\n").length > 350).length, 0);
   assert.match(styles, /@media \(max-width: 1240px\)/);
@@ -611,7 +606,7 @@ test("keeps the clinical studios usable from mobile through desktop", async () =
 });
 
 test("contains no production sample workflow or fictitious record creation", async () => {
-  const [catalog, aiStudio, aiClient, connections, settings, layout, auth, clientPdf, headersConfig] = await Promise.all([
+  const [catalog, aiStudio, aiClient, connections, settings, layout, auth, scannedPdf, headersConfig] = await Promise.all([
     readFile(new URL("../app/lib/catalog.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/components/AiStudio.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/features/ai/client.ts", import.meta.url), "utf8"),
@@ -619,10 +614,10 @@ test("contains no production sample workflow or fictitious record creation", asy
     readFile(new URL("../app/configuracion/page.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/layout.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/lib/page-auth.ts", import.meta.url), "utf8"),
-    readFile(new URL("../app/lib/client-pdf.ts", import.meta.url), "utf8"),
+    readFile(new URL("../app/features/scanner/scanned-pdf.ts", import.meta.url), "utf8"),
     readFile(new URL("../next.config.ts", import.meta.url), "utf8"),
   ]);
-  const productionSurface = [catalog, aiStudio, aiClient, connections, settings, layout, auth, clientPdf].join("\n");
+  const productionSurface = [catalog, aiStudio, aiClient, connections, settings, layout, auth, scannedPdf].join("\n");
   assert.doesNotMatch(productionSurface, /Paciente ficticio|Modo demostración|Ver ejemplo|Prototipo de evaluación|Simulación de IA|Dra\. Valentina Rojas/i);
   assert.match(aiClient, /patientName,/);
   assert.match(aiClient, /patient: result\.patient/);

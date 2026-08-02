@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { ArrowRight, Clock3, FileCheck2, FilePlus2, FolderOpen, ScanLine, Sparkles, Stethoscope } from "@/app/components/Icons";
 import { useEffect, useState } from "react";
-import { formatBytes } from "@/app/lib/client-pdf";
+import { formatBytes } from "@/app/lib/client/format-bytes";
 import { readApiResponse } from "@/app/lib/client/http";
 
 type RecentDocument = { id: string; title: string; patientName: string; patientRutMasked: string; status: string; version: number; updatedAt: string };
