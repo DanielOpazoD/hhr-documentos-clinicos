@@ -11,7 +11,7 @@
   width: 100%;
   min-height: 36px;
   padding: 0 9px;
-  font-size: 10px;
+  font-size: 11px;
 }
 
 .document-library-content {
@@ -321,7 +321,7 @@
     border-radius: 999px;
     background: #edf2f2;
     color: var(--muted);
-    font-size: 9px;
+    font-size: 10px;
   }
 
   .document-library-content {
@@ -339,12 +339,12 @@
   .document-library .recent-document-list small,
   .document-library .recent-document-list em,
   .document-library .empty-recent {
-    font-size: 9px;
+    font-size: 10px;
   }
 
   .document-library .recent-search input {
     min-height: 40px;
-    font-size: 11px;
+    font-size: 13px;
   }
 
   .document-command-bar {
@@ -373,7 +373,7 @@
 
   .patient-manual-grid input {
     min-height: 40px;
-    font-size: 11px;
+    font-size: 13px;
   }
 
   .document-status-actions {
@@ -385,7 +385,7 @@
   .document-status-actions .button {
     min-height: 40px;
     padding-inline: 10px;
-    font-size: 10px;
+    font-size: 11px;
   }
 
   .document-status-actions .history-button {

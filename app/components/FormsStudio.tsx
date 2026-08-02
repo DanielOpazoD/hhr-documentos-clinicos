@@ -15,8 +15,8 @@ export function FormsStudio() {
     <header className="page-header compact-page-header">
       <div><h1>Formularios</h1></div>
       <div className="header-actions">
-        <a className="button secondary" href={viewerUrl} target="_blank" rel="noreferrer"><Printer size={16} /> Abrir e imprimir</a>
-        <a className="button primary" href={current.template} download={current.sourceFile}><Download size={16} /> Descargar</a>
+        <a className="button primary" href={viewerUrl} target="_blank" rel="noreferrer"><Printer size={16} /> Abrir e imprimir</a>
+        <a className="button secondary" href={current.template} download={current.sourceFile}><Download size={16} /> Descargar</a>
       </div>
     </header>
 
