@@ -1,4 +1,4 @@
-import NextImage from "next/image";
+/* eslint-disable @next/next/no-img-element -- owner-scoped thumbnails are already served at their original size. */
 import { useState } from "react";
 import { Check, MoreHorizontal, Pencil, Plus, Star, Trash2, X } from "@/app/components/Icons";
 import { SIGNING_IMAGE_WIDTH_MAX_PERCENT, SIGNING_IMAGE_WIDTH_MIN_PERCENT } from "@/app/lib/document-layout";
@@ -41,7 +41,7 @@ export function SignatureProfileSelector({
           const selected = placed?.id === asset.id;
           return <article className={selected ? "selected" : ""} key={asset.id}>
             <button className="signature-asset-select" aria-pressed={selected} onClick={() => selectAsset(asset)}>
-              <span className="signature-thumbnail"><NextImage src={asset.imageUrl} alt="" width={72} height={36} unoptimized /></span>
+              <span className="signature-thumbnail"><img src={asset.imageUrl} alt="" width={72} height={36} /></span>
               <span><strong>{asset.name}</strong><small>{asset.professionalName}{asset.specialty ? ` · ${asset.specialty}` : ""}</small></span>
               {selected ? <span className="signature-selected-state"><Check size={13} /> En uso</span> : asset.isDefault ? <Star size={13} aria-label="Predeterminada" /> : null}
             </button>

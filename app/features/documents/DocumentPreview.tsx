@@ -1,4 +1,4 @@
-import NextImage from "next/image";
+/* eslint-disable @next/next/no-img-element -- local and owner-scoped images bypass optimization intentionally. */
 import { useLayoutEffect, useRef, useState, type CSSProperties } from "react";
 import { ArrowDown, ArrowUp, GripVertical, MoreHorizontal, Plus, Settings, Trash2 } from "@/app/components/Icons";
 import { TypographyControl } from "./DocumentTypographyControl";
@@ -114,7 +114,7 @@ export function DocumentPreview({
       <article style={paperStyle} className={`clinical-paper document-paper ${templateId === "receta_externa" ? "prescription-paper" : ""}`}>
         <div className="paper-brand">
           <div><span>Servicio de Salud Metropolitano Oriente</span><strong>Hospital Hanga Roa</strong></div>
-          <NextImage src="/hhr-logo.svg" alt="Hospital Hanga Roa" width={54} height={54} />
+          <img src="/hhr-logo.svg" alt="Hospital Hanga Roa" width={54} height={54} />
         </div>
         <h2>
           {editingTitle ? (
@@ -335,13 +335,12 @@ function PlacedImage({
       >
         <GripVertical size={14} />
       </button>
-      <NextImage
+      <img
         src={asset.imageUrl}
         alt={`${kind === "stamp" ? "Timbre" : "Firma"} de ${asset.professionalName}`}
         width={220}
         height={90}
         draggable={false}
-        unoptimized
       />
     </div>
   );
