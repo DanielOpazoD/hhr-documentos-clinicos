@@ -6,14 +6,11 @@ type PageHeaderProps = {
   description?: string;
   actions?: ReactNode;
   children?: ReactNode;
-  compact?: boolean;
   className?: string;
-  contextClassName?: string;
-  copyClassName?: string;
 };
 
-function classes(...values: Array<string | false | undefined>) {
-  return values.filter(Boolean).join(" ");
+function classes(base: string, extra?: string) {
+  return extra ? `${base} ${extra}` : base;
 }
 
 export function PageHeader({
@@ -22,15 +19,12 @@ export function PageHeader({
   description,
   actions,
   children,
-  compact,
   className,
-  contextClassName,
-  copyClassName,
 }: PageHeaderProps) {
   return (
-    <header className={classes("page-header", compact && "compact-page-header", className)}>
-      <div className={classes("page-header-context", contextClassName)}>
-        <div className={classes("page-header-copy", copyClassName)}>
+    <header className={classes("page-header", className)}>
+      <div className="page-header-context">
+        <div className="page-header-copy">
           {eyebrow ? <span className="eyebrow">{eyebrow}</span> : null}
           <h1>{title}</h1>
           {description ? <p>{description}</p> : null}
@@ -73,7 +67,7 @@ type EmptyStateProps = {
 
 export function EmptyState({ title, description, icon, action, compact, className }: EmptyStateProps) {
   return (
-    <div className={classes("empty-state", compact && "compact", className)} role="status">
+    <div className={classes(compact ? "empty-state compact" : "empty-state", className)} role="status">
       {icon}
       <strong>{title}</strong>
       {description ? <p>{description}</p> : null}

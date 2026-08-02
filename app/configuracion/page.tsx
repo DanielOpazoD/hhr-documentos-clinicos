@@ -27,7 +27,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ t
   return (
     <AppFrame active="Configuración">
       <div className="page-wrap settings-page">
-        <PageHeader compact title="Configuración" description="Administre la asistencia, las conexiones y las preferencias del producto." />
+        <PageHeader className="compact-page-header" title="Configuración" description="Administre la asistencia, las conexiones y las preferencias del producto." />
 
         <nav className="settings-tabs" aria-label="Secciones de configuración">
           {tabs.map((tab) => (

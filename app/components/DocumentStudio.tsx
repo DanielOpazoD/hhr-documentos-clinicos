@@ -225,10 +225,7 @@ export function DocumentStudio() {
       ) : null}
       <div className="page-wrap studio-page simplified-studio">
         <PageHeader
-          compact
-          className="document-studio-header ui-density-compact"
-          contextClassName="document-header-context"
-          copyClassName="document-page-title"
+          className="document-studio-header compact-page-header"
           title="Documentos"
           description="Redacte manualmente o genere un borrador con IA."
           actions={<>

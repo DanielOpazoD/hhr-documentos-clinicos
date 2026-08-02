@@ -355,6 +355,36 @@ test("keeps one clear action hierarchy across the core studios", async () => {
   assert.match(globalStyles, /@media \(min-width: 821px\) and \(max-width: 960px\)/);
 });
 
+test("uses one documented visual grammar across product surfaces", async () => {
+  const [primitives, dashboard, forms, files, scanner, settings, documents, styles, language] = await Promise.all([
+    readFile(new URL("../app/components/VisualPrimitives.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/components/Dashboard.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/components/FormsStudio.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/components/FilesLibrary.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/components/ScannerDesk.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/configuracion/page.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/components/DocumentStudio.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/globals.css", import.meta.url), "utf8"),
+    readFile(new URL("../docs/VISUAL_LANGUAGE.md", import.meta.url), "utf8"),
+  ]);
+
+  assert.match(primitives, /export function PageHeader/);
+  assert.match(primitives, /export function SectionHeader/);
+  assert.match(primitives, /export function EmptyState/);
+  for (const surface of [dashboard, forms, files, scanner, settings, documents]) {
+    assert.match(surface, /<PageHeader/);
+  }
+  assert.match(dashboard, /!\(loaded & 1\)/);
+  assert.match(dashboard, /!\(loaded & 2\)/);
+  assert.equal((dashboard.match(/title="No disponible"/g) ?? []).length, 2);
+  assert.match(styles, /--r-compact: 8px/);
+  assert.match(styles, /\.studio-page \.header-actions \.button \{ min-height: 36px;/);
+  assert.match(styles, /\.page-header-context \{ width: 100%; align-items: flex-start; flex-wrap: wrap; \}/);
+  assert.match(styles, /@media \(prefers-reduced-motion: reduce\)/);
+  assert.match(language, /## Primitivas compartidas/);
+  assert.match(language, /## Superficies protegidas/);
+});
+
 test("keeps the clinical studios usable from mobile through desktop", async () => {
   const documentModules = [
     "../app/components/AppFrame.tsx",
@@ -609,7 +639,7 @@ test("keeps the clinical studios usable from mobile through desktop", async () =
   const documentStudioSource = await readFile(new URL("../app/components/DocumentStudio.tsx", import.meta.url), "utf8");
   assert.doesNotMatch(documentStudioSource, /DocumentEditor|SectionsEditor|studio-view-switch/);
   assert.doesNotMatch(documentStudio, /downloadDocumentPdf|downloadPdf/);
-  assert.match(documentStudioSource, /document-header-context[\s\S]*<DocumentLibrary/);
+  assert.match(documentStudioSource, /document-studio-header compact-page-header[\s\S]*<DocumentLibrary/);
   assert.match(documentStudioSource, /<DocumentCommandActions[\s\S]*document-assistant-toggle[\s\S]*studio-print-button/);
   assert.doesNotMatch(documentStudioSource, /document-workspace-shell">\s*<DocumentLibrary/);
   assert.match(documentStudio, /DOCUMENT_FONT_SIZE_DEFAULT = 16/);

@@ -14,7 +14,7 @@ export function FormsStudio() {
 
   return <div className="page-wrap official-forms-page">
     <PageHeader
-      compact
+      className="compact-page-header"
       title="Formularios"
       description="Seleccione un formulario institucional y trabaje sobre el PDF original."
       actions={<>
