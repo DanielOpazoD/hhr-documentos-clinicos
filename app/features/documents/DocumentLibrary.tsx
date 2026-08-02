@@ -126,7 +126,7 @@ export function DocumentLibrary({
     <aside className="document-library print-hide">
       {promptProposal ? <PromptProposalDialog proposal={promptProposal} busy={promptBusy} error={promptSaveError} onClose={() => { setPromptProposal(null); setPromptSaveError(null); }} onSave={(input) => void savePromptProposal(input)} /> : null}
       <div className="document-library-mobile-actions">
-        <button className="button primary full" disabled={saving} onClick={() => {
+        <button className="button secondary full document-new-button" disabled={saving} onClick={() => {
           const nextOpen = !newMenuOpen;
           setMobileLibraryOpen(nextOpen);
           setNewMenuOpen(nextOpen);

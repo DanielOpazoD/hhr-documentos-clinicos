@@ -9,12 +9,13 @@ const nav = [
   { href: "/formularios", label: "Formularios", icon: FileText },
   { href: "/documentos", label: "Documentos", icon: Stethoscope },
   { href: "/archivos", label: "Archivos", icon: FolderArchive },
-  { href: "/escaner", label: "Escáner móvil", icon: ScanLine },
+  { href: "/escaner", label: "Escáner", icon: ScanLine },
   { href: "/configuracion", label: "Configuración", icon: Settings },
 ];
 
 export async function AppFrame({ active, children }: { active: string; children: React.ReactNode }) {
-  const user = await requireSiteUser(active === "Inicio" ? "/" : `/${active.toLowerCase()}`);
+  const returnTo = nav.find(item => item.label === active)?.href ?? "/";
+  const user = await requireSiteUser(returnTo);
   return (
     <div className="app-shell">
       <aside className="sidebar print-hide">

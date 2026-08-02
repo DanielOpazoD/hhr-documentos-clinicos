@@ -19,6 +19,7 @@ import type { SavedFile } from "@/app/features/files/types";
 
 type ScannerSession = CreatedMobileSession & { url: string; qr: string };
 type PollMode = "active" | "terminal";
+type ScannerSourceMode = "computer" | "mobile";
 
 const ACTIVE_POLL_INTERVAL_MS = 4000;
 const TERMINAL_RETRY_DELAYS_MS = [1000, 2500] as const;
@@ -28,6 +29,7 @@ function remainingSeconds(expiresAt: string): number {
 }
 
 export function ScannerDesk() {
+  const [sourceMode, setSourceMode] = useState<ScannerSourceMode>("computer");
   const [session, setSession] = useState<ScannerSession | null>(null);
   const [seconds, setSeconds] = useState(0);
   const [copied, setCopied] = useState(false);
@@ -63,10 +65,10 @@ export function ScannerDesk() {
   }, []);
 
   useEffect(() => {
-    if (requestedInitialSession.current) return;
+    if (sourceMode !== "mobile" || requestedInitialSession.current) return;
     requestedInitialSession.current = true;
     void createSession();
-  }, [createSession]);
+  }, [createSession, sourceMode]);
 
   const sessionExpiresAt = session?.expiresAt;
 
@@ -86,7 +88,7 @@ export function ScannerDesk() {
   }, [sessionId]);
 
   useEffect(() => {
-    if (!sessionId) return;
+    if (sourceMode !== "mobile" || !sessionId) return;
     const controller = new AbortController();
     const lifecycle = sessionLifecycleRef.current;
     let timer: number | undefined;
@@ -131,7 +133,7 @@ export function ScannerDesk() {
       controller.abort();
       if (timer !== undefined) window.clearTimeout(timer);
     };
-  }, [active, sessionId]);
+  }, [active, sessionId, sourceMode]);
 
   async function revoke() {
     if (!session) return;
@@ -166,11 +168,18 @@ export function ScannerDesk() {
   const creating = pendingAction === "create";
   const revoking = pendingAction === "revoke";
 
-  return <div className="page-wrap"><header className="page-header"><div><span className="eyebrow">Escáner</span><h1>Escáner de documentos</h1><p>Convierta imágenes existentes o capture nuevas desde el celular. El procesamiento mantiene sus originales en este dispositivo.</p></div></header>
-    <DesktopImageScanner />
-    <div className="scanner-mobile-divider"><span>O capture desde el celular</span></div>
-    <div className="scanner-layout"><section className="panel qr-panel"><div className="panel-header"><div><span className="eyebrow">Paso 1</span><h2>Escanee el código QR</h2></div>{session ? <span className={active ? "session-state active" : "session-state"}><span />{active ? "Sesión activa" : session.status === "revocada" ? "Revocada" : "Expirada"}</span> : null}</div>{session ? <><div className={active ? "qr-wrap" : "qr-wrap expired"}><img src={session.qr} alt="Código QR temporal para abrir el escáner móvil" />{!active ? <div><XCircle size={32} /><strong>Sesión cerrada</strong></div> : null}</div><div className="timer"><Clock3 size={16} /><span>Válido por <strong>{String(Math.floor(seconds / 60)).padStart(2, "0")}:{String(seconds % 60).padStart(2, "0")}</strong></span></div><div className="qr-actions"><button className="button secondary" onClick={() => void copy()} disabled={!active || pendingAction !== null}>{copied ? <Check size={16} /> : <Clipboard size={16} />}{copied ? "Copiado" : "Copiar enlace"}</button><button className="button secondary danger" onClick={() => void revoke()} disabled={!active || pendingAction !== null}><XCircle size={16} /> {revoking ? "Revocando…" : "Revocar QR"}</button></div></> : <div className="loading-card"><QrCode size={38} /><p>{creating ? "Creando sesión segura…" : "No hay una sesión activa."}</p></div>}{visibleError ? <p className="form-error" role="alert">{visibleError}</p> : null}<button className="text-button centered" onClick={() => void createSession()} disabled={pendingAction !== null}><RefreshCw size={14} className={creating ? "spin" : ""} /> {creating ? "Generando…" : "Generar un QR nuevo"}</button></section>
-      <section className="panel scanner-guide"><div className="panel-header"><div><span className="eyebrow">Paso 2</span><h2>Capture y envíe</h2></div></div><ol className="step-list"><li><span><Smartphone size={19} /></span><div><strong>Abra el enlace en el celular</strong><p>No incluye nombre, RUT ni datos clínicos.</p></div></li><li><span><ScanLine size={19} /></span><div><strong>Tome una o varias fotos</strong><p>Puede rotar y ordenar las páginas antes de subir.</p></div></li><li><span><FileImage size={19} /></span><div><strong>Elija imágenes o PDF</strong><p>Máximo 15 MB por archivo y 10 minutos de sesión.</p></div></li></ol><div className="received-box"><div><strong>Archivos recibidos en esta sesión</strong><span>{received.length}</span></div>{received.length ? received.map(file => <a href={`/api/files/${file.id}`} target="_blank" rel="noreferrer" key={file.id}><FileImage size={17} /><p><strong>{file.name}</strong><small>{formatBytes(file.size)}</small></p><Check size={16} /></a>) : <p className="waiting-copy"><span className="pulse-dot" />{active ? "Esperando documentos desde el celular…" : "Genere una sesión para recibir documentos."}</p>}</div></section>
+  return <div className="page-wrap scanner-page"><header className="page-header"><div><span className="eyebrow">Escáner</span><h1>Escáner de documentos</h1><p>Convierta imágenes existentes o capture nuevas desde el celular. El procesamiento mantiene sus originales en este dispositivo.</p></div></header>
+    <div className="segmented scanner-source-switch" role="group" aria-label="Origen del documento">
+      <button type="button" className={sourceMode === "computer" ? "active" : ""} aria-pressed={sourceMode === "computer"} onClick={() => setSourceMode("computer")}><FileImage size={17} /> Desde este equipo</button>
+      <button type="button" className={sourceMode === "mobile" ? "active" : ""} aria-pressed={sourceMode === "mobile"} onClick={() => setSourceMode("mobile")}><Smartphone size={17} /> Desde el celular</button>
+    </div>
+    <div className="scanner-source-panel" hidden={sourceMode !== "computer"}>
+      <DesktopImageScanner />
+    </div>
+    <div className="scanner-source-panel" hidden={sourceMode !== "mobile"}>
+      <div className="scanner-layout"><section className="panel qr-panel"><div className="panel-header"><div><span className="eyebrow">Paso 1</span><h2>Escanee el código QR</h2></div>{session ? <span className={active ? "session-state active" : "session-state"}><span />{active ? "Sesión activa" : session.status === "revocada" ? "Revocada" : "Expirada"}</span> : null}</div>{session ? <><div className={active ? "qr-wrap" : "qr-wrap expired"}><img src={session.qr} alt="Código QR temporal para abrir el escáner móvil" />{!active ? <div><XCircle size={32} /><strong>Sesión cerrada</strong></div> : null}</div><div className="timer"><Clock3 size={16} /><span>Válido por <strong>{String(Math.floor(seconds / 60)).padStart(2, "0")}:{String(seconds % 60).padStart(2, "0")}</strong></span></div><div className="qr-actions"><button className="button secondary" onClick={() => void copy()} disabled={!active || pendingAction !== null}>{copied ? <Check size={16} /> : <Clipboard size={16} />}{copied ? "Copiado" : "Copiar enlace"}</button><button className="button secondary danger" onClick={() => void revoke()} disabled={!active || pendingAction !== null}><XCircle size={16} /> {revoking ? "Revocando…" : "Revocar QR"}</button></div></> : <div className="loading-card"><QrCode size={38} /><p>{creating ? "Creando sesión segura…" : "No hay una sesión activa."}</p></div>}{visibleError ? <p className="form-error" role="alert">{visibleError}</p> : null}<button className="text-button centered" onClick={() => void createSession()} disabled={pendingAction !== null}><RefreshCw size={14} className={creating ? "spin" : ""} /> {creating ? "Generando…" : "Generar un QR nuevo"}</button></section>
+        <section className="panel scanner-guide"><div className="panel-header"><div><span className="eyebrow">Paso 2</span><h2>Capture y envíe</h2></div></div><ol className="step-list"><li><span><Smartphone size={19} /></span><div><strong>Abra el enlace en el celular</strong><p>No incluye nombre, RUT ni datos clínicos.</p></div></li><li><span><ScanLine size={19} /></span><div><strong>Tome una o varias fotos</strong><p>Puede rotar y ordenar las páginas antes de subir.</p></div></li><li><span><FileImage size={19} /></span><div><strong>Elija imágenes o PDF</strong><p>Máximo 15 MB por archivo y 10 minutos de sesión.</p></div></li></ol><div className="received-box"><div><strong>Archivos recibidos en esta sesión</strong><span>{received.length}</span></div>{received.length ? received.map(file => <a href={`/api/files/${file.id}`} target="_blank" rel="noreferrer" key={file.id}><FileImage size={17} /><p><strong>{file.name}</strong><small>{formatBytes(file.size)}</small></p><Check size={16} /></a>) : <p className="waiting-copy"><span className="pulse-dot" />{active ? "Esperando documentos desde el celular…" : "Genere una sesión para recibir documentos."}</p>}</div></section>
+      </div>
     </div>
   </div>;
 }

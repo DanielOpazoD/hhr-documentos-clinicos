@@ -328,6 +328,30 @@ test("uses byte-identical original clinical PDFs", async () => {
   assert.doesNotMatch(studio, /clinical-paper|downloadClinicalPdf|Prestaciones solicitadas/);
 });
 
+test("keeps one clear action hierarchy across the core studios", async () => {
+  const [frame, forms, scanner, library, globalStyles] = await Promise.all([
+    readFile(new URL("../app/components/AppFrame.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/components/FormsStudio.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/components/ScannerDesk.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/features/documents/DocumentLibrary.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/globals.css", import.meta.url), "utf8"),
+  ]);
+
+  assert.match(frame, /label: "Escáner", icon: ScanLine/);
+  assert.match(frame, /const returnTo = nav\.find\(item => item\.label === active\)\?\.href \?\? "\/"/);
+  assert.match(forms, /className="button primary"[^>]*><Printer[^>]*\/> Abrir e imprimir/);
+  assert.match(forms, /className="button secondary"[^>]*><Download[^>]*\/> Descargar/);
+  assert.match(library, /className="button secondary full document-new-button"/);
+  assert.match(scanner, /role="group" aria-label="Origen del documento"/);
+  assert.match(scanner, /aria-pressed=\{sourceMode === "computer"\}/);
+  assert.match(scanner, /aria-pressed=\{sourceMode === "mobile"\}/);
+  assert.match(scanner, /sourceMode !== "mobile" \|\| !sessionId/);
+  assert.match(globalStyles, /--fs-caption: 12px/);
+  assert.match(globalStyles, /--fs-control: 13px/);
+  assert.match(globalStyles, /\.scanner-source-panel\[hidden\] \{ display: none; \}/);
+  assert.match(globalStyles, /@media \(min-width: 821px\) and \(max-width: 960px\)/);
+});
+
 test("keeps the clinical studios usable from mobile through desktop", async () => {
   const documentModules = [
     "../app/components/AppFrame.tsx",
