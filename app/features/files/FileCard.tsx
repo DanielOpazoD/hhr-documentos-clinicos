@@ -1,5 +1,5 @@
 import { Archive, Download, Eye, File, FileImage, FileText, FolderOpen, Pencil, Trash2 } from "@/app/components/Icons";
-import { formatBytes } from "@/app/lib/client-pdf";
+import { formatBytes } from "@/app/lib/client/format-bytes";
 import type { SavedFile } from "./types";
 
 type Props = {

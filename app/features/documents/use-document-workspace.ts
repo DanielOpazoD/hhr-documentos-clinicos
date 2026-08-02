@@ -15,7 +15,6 @@ import type { DocumentSection, StoredAiMetadata, StoredDocument } from "./types"
 import { useSignatureWorkspace } from "./use-signature-workspace";
 import { useDocumentIdentity } from "./use-document-identity";
 import { normalizeAiMetadata } from "./ai-metadata";
-import { downloadDocumentPdf } from "./document-pdf";
 import { applySignatureProfile } from "./signature-profile";
 import { clampSignatureY, clampSigningImageWidth, defaultImagePlacement, normalizeStoredSignatureY } from "@/app/lib/document-layout";
 import { useDocumentPersistence } from "./use-document-persistence";
@@ -83,7 +82,6 @@ export function useDocumentWorkspace() {
   const signatureWorkspace = useSignatureWorkspace(markSignatureDirty);
   const { placedSignature, setPlacedSignature, placedStamp, setPlacedStamp, signatures } = signatureWorkspace;
   const typographyWorkspace = useDocumentTypography();
-  const { documentFontSize } = typographyWorkspace;
   const updateSigner = useCallback((field: keyof typeof signer, value: string) => {
     defaultProfileApplied.current = true;
     if (placedSignature) setPlacedSignature(null);
@@ -301,10 +299,6 @@ export function useDocumentWorkspace() {
     markDirty();
   }, [markDirty, setSections]);
 
-  const downloadPdf = useCallback(async () => {
-    await downloadDocumentPdf({ documentFontSize, issueDate, patient, placedSignature, placedStamp, sections, signer, templateId, visibleTitle });
-  }, [documentFontSize, issueDate, patient, placedSignature, placedStamp, sections, signer, templateId, visibleTitle]);
-
   useEffect(() => {
     if (defaultProfileApplied.current || documentId || placedSignature || placedStamp) return;
     if (new URLSearchParams(window.location.search).has("document")) return;
@@ -342,7 +336,7 @@ export function useDocumentWorkspace() {
     ...signatureWorkspace,
     ...typographyWorkspace,
     markDirty, markSignatureDirty, hasUnsavedChanges, persist, openDocument, reloadDocument, createDocument, deleteDocument,
-    deleteDocuments, addSection, removeSection, updateSection, moveSection, downloadPdf,
+    deleteDocuments, addSection, removeSection, updateSection, moveSection,
   };
 }
 

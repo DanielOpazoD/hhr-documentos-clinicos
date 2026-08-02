@@ -10,7 +10,8 @@ móvil usa una capacidad temporal y un protocolo de publicación D1/R2 recuperab
 - Importación local: `app/features/scanner/DesktopImageScanner.tsx`.
 - Bordes y calidad: `app/features/scanner/ScanReviewEditor.tsx`,
   `app/features/scanner/document-detection.ts` y `app/lib/scan-processing.ts`.
-- PDF cliente: `app/lib/client-pdf.ts`.
+- PDF del escáner: `app/features/scanner/scanned-pdf.ts`; carga diferida de `jsPDF`:
+  `app/lib/client/js-pdf.ts`.
 - Sesiones: `app/api/mobile-sessions/route.ts`.
 - Recepción móvil: `app/api/mobile-upload/route.ts`.
 - Persistencia final: dominio Archivos mediante `app/features/files/client.ts` y
