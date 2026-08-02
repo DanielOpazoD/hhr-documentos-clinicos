@@ -26,16 +26,6 @@
   display: none;
 }
 
-.document-save-button {
-  width: 36px;
-  min-width: 36px;
-  padding-inline: 0;
-}
-
-.document-save-button > span {
-  display: none;
-}
-
 /* One compact review surface, opened only by the existing print action. */
 .document-preflight {
   margin-bottom: 10px;
@@ -65,7 +55,7 @@
 
 .document-preflight h2 {
   color: var(--navy);
-  font-size: 13px;
+  font-size: 14px;
 }
 
 .document-preflight h2:focus {
@@ -75,7 +65,7 @@
 .document-preflight p,
 .document-preflight small {
   color: var(--muted);
-  font-size: 10px;
+  font-size: 12px;
 }
 
 .document-preflight-issues {
@@ -120,7 +110,7 @@
 .document-preflight-issue strong {
   overflow: hidden;
   color: var(--ink);
-  font-size: 11px;
+  font-size: 13px;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -275,6 +265,10 @@
     margin-left: 0;
   }
 
+  .studio-page .document-command-bar {
+    flex: 1 1 auto;
+  }
+
   .studio-page .header-actions .button {
     width: auto;
   }
@@ -377,6 +371,7 @@
   }
 
   .document-status-actions {
+    flex: 0 0 auto;
     flex-wrap: nowrap;
     justify-content: flex-end;
     gap: 6px;
@@ -392,13 +387,12 @@
     flex: 0 1 auto;
   }
 
-  .document-save-button {
-    width: 40px;
-    min-width: 40px;
-    padding-inline: 0;
+  .document-workspace-state {
+    min-width: 0;
+    flex: 1 1 0;
   }
 
-  .document-save-button > span {
+  .document-workspace-state small {
     display: none;
   }
 
@@ -414,6 +408,16 @@
   .document-preflight > footer .button {
     width: 100%;
     min-height: 42px;
+  }
+
+  .document-save-error {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .document-save-error-actions {
+    justify-content: flex-start;
+    flex-wrap: wrap;
   }
 
 }
