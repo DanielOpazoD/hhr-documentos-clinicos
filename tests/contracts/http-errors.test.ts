@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { ApiClientError, readApiResponse } from "../../app/lib/client/http.ts";
+import { ApiClientError, isApiConflict, readApiResponse } from "../../app/lib/client/http.ts";
 import { jsonError, observeApi } from "../../app/lib/server/http.ts";
 import { progressStream } from "../../app/features/ai/server/progress-stream.ts";
 
@@ -82,6 +82,23 @@ test("readApiResponse preserves status, code and support reference", async () =>
       return true;
     },
   );
+});
+
+test("classifies API conflicts without depending on their localized message", () => {
+  const localizedConflict = new ApiClientError({
+    message: "La revisión remota ya cambió.",
+    status: 409,
+    code: "CONFLICT",
+  });
+  const retryableFailure = new ApiClientError({
+    message: "Este documento cambió en otra pestaña.",
+    status: 503,
+    code: "SERVICE_UNAVAILABLE",
+  });
+
+  assert.equal(isApiConflict(localizedConflict), true);
+  assert.equal(isApiConflict(retryableFailure), false);
+  assert.equal(isApiConflict(new Error("CONFLICT")), false);
 });
 
 test("readApiResponse rejects malformed successful responses", async () => {

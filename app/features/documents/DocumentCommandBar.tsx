@@ -26,10 +26,10 @@ export function DocumentCommandActions({
   openDocumentHistory,
   persist,
 }: Props) {
-  const saveState = saveError
-    ? "Error al guardar"
-    : saving
-      ? "Guardando…"
+  const saveState = saving
+    ? "Guardando…"
+    : saveError
+      ? "Error al guardar"
       : dirty
         ? "Cambios sin guardar"
         : documentId
@@ -72,15 +72,14 @@ export function DocumentCommandActions({
 
 export function DocumentSaveError({ persist, reloadDocument, saveError, saving }: Pick<Props, "persist" | "reloadDocument" | "saveError" | "saving">) {
   if (!saveError) return null;
-  const saveConflict = saveError.includes("otra pestaña");
   return (
     <div className="form-error document-save-error" role="alert">
-      <span>{saveError}</span>
+      <span>{saveError.message}</span>
       <div className="document-save-error-actions">
-        {!saveConflict ? (
+        {saveError.recovery === "retry" ? (
           <button className="text-button" disabled={saving} onClick={() => void persist()}>Reintentar guardado</button>
         ) : null}
-        {saveConflict ? (
+        {saveError.recovery === "reload" ? (
           <button className="text-button" disabled={saving} onClick={() => void reloadDocument()}>Descartar cambios y recargar</button>
         ) : null}
       </div>
