@@ -52,13 +52,13 @@ type SectionHeaderProps = {
 
 export function SectionHeader({ title, eyebrow, actions, id, className }: SectionHeaderProps) {
   return (
-    <div className={classes("section-heading", className)}>
+    <header className={classes("section-heading", className)}>
       <div>
         {eyebrow ? <span className="eyebrow">{eyebrow}</span> : null}
         <h2 id={id}>{title}</h2>
       </div>
       {actions}
-    </div>
+    </header>
   );
 }
 

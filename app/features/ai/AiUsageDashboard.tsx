@@ -37,8 +37,8 @@ export function AiUsageDashboard() {
     <section className="settings-section usage-section">
       <header className="usage-heading">
         <div><h2>Consumo de IA</h2><small>Solicitudes completadas en esta aplicación</small></div>
-        <div className="usage-period" aria-label="Período">
-          {periods.map((period) => <button key={period} className={days === period ? "active" : ""} onClick={() => { setError(null); setDays(period); }}>{period} días</button>)}
+        <div className="usage-period" role="group" aria-label="Período">
+          {periods.map((period) => <button type="button" aria-pressed={days === period} key={period} className={days === period ? "active" : ""} onClick={() => { setError(null); setDays(period); }}>{period} días</button>)}
         </div>
       </header>
 

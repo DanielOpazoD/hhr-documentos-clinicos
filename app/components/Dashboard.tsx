@@ -41,7 +41,7 @@ export function Dashboard() {
         : failure
           ? "No se pudo cargar toda la actividad reciente."
           : null);
-      if (!controller.signal.aborted) setLoading(false);
+      setLoading(false);
     });
     return () => controller.abort();
   }, []);
