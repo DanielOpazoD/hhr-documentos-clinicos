@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { AppFrame } from "@/app/components/AppFrame";
+import { PageHeader } from "@/app/components/VisualPrimitives";
 import { Connections } from "@/app/components/Connections";
 import { PromptManager } from "@/app/features/ai/PromptManager";
 import { AiUsageDashboard } from "@/app/features/ai/AiUsageDashboard";
@@ -26,9 +27,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ t
   return (
     <AppFrame active="Configuración">
       <div className="page-wrap settings-page">
-        <header className="page-header compact-page-header">
-          <div><h1>Configuración</h1></div>
-        </header>
+        <PageHeader compact title="Configuración" description="Administre la asistencia, las conexiones y las preferencias del producto." />
 
         <nav className="settings-tabs" aria-label="Secciones de configuración">
           {tabs.map((tab) => (

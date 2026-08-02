@@ -3,6 +3,7 @@
 import { lazy, Suspense, useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { Printer, Sparkles, X } from "@/app/components/Icons";
+import { PageHeader } from "@/app/components/VisualPrimitives";
 import { DocumentCommandActions, DocumentSaveError } from "@/app/features/documents/DocumentCommandBar";
 import { AiProvenance } from "@/app/features/documents/AiProvenance";
 import { DocumentLibrary } from "@/app/features/documents/DocumentLibrary";
@@ -223,15 +224,14 @@ export function DocumentStudio() {
         </aside>
       ) : null}
       <div className="page-wrap studio-page simplified-studio">
-        <header className="page-header compact-page-header document-studio-header">
-          <div className="document-header-context">
-            <div className="document-page-title">
-              <h1>Documentos</h1>
-              <p>Redacte manualmente o genere un borrador con IA.</p>
-            </div>
-            {!assistantOpen ? <DocumentLibrary {...workspace} /> : null}
-          </div>
-          <div className="header-actions">
+        <PageHeader
+          compact
+          className="document-studio-header ui-density-compact"
+          contextClassName="document-header-context"
+          copyClassName="document-page-title"
+          title="Documentos"
+          description="Redacte manualmente o genere un borrador con IA."
+          actions={<>
             {!assistantOpen ? <DocumentCommandActions {...workspace} /> : null}
             <button
               type="button"
@@ -257,8 +257,10 @@ export function DocumentStudio() {
                 <Printer size={16} /><span>Imprimir</span>
               </button>
             ) : null}
-          </div>
-        </header>
+          </>}
+        >
+          {!assistantOpen ? <DocumentLibrary {...workspace} /> : null}
+        </PageHeader>
 
         {workspace.loadError ? <p className="form-error standalone">{workspace.loadError}</p> : null}
         <DocumentSaveError {...workspace} />
