@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { ArrowRight, Clock3, FileCheck2, FilePlus2, FolderOpen, ScanLine, Sparkles, Stethoscope } from "@/app/components/Icons";
-import { PageHeader, SectionHeader } from "@/app/components/VisualPrimitives";
+import { EmptyState, PageHeader, SectionHeader } from "@/app/components/VisualPrimitives";
 import { useEffect, useState } from "react";
 import { formatBytes } from "@/app/lib/client/format-bytes";
 import { readApiResponse } from "@/app/lib/client/http";
@@ -20,6 +20,7 @@ const actions = [
 export function Dashboard() {
   const [documents, setDocuments] = useState<RecentDocument[]>([]);
   const [files, setFiles] = useState<RecentFile[]>([]);
+  const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   useEffect(() => {
     const controller = new AbortController();
@@ -40,9 +41,11 @@ export function Dashboard() {
         : failure
           ? "No se pudo cargar toda la actividad reciente."
           : null);
+      if (!controller.signal.aborted) setLoading(false);
     });
     return () => controller.abort();
   }, []);
+  const recentCaptures = files.filter((file) => file.origin === "QR móvil").slice(0, 4);
 
   return <div className="page-wrap dashboard-page">
     <PageHeader
@@ -61,10 +64,10 @@ export function Dashboard() {
 
     <div className="dashboard-columns">
       <section className="panel" aria-labelledby="recent-documents"><SectionHeader className="panel-header" eyebrow="Actividad" title="Documentos recientes" id="recent-documents" actions={<Link href="/documentos">Ver todos</Link>} />
-        <div className="document-list">{documents.slice(0, 4).map(doc => <Link href={`/documentos?document=${encodeURIComponent(doc.id)}`} className="document-row" key={doc.id}><span className="file-glyph"><FileCheck2 size={18} /></span><span className="document-main"><strong>{doc.title}</strong>{doc.patientName ? <small>{[doc.patientName, doc.patientRutMasked].filter(Boolean).join(" · ")}</small> : null}</span><span className={`status-pill ${doc.status.toLowerCase()}`}>{doc.status}</span><span className="document-time">v{doc.version}<small><Clock3 size={12} /> {new Date(doc.updatedAt).toLocaleDateString("es-CL")}</small></span></Link>)}</div>
+        {loading ? <EmptyState compact title="Cargando actividad…" /> : documents.length ? <div className="document-list">{documents.slice(0, 4).map(doc => <Link href={`/documentos?document=${encodeURIComponent(doc.id)}`} className="document-row" key={doc.id}><span className="file-glyph"><FileCheck2 size={18} /></span><span className="document-main"><strong>{doc.title}</strong>{doc.patientName ? <small>{[doc.patientName, doc.patientRutMasked].filter(Boolean).join(" · ")}</small> : null}</span><span className={`status-pill ${doc.status.toLowerCase()}`}>{doc.status}</span><span className="document-time">v{doc.version}<small><Clock3 size={12} /> {new Date(doc.updatedAt).toLocaleDateString("es-CL")}</small></span></Link>)}</div> : <EmptyState compact icon={<FileCheck2 size={28} />} title="Aún no hay documentos" description="Cree su primer documento clínico para verlo aquí." action={<Link href="/documentos">Crear documento</Link>} />}
       </section>
       <section className="panel" aria-labelledby="recent-files"><SectionHeader className="panel-header" eyebrow="Respaldo" title="Recibidos desde celular" id="recent-files" actions={<Link href="/archivos">Biblioteca</Link>} />
-        {files.length ? <div className="file-mini-list">{files.filter(file => file.origin === "QR móvil").slice(0, 4).map(file => <a href={`/api/files/${file.id}`} target="_blank" key={file.id}><span><FolderOpen size={17} /></span><div><strong>{file.name}</strong><small>{formatBytes(file.size)} · {new Date(file.createdAt).toLocaleDateString("es-CL")}</small></div></a>)}</div> : <div className="empty-state compact"><ScanLine size={28} /><strong>Aún no hay capturas</strong><p>Cree un QR temporal para recibir documentos.</p><Link href="/escaner">Iniciar escáner</Link></div>}
+        {loading ? <EmptyState compact title="Cargando respaldos…" /> : recentCaptures.length ? <div className="file-mini-list">{recentCaptures.map(file => <a href={`/api/files/${file.id}`} target="_blank" key={file.id}><span><FolderOpen size={17} /></span><div><strong>{file.name}</strong><small>{formatBytes(file.size)} · {new Date(file.createdAt).toLocaleDateString("es-CL")}</small></div></a>)}</div> : <EmptyState compact icon={<ScanLine size={28} />} title="Aún no hay capturas" description="Cree un QR temporal para recibir documentos." action={<Link href="/escaner">Iniciar escáner</Link>} />}
       </section>
     </div>
   </div>;

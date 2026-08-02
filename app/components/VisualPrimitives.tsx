@@ -69,12 +69,11 @@ type EmptyStateProps = {
   action?: ReactNode;
   compact?: boolean;
   className?: string;
-  role?: "status" | "alert";
 };
 
-export function EmptyState({ title, description, icon, action, compact, className, role }: EmptyStateProps) {
+export function EmptyState({ title, description, icon, action, compact, className }: EmptyStateProps) {
   return (
-    <div className={classes("empty-state", compact && "compact", className)} role={role}>
+    <div className={classes("empty-state", compact && "compact", className)} role="status">
       {icon}
       <strong>{title}</strong>
       {description ? <p>{description}</p> : null}

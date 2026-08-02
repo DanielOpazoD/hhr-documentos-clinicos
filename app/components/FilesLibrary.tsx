@@ -1,7 +1,7 @@
 "use client";
 
 import { Trash2, UploadCloud, X } from "@/app/components/Icons";
-import { PageHeader } from "@/app/components/VisualPrimitives";
+import { EmptyState, PageHeader } from "@/app/components/VisualPrimitives";
 import { FileCard } from "@/app/features/files/FileCard";
 import { FileDialogs } from "@/app/features/files/FileDialogs";
 import { FilesToolbar } from "@/app/features/files/FilesToolbar";
@@ -37,7 +37,9 @@ export function FilesLibrary() {
         </div>
       ) : null}
 
-      {library.filteredFiles.length ? (
+      {library.loading ? (
+        <EmptyState title="Cargando archivos…" />
+      ) : library.filteredFiles.length ? (
         <div className={`files-${library.view}`}>
           {library.filteredFiles.map((file) => (
             <FileCard
@@ -54,7 +56,7 @@ export function FilesLibrary() {
           ))}
         </div>
       ) : (
-        <div className="empty-state"><UploadCloud size={36} /><strong>No hay archivos</strong><p>{library.files.length ? "Cambie los filtros para ver otros resultados." : "Suba el primer documento a su respaldo."}</p><button className="button primary" onClick={() => inputRef.current?.click()}>Seleccionar archivo</button></div>
+        <EmptyState icon={<UploadCloud size={36} />} title="No hay archivos" description={library.files.length ? "Cambie los filtros para ver otros resultados." : "Suba el primer documento a su respaldo."} action={<button className="button primary" onClick={() => inputRef.current?.click()}>Seleccionar archivo</button>} />
       )}
 
       <FileDialogs {...library} />

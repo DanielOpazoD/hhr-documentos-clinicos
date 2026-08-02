@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { EmptyState } from "@/app/components/VisualPrimitives";
 import type { AiUsageSummary } from "./usage-types";
 import { readApiResponse } from "@/app/lib/client/http";
 
@@ -61,7 +62,7 @@ export function AiUsageDashboard() {
             <span data-label="Total">{integer.format(row.totalTokens)}</span>
             <span data-label="Estimado">{row.unpricedRequests === row.requests ? "—" : money(row.estimatedCostUsd)}</span>
           </div>
-        )) : <div className="usage-empty">Aún no hay consumo registrado.</div>}
+        )) : <EmptyState compact className="usage-empty" title={error ? "Consumo no disponible" : summary ? "Aún no hay consumo registrado" : "Cargando consumo…"} />}
       </div>
       <p className="usage-note">Estimación según tarifas estándar del modelo. No reemplaza la facturación del proveedor.</p>
     </section>

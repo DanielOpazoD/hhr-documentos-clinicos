@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { FilePlus2, FileText, Search, Sparkles, Trash2 } from "@/app/components/Icons";
+import { EmptyState } from "@/app/components/VisualPrimitives";
 import { documentTemplates } from "@/app/lib/catalog";
 import { createPromptProfile, proposePromptProfileFromDocuments } from "@/app/features/ai/prompt-client";
 import type { AiPromptInput, AiPromptProposal } from "@/app/features/ai/prompt-types";
@@ -274,7 +275,7 @@ export function DocumentLibrary({
           </div>
           </>
         ) : (
-          <p className="empty-recent">Los documentos guardados aparecerán aquí.</p>
+          <EmptyState compact className="empty-recent" title="Sin documentos guardados" description="Los documentos que guarde aparecerán aquí." />
         )}
       </div>
     </aside>

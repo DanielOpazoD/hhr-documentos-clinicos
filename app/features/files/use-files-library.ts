@@ -11,6 +11,7 @@ export function useFilesLibrary() {
   const [statusFilter, setStatusFilter] = useState<FileStatusFilter>("todos");
   const [sort, setSort] = useState<FileSort>("recent");
   const [view, setView] = useState<FileView>("grid");
+  const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
@@ -29,6 +30,8 @@ export function useFilesLibrary() {
       if (!(cause instanceof DOMException && cause.name === "AbortError")) {
         setError(cause instanceof Error ? cause.message : "No se pudieron cargar los archivos.");
       }
+    } finally {
+      if (!signal?.aborted) setLoading(false);
     }
   }, []);
 
@@ -141,7 +144,7 @@ export function useFilesLibrary() {
 
   return {
     files, filteredFiles, origins, query, setQuery, origin, setOrigin, statusFilter, setStatusFilter,
-    sort, setSort, view, setView, uploading, busy, message, setMessage, error, setError,
+    sort, setSort, view, setView, loading, uploading, busy, message, setMessage, error, setError,
     preview, setPreview, renaming, setRenaming, renameValue, setRenameValue,
     selectionMode, selectedIds, allVisibleSelected, pendingDeleteFiles, setPendingDeleteIds,
     upload, toggleArchive, startRename, toggleSelected, toggleSelectionMode, toggleAllVisible,

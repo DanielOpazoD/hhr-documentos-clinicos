@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { Check, Copy, Loader2, Plus, Save, Sparkles, Star, Trash2 } from "@/app/components/Icons";
+import { EmptyState } from "@/app/components/VisualPrimitives";
 import { aiTargets, getTargetName } from "./targets";
 import { createPromptProfile, deletePromptProfile, fetchPromptProfiles, improvePromptProfile, updatePromptProfile } from "./prompt-client";
 import type { AiPromptInput, AiPromptProfile } from "./prompt-types";
@@ -144,7 +145,7 @@ export function PromptManager() {
 
   return <section className="panel prompt-manager" id="prompts">
     <div className="prompt-manager-heading"><div><span className="eyebrow">Inteligencia artificial</span><h2>Prompts de documentos</h2><p>Controle la estructura y el énfasis de cada borrador. Las reglas clínicas permanecen protegidas por el sistema.</p></div><button className="button primary" onClick={() => startNew()}><Plus size={16} /> Nuevo prompt</button></div>
-    {loading ? <div className="prompt-manager-loading"><Loader2 size={18} className="spin" /><span>Cargando prompts…</span></div> : <div className="prompt-manager-layout">
+    {loading ? <EmptyState compact className="prompt-manager-loading" icon={<Loader2 size={18} className="spin" />} title="Cargando prompts…" /> : <div className="prompt-manager-layout">
       <aside className="prompt-list"><label>Tipo de documento<select value={target} onChange={(event) => changeTarget(event.target.value as AiTargetId)}>{aiTargets.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label><div>{visible.map((profile) => <button key={profile.id} className={selectedId === profile.id ? "active" : ""} onClick={() => selectProfile(profile)}><span><strong>{profile.name}</strong><small>{profile.builtIn ? "Base del sistema" : `Versión ${profile.revision}`}</small></span>{profile.isDefault ? <Star size={14} aria-label="Predeterminado" /> : null}</button>)}</div></aside>
       <form className="prompt-editor" onSubmit={(event) => { event.preventDefault(); void saveDraft(); }}>
         <header><div><span className="eyebrow">{creating ? "Nuevo perfil" : selected?.builtIn ? "Solo lectura" : "Perfil editable"}</span><h3>{creating ? `Nuevo · ${getTargetName(draft.target)}` : selected?.name ?? "Seleccione un prompt"}</h3></div><div className="prompt-editor-actions"><button type="button" className="button secondary" disabled={busy || improving || draft.instructions.trim().length < 20} onClick={() => void improveDraft()}><Sparkles size={15} /> {improving ? "Mejorando…" : "Mejorar con IA"}</button>{selected?.builtIn ? <button type="button" className="button secondary" disabled={improving} onClick={() => startNew(selected)}><Copy size={15} /> Duplicar para editar</button> : null}</div></header>
