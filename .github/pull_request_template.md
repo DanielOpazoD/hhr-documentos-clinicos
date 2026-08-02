@@ -2,7 +2,7 @@
 
 <!-- Una frase y una condición de salida observable. -->
 
-- **Patrón mínimo:** <!-- cambio directo, bucle, cadena, enrutador, paralelo o DAG; explique solo si no es obvio -->
+- **Patrón mínimo:** <!-- cambio directo o PR convencional; bucle; cadena; enrutador; paralelismo limitado; DAG de commits o ramas; o grafo de conocimiento acotado. Explique solo si no es obvio. -->
 
 ## Grafo del cambio
 

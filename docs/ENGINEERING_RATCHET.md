@@ -17,14 +17,16 @@ agentes utilizados.
 
 | Pregunta | Si la respuesta es sí | Patrón mínimo |
 | --- | --- | --- |
-| ¿El éxito puede medirse automáticamente? | Existe una métrica o una puerta determinista. | Bucle evaluar y conservar/revertir. |
+| ¿Debe repetirse el cambio hasta mejorar una métrica? | La mejora requiere alternar aplicación y evaluación más de una vez. | Bucle evaluar y conservar/revertir. |
 | ¿Los pasos tienen un orden estable? | Las dependencias no cambian entre ejecuciones. | Cadena explícita. |
 | ¿Hay categorías con tratamientos distintos? | Una entrada debe elegir una ruta acotada. | Enrutador. |
 | ¿Hay tareas realmente independientes? | No comparten estado mutable ni dependen entre sí. | Paralelismo limitado. |
 | ¿Deben conservarse alternativas de trabajo? | Es útil comparar o recuperar experimentos. | DAG de commits o ramas. |
 | ¿Las relaciones deben sobrevivir al proceso actual? | Se consultarán hechos conectados en otros flujos. | Grafo de conocimiento acotado. |
 
-Si ninguna condición lo justifica, se usa una función, una cadena o un PR convencional.
+Poder medir el resultado no exige por sí solo un bucle: una puerta determinista también puede
+validar un cambio directo o una cadena de una sola pasada. Si ninguna condición justifica
+estructura adicional, se usa una función, una cadena o un PR convencional.
 
 ### Lo que no debe confundirse
 
@@ -97,7 +99,12 @@ visible traduce ese grafo a lenguaje de tarea:
 - al guardarse, conserva el resultado de verificación y las advertencias dentro de la
   trazabilidad plegada;
 - la procedencia detallada permanece plegada y disponible para revisión;
-- la traza operacional nunca contiene nombre, RUT, prompt ni texto clínico.
+- como requisito verificable, la traza operacional se limita a nodo, estado y duración; las
+  [pruebas del grafo clínico](../tests/contracts/clinical-draft-workflow.test.ts) impiden que
+  incorpore valores clínicos;
+- los registros operacionales se limitan a metadatos permitidos; las
+  [pruebas del contrato HTTP](../tests/contracts/http-errors.test.ts) confirman que nombres,
+  RUT, prompts y detalles privados no llegan al log.
 
 No se añade reparación autónoma, un enjambre de agentes ni un editor visual. La revisión y
 la firma continúan siendo responsabilidad del profesional.
