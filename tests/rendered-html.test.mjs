@@ -46,6 +46,8 @@ test("builds the clinical document workspace from a production product identity"
   assert.match(buildBudget, /maxTotalBytes/);
   assert.match(buildBudget, /routeBudgets/);
   assert.match(buildBudget, /maxDeferredPdfBytes/);
+  assert.match(buildBudget, /maxDeferredAssistantBytes/);
+  assert.match(buildBudget, /dynamicImports/);
   assert.match(buildBudget, /manifest\.json/);
   assert.match(databaseCheck, /mkdtemp/);
   assert.match(databaseCheck, /directorySnapshot/);
@@ -458,7 +460,11 @@ test("keeps the clinical studios usable from mobile through desktop", async () =
   assert.match(documentStudio, /signaturePanelOpen && !assistantOpen/);
   assert.doesNotMatch(await readFile(new URL("../app/components/DocumentStudio.tsx", import.meta.url), "utf8"), /Descargar PDF|studio-download-button/);
   assert.match(documentStudio, /Redacte manualmente o genere un borrador con IA/);
-  assert.match(documentStudio, /<AiStudio[\s\S]*active=\{assistantOpen\}[\s\S]*embedded[\s\S]*initialPromptId/);
+  assert.match(documentStudio, /const LazyAiStudio = lazy/);
+  assert.match(documentStudio, /import\("@\/app\/components\/AiStudio"\)/);
+  assert.match(documentStudio, /<Suspense fallback=\{<AiStudioFallback \/>\}>/);
+  assert.match(documentStudio, /<LazyAiStudio[\s\S]*active=\{assistantOpen\}[\s\S]*initialPromptId/);
+  assert.match(documentStudio, /Preparando asistente/);
   assert.match(documentStudio, /Continuar en el editor/);
   assert.match(documentStudio, /url\.searchParams\.set\("document", id\)/);
   assert.match(documentStudio, />Guardar<\/span>/);

@@ -49,7 +49,7 @@ npm test
 npm run check:bundle
 ```
 
-El presupuesto de cliente mantiene el límite total de JS/CSS, controla el artefacto más grande y comprueba el peso efectivo de las rutas principales incluyendo los estilos globales. También vigila por separado `jsPDF`: se carga sólo al crear un PDF del escáner y no se oculta dentro del total inicial.
+El presupuesto de cliente mantiene el límite total de JS/CSS, controla el artefacto más grande y comprueba el peso efectivo de las rutas principales incluyendo los estilos globales. También vigila por separado `jsPDF` y el asistente: el primero se carga sólo al crear un PDF del escáner y la IA sólo al abrirla desde Documentos. El manifiesto debe conservar ambas fronteras fuera de sus recorridos iniciales.
 
 `npm test` construye el mismo Worker que se despliega y ejecuta pruebas de producto, contratos puros e integración HTTP sobre D1 y R2 locales desechables. Para ejecutar solo la integración desde un checkout sin build previo, use `npm run test:integration:full`.
 

@@ -1,9 +1,8 @@
 "use client";
 
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { lazy, Suspense, useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { Printer, Sparkles, X } from "@/app/components/Icons";
-import { AiStudio } from "@/app/components/AiStudio";
 import { DocumentCommandActions, DocumentSaveError } from "@/app/features/documents/DocumentCommandBar";
 import { AiProvenance } from "@/app/features/documents/AiProvenance";
 import { DocumentLibrary } from "@/app/features/documents/DocumentLibrary";
@@ -17,7 +16,25 @@ import { evaluateDocumentReadiness } from "@/app/features/documents/document-rea
 import { useDocumentWorkspace } from "@/app/features/documents/use-document-workspace";
 import { useDocumentKeyboard } from "@/app/features/documents/use-document-keyboard";
 import { TemplateSettingsEditor } from "@/app/features/documents/TemplateSettingsEditor";
-import { aiTargetForDocumentTemplate } from "@/app/features/ai/targets";
+
+const LazyAiStudio = lazy(async () => {
+  const loaded = await import("@/app/components/AiStudio");
+  return { default: loaded.AiStudio };
+});
+
+function AiStudioFallback() {
+  return (
+    <section
+      id="document-ai-assistant"
+      className="panel"
+      role="status"
+      aria-busy="true"
+      aria-live="polite"
+    >
+      Preparando asistente…
+    </section>
+  );
+}
 
 export function DocumentStudio() {
   const workspace = useDocumentWorkspace();
@@ -257,16 +274,16 @@ export function DocumentStudio() {
 
         {assistantActivated ? (
           <div hidden={!assistantOpen}>
-            <AiStudio
-              active={assistantOpen}
-              embedded
-              initialTarget={aiTargetForDocumentTemplate(workspace.templateId) ?? undefined}
-              initialTemplateId={workspace.templateId}
-              initialTemplateTitle={workspace.activeTemplateSetting.title}
-              initialTemplateSections={workspace.activeTemplateSetting.sections}
-              initialPromptId={workspace.activeTemplateSetting.promptId}
-              onOpenDocument={openGeneratedDocument}
-            />
+            <Suspense fallback={<AiStudioFallback />}>
+              <LazyAiStudio
+                active={assistantOpen}
+                initialTemplateId={workspace.templateId}
+                initialTemplateTitle={workspace.activeTemplateSetting.title}
+                initialTemplateSections={workspace.activeTemplateSetting.sections}
+                initialPromptId={workspace.activeTemplateSetting.promptId}
+                onOpenDocument={openGeneratedDocument}
+              />
+            </Suspense>
           </div>
         ) : null}
         <div hidden={assistantOpen}>
