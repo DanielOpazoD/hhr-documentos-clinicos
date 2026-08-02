@@ -136,7 +136,10 @@ flowchart LR
 
 No todos los cambios necesitan cuatro ramas de análisis. Para un ajuste pequeño, varios
 nodos pueden colapsarse. La disciplina mínima es conservar objetivo, dependencias,
-resultado verificable y fuera de alcance.
+resultado verificable y fuera de alcance. El
+[ratchet de ingeniería verificable](./ENGINEERING_RATCHET.md) define cómo elegir entre un
+bucle, una cadena, un enrutador, paralelismo o un grafo persistente sin añadir complejidad
+por defecto.
 
 La [plantilla de pull request](../.github/pull_request_template.md) materializa esa
 disciplina con cuatro secciones breves. No exige completar nodos artificiales ni reemplaza

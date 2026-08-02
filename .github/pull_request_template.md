@@ -2,6 +2,8 @@
 
 <!-- Una frase y una condición de salida observable. -->
 
+- **Patrón mínimo:** <!-- cambio directo, bucle, cadena, enrutador, paralelo o DAG; explique solo si no es obvio -->
+
 ## Grafo del cambio
 
 - **Nodos:** <!-- módulos o responsabilidades modificadas -->
@@ -10,11 +12,12 @@
 
 <!-- En un cambio pequeño, una línea por punto es suficiente. -->
 
-## Impacto y reversión
+## Presupuesto, impacto y reversión
 
-<!-- Riesgo para usuario, datos o despliegue; indique “sin cambio” cuando corresponda. -->
+<!-- Superficies protegidas, límites relevantes, riesgo para usuario/datos/despliegue y cómo revertir. Indique “sin cambio” cuando corresponda. -->
 
 ## Evidencia
 
-- <!-- comando o recorrido -->: <!-- resultado -->
+- <!-- línea base → comando o recorrido → resultado -->
+- **Decisión:** <!-- conservar, rehacer o revertir -->
 - **Revisión:** <!-- hallazgos aceptados/rechazados o revisión limpia -->
