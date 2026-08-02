@@ -346,8 +346,11 @@ test("keeps one clear action hierarchy across the core studios", async () => {
   assert.match(scanner, /aria-pressed=\{sourceMode === "computer"\}/);
   assert.match(scanner, /aria-pressed=\{sourceMode === "mobile"\}/);
   assert.match(scanner, /sourceMode !== "mobile" \|\| !sessionId/);
+  assert.match(scanner, /\}, \[active, sessionId, sourceMode\]\);/);
   assert.match(globalStyles, /--fs-caption: 12px/);
   assert.match(globalStyles, /--fs-control: 13px/);
+  assert.match(globalStyles, /:focus-visible \{ outline: 3px solid var\(--cyan\); outline-offset: 2px; \}/);
+  assert.match(globalStyles, /background: currentcolor/);
   assert.match(globalStyles, /\.scanner-source-panel\[hidden\] \{ display: none; \}/);
   assert.match(globalStyles, /@media \(min-width: 821px\) and \(max-width: 960px\)/);
 });
