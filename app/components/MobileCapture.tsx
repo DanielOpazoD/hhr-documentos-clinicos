@@ -3,6 +3,7 @@
 /* eslint-disable @next/next/no-img-element -- Camera blob URLs are edited in canvas/WebGL and must remain exact client-side sources. */
 
 import { ArrowDown, ArrowUp, Camera, Check, FileImage, Loader2, Pencil, RotateCw, Trash2, UploadCloud, X } from "@/app/components/Icons";
+import { OperationFeedback } from "@/app/components/OperationFeedback";
 import { useEffect, useRef, useState } from "react";
 import { createScannedPdf } from "@/app/features/scanner/scanned-pdf";
 import { prepareScanSource, renderScannedPage, scanAdjustmentsForFilter, type ScanAdjustments, type ScanCorners, type ScanFilter, type ScanQuality } from "@/app/lib/scan-processing";
@@ -10,6 +11,11 @@ import { detectDocumentCorners } from "@/app/features/scanner/document-detection
 import { cloneScanCorners, SCAN_FILTER_OPTIONS, ScanReviewEditor, type ScanReviewState } from "@/app/features/scanner/ScanReviewEditor";
 import { forgetStoredCaptureToken, getCaptureSession, MobileSessionClientError, uploadCapturedFile } from "@/app/features/files/mobile-session-client";
 import { MOBILE_CAPTURE_MAX_FILES } from "@/app/features/files/mobile-session-policy";
+import {
+  operationFailure,
+  toOperationFailure,
+  type OperationFailure,
+} from "@/app/lib/client/operation-feedback";
 
 type PageFile = {
   id: string;
@@ -40,7 +46,7 @@ export function MobileCapture({ token }: { token: string }) {
   const streamRef = useRef<MediaStream | null>(null);
   const [pages, setPages] = useState<PageFile[]>([]);
   const [access, setAccess] = useState<"checking" | "active" | "unavailable" | "error">("checking");
-  const [accessError, setAccessError] = useState<string | null>(null);
+  const [accessError, setAccessError] = useState<OperationFailure | null>(null);
   const [validationAttempt, setValidationAttempt] = useState(0);
   const [expiresAt, setExpiresAt] = useState("");
   const [remainingFiles, setRemainingFiles] = useState(MOBILE_CAPTURE_MAX_FILES);
@@ -51,7 +57,7 @@ export function MobileCapture({ token }: { token: string }) {
   const [processing, setProcessing] = useState(false);
   const [detecting, setDetecting] = useState(false);
   const [done, setDone] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setErrorState] = useState<OperationFailure | null>(null);
   const [cameraOpen, setCameraOpen] = useState(false);
   const [cameraReady, setCameraReady] = useState(false);
   const [torchAvailable, setTorchAvailable] = useState(false);
@@ -69,6 +75,10 @@ export function MobileCapture({ token }: { token: string }) {
   const sentPrefixLocked = sentPageCount > 0;
   const unsentPageCount = Math.max(0, pages.length - sentPageCount);
 
+  function setError(value: string | OperationFailure | null) {
+    setErrorState(typeof value === "string" ? operationFailure(value) : value);
+  }
+
   useEffect(() => {
     const controller = new AbortController();
     void getCaptureSession(token, controller.signal).then(session => {
@@ -82,7 +92,7 @@ export function MobileCapture({ token }: { token: string }) {
         setAccess("unavailable");
         return;
       }
-      setAccessError(cause instanceof Error ? cause.message : "No se pudo verificar la sesión.");
+      setAccessError(toOperationFailure(cause, "No se pudo verificar la sesión."));
       setAccess("error");
     });
     return () => controller.abort();
@@ -263,7 +273,7 @@ export function MobileCapture({ token }: { token: string }) {
         forgetStoredCaptureToken();
         setAccess("unavailable");
       }
-      setError(cause instanceof Error ? cause.message : "No se pudo enviar el documento.");
+      setError(toOperationFailure(cause, "No se pudo enviar el documento."));
     } finally {
       setBusy(false);
     }
@@ -288,7 +298,7 @@ export function MobileCapture({ token }: { token: string }) {
 
   if (access === "checking") return <main className="capture-shell"><div className="capture-status"><Loader2 className="spin" /><p>Abriendo escáner…</p></div></main>;
   if (access === "unavailable") return <main className="capture-shell"><div className="capture-status error"><h1>Enlace no disponible</h1><p>La sesión expiró o fue revocada. Genere un QR nuevo en el escritorio.</p></div></main>;
-  if (access === "error") return <main className="capture-shell"><div className="capture-status error"><h1>No se pudo verificar la sesión</h1><p>{accessError ?? "Revise su conexión e intente nuevamente."}</p><button className="button secondary" onClick={() => { setAccess("checking"); setAccessError(null); setValidationAttempt(value => value + 1); }}>Reintentar</button></div></main>;
+  if (access === "error") return <main className="capture-shell"><div className="capture-status error"><OperationFeedback tone="error" title="No se pudo verificar la sesión" message={accessError?.message ?? "Revise su conexión e intente nuevamente."} supportId={accessError?.supportId} code={accessError?.code} actions={<button className="text-button" onClick={() => { setAccess("checking"); setAccessError(null); setValidationAttempt(value => value + 1); }}>Reintentar</button>} /></div></main>;
   if (deletedUpload) return <main className="capture-shell"><div className="capture-status error"><h1>La carga anterior fue eliminada</h1><p>Para respetar esa eliminación, este intento no se volverá a crear automáticamente.</p><button className="button secondary" onClick={restartAfterDeletedUpload}>Iniciar un escaneo nuevo</button></div></main>;
   if (done) return <main className="capture-shell"><div className="capture-success"><span><Check size={32} /></span><h1>Documento guardado</h1><p>{pages.length} {pages.length === 1 ? "página quedó disponible" : "páginas quedaron disponibles"} en la biblioteca.</p>{remainingFiles > 0 ? <button className="button secondary" onClick={() => { pages.forEach(page => { URL.revokeObjectURL(page.url); URL.revokeObjectURL(page.sourceUrl); }); sentPagesRef.current = 0; setSentPageCount(0); setDocumentUploadId(crypto.randomUUID()); setUploadLocked(false); setPages([]); setDone(false); }}>Escanear otro</button> : <p>La sesión alcanzó su límite. Genere un QR nuevo desde el escritorio para continuar.</p>}</div></main>;
   if (remainingFiles === 0) return <main className="capture-shell"><div className="capture-status"><h1>Sesión completa</h1><p>Este QR ya recibió {MOBILE_CAPTURE_MAX_FILES} archivos. Genere uno nuevo desde el escritorio para continuar.</p></div></main>;
@@ -298,9 +308,9 @@ export function MobileCapture({ token }: { token: string }) {
       <input ref={cameraInputRef} type="file" hidden accept="image/*" capture="environment" onChange={event => { void addFileList(event.target.files); event.target.value = ""; }} />
       <input ref={galleryInputRef} type="file" hidden accept="image/*" multiple onChange={event => { void addFileList(event.target.files); event.target.value = ""; }} />
       <div className="capture-primary-actions"><button className="scan-start" disabled={pages.length >= pageLimit || processing || controlsLocked} onClick={() => void startCamera()}><Camera size={24} /><span><strong>{pages.length ? "Escanear otra página" : "Abrir cámara"}</strong><small>Captura en alta resolución</small></span></button><button className="gallery-start" disabled={pages.length >= pageLimit || processing || controlsLocked} onClick={() => galleryInputRef.current?.click()}><FileImage size={20} /><span>{processing ? "Procesando…" : "Elegir imágenes"}</span></button></div>
-      {error ? <p className="form-error capture-error">{error}</p> : null}
+      {error ? <OperationFeedback compact tone="error" title="No se pudo completar el escaneo" message={error.message} supportId={error.supportId} code={error.code} onDismiss={() => setError(null)} className="capture-error" /> : null}
       {pages.length ? <div className="mobile-pages"><div className="mobile-pages-title"><strong>{pages.length} {pages.length === 1 ? "página" : "páginas"}</strong><span>Orden de salida</span></div>{pages.map((page, index) => { const pageLocked = controlsLocked || index < sentPageCount; return <article key={page.id}><button className="page-thumb" disabled={pageLocked} onClick={() => editPage(page)} aria-label={`Editar página ${index + 1}`}><img src={page.url} alt={`Página ${index + 1}`} style={{ transform: `rotate(${page.rotation}deg)` }} /><span>{index + 1}</span></button><div><strong>Página {index + 1} · {SCAN_FILTER_OPTIONS.find(item => item.id === page.filter)?.label}</strong><small className={`quality-${page.quality.level}`}>{page.quality.label} · {page.quality.detail}</small><div><button onClick={() => move(index, -1)} disabled={pageLocked || index === sentPageCount} aria-label="Mover arriba"><ArrowUp size={16} /></button><button onClick={() => move(index, 1)} disabled={pageLocked || index === pages.length - 1} aria-label="Mover abajo"><ArrowDown size={16} /></button><button disabled={pageLocked} onClick={() => editPage(page)} aria-label="Editar bordes y estilo"><Pencil size={16} /></button><button disabled={pageLocked} onClick={() => update(page.id, { rotation: (page.rotation + 90) % 360 })} aria-label="Rotar"><RotateCw size={16} /></button><button className="danger" disabled={pageLocked} onClick={() => remove(page.id)} aria-label="Quitar"><Trash2 size={16} /></button></div></div></article>; })}</div> : null}
-      {pages.length ? <div className="scan-finish"><label>Nombre<input value={name} maxLength={80} disabled={controlsLocked || sentPrefixLocked} onChange={event => setName(event.target.value)} /></label><div className="format-switch"><button className={output === "pdf" ? "active" : ""} disabled={controlsLocked || sentPrefixLocked} onClick={() => { sentPagesRef.current = 0; setSentPageCount(0); setOutput("pdf"); }}>PDF único</button><button className={output === "images" ? "active" : ""} disabled={controlsLocked || sentPrefixLocked} onClick={() => { sentPagesRef.current = 0; setSentPageCount(0); setOutput("images"); }}>Imágenes</button></div>{output === "images" && unsentPageCount > remainingFiles ? <p className="form-error">Esta sesión permite guardar {remainingFiles} {remainingFiles === 1 ? "imagen más" : "imágenes más"}.</p> : null}<button className="button primary full capture-submit" disabled={busy || processing || detecting || Boolean(review) || !name.trim() || (output === "images" && unsentPageCount > remainingFiles)} onClick={() => void upload()}>{busy ? <Loader2 size={18} className="spin" /> : <UploadCloud size={18} />}{busy ? "Guardando…" : "Guardar en HHR-documentos"}</button></div> : null}
+      {pages.length ? <div className="scan-finish"><label>Nombre<input value={name} maxLength={80} disabled={controlsLocked || sentPrefixLocked} onChange={event => setName(event.target.value)} /></label><div className="format-switch"><button className={output === "pdf" ? "active" : ""} disabled={controlsLocked || sentPrefixLocked} onClick={() => { sentPagesRef.current = 0; setSentPageCount(0); setOutput("pdf"); }}>PDF único</button><button className={output === "images" ? "active" : ""} disabled={controlsLocked || sentPrefixLocked} onClick={() => { sentPagesRef.current = 0; setSentPageCount(0); setOutput("images"); }}>Imágenes</button></div>{output === "images" && unsentPageCount > remainingFiles ? <OperationFeedback compact tone="warning" title="Límite de la sesión" message={`Puede guardar ${remainingFiles} ${remainingFiles === 1 ? "imagen más" : "imágenes más"}.`} /> : null}<button className="button primary full capture-submit" disabled={busy || processing || detecting || Boolean(review) || !name.trim() || (output === "images" && unsentPageCount > remainingFiles)} onClick={() => void upload()}>{busy ? <Loader2 size={18} className="spin" /> : <UploadCloud size={18} />}{busy ? "Guardando…" : "Guardar en HHR-documentos"}</button></div> : null}
     </section>
     {cameraOpen ? <div className="camera-stage"><video ref={videoRef} autoPlay muted playsInline /><div className={flash ? "camera-flash visible" : "camera-flash"} /><header><button onClick={stopCamera} aria-label="Cerrar cámara"><X size={23} /></button><span>{pages.length ? `${pages.length} capturadas` : "Encuadre el documento"}</span>{torchAvailable ? <button className={torchOn ? "active" : ""} onClick={() => void toggleTorch()} aria-label="Luz">{torchOn ? "Luz on" : "Luz"}</button> : <i />}</header><div className="document-guide"><i /><i /><i /><i /><span>{cameraReady ? "Mantenga el teléfono paralelo al papel" : "Iniciando cámara…"}</span></div><footer>{pages.length ? <img src={pages[pages.length - 1].url} alt="Última página" /> : <i />}<button className="camera-shutter" disabled={!cameraReady || controlsLocked || pages.length >= pageLimit} onClick={() => void capturePage()} aria-label="Capturar página"><span /></button><button className="camera-done" onClick={stopCamera}>{pages.length ? "Listo" : "Cancelar"}</button></footer></div> : null}
     {review && reviewPage ? <ScanReviewEditor page={reviewPage} review={review} processing={processing} detecting={detecting} onChange={change => setReview(value => value ? { ...value, ...change } : value)} onApply={() => void applyReview()} onRedetect={() => void redetectPage()} onClose={() => setReview(null)} /> : null}
