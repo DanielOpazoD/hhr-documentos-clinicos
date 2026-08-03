@@ -1,38 +1,35 @@
-import { ChevronLeft, ChevronRight, Pencil, Stethoscope } from "@/app/components/Icons";
+import { ChevronLeft, ChevronRight, Stethoscope } from "@/app/components/Icons";
 import type { DocumentWorkspace } from "./use-document-workspace";
 
 type Props = Pick<DocumentWorkspace, "signer" | "updateSigner"> & {
-  onToggleSignature: (trigger: HTMLButtonElement) => void;
-  signatureOpen: boolean;
-  variant: "sidebar" | "mobile";
+  onToggleSignature?: (trigger: HTMLButtonElement) => void;
+  signatureOpen?: boolean;
+  variant: "panel" | "sidebar";
 };
 
 export function ProfessionalEditor({ onToggleSignature, signatureOpen, signer, updateSigner, variant }: Props) {
-  const prefix = variant === "mobile" ? "mobile-professional" : "professional";
+  const prefix = variant === "panel" ? "panel-professional" : "professional";
   const headingId = `${prefix}-editor-title`;
   return (
-    <section className={`professional-editor professional-editor-${variant}${variant === "mobile" ? " editor-section print-hide" : ""}`} aria-labelledby={headingId}>
+    <section className={`professional-editor professional-editor-${variant}`} aria-labelledby={headingId}>
       <header>
         <span aria-hidden="true"><Stethoscope size={14} /></span>
         <div>
           <strong id={headingId}>Profesional</strong>
           <small>Nombre, RUT y especialidad</small>
         </div>
-        <button
-          type="button"
-          className="signature-panel-trigger"
-          aria-controls="signature-settings-panel"
-          aria-expanded={signatureOpen}
-          aria-label="Configurar firma y timbre"
-          title="Firma y timbre"
-          onClick={(event) => onToggleSignature(event.currentTarget)}
-        >
-          {variant === "sidebar" ? (
-            signatureOpen ? <ChevronLeft size={13} /> : <ChevronRight size={13} />
-          ) : (
-            <><Pencil size={13} /><span>Firma</span></>
-          )}
-        </button>
+        {variant === "sidebar" && onToggleSignature ? (
+          <button
+            type="button"
+            className="signature-panel-trigger"
+            aria-controls="signature-settings-panel"
+            aria-expanded={signatureOpen}
+            aria-label="Configurar profesional, firma y timbre"
+            onClick={(event) => onToggleSignature(event.currentTarget)}
+          >
+            {signatureOpen ? <ChevronLeft size={13} /> : <ChevronRight size={13} />}
+          </button>
+        ) : null}
       </header>
       <div className="professional-fields">
         <label htmlFor={`${prefix}-name`}>Nombre médico</label>

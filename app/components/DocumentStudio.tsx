@@ -7,7 +7,8 @@ import { PageHeader } from "@/app/components/VisualPrimitives";
 import { DocumentCommandActions, DocumentSaveError } from "@/app/features/documents/DocumentCommandBar";
 import { AiProvenance } from "@/app/features/documents/AiProvenance";
 import { DocumentLibrary } from "@/app/features/documents/DocumentLibrary";
-import { PatientEditor } from "@/app/features/documents/PatientEditor";
+import { ClinicalContextBar } from "@/app/features/documents/ClinicalContextBar";
+import { DocumentWorkspaceShell } from "@/app/features/documents/DocumentWorkspaceShell";
 import { ProfessionalEditor } from "@/app/features/documents/ProfessionalEditor";
 import { SignatureEditor } from "@/app/features/documents/SignatureEditor";
 import { DocumentPreview } from "@/app/features/documents/DocumentPreview";
@@ -128,16 +129,20 @@ export function DocumentStudio() {
     if (fieldId === "signature-settings-trigger") {
       const trigger = document.querySelector<HTMLButtonElement>(
         compactViewport
-          ? ".professional-editor-mobile .signature-panel-trigger"
+          ? ".professional-summary-trigger"
           : "#document-professional-slot .signature-panel-trigger",
       );
       if (!signaturePanelOpen && trigger) toggleSignaturePanel(trigger);
       else sidePanelRef.current?.focus();
       return;
     }
+    if (compactViewport && fieldId.startsWith("professional-")) {
+      const trigger = document.querySelector<HTMLButtonElement>(".professional-summary-trigger");
+      if (!signaturePanelOpen && trigger) toggleSignaturePanel(trigger);
+    }
     window.requestAnimationFrame(() => window.requestAnimationFrame(() => {
       const resolvedFieldId = compactViewport && fieldId.startsWith("professional-")
-        ? `mobile-${fieldId}`
+        ? `panel-${fieldId}`
         : fieldId;
       const field = document.getElementById(resolvedFieldId);
       if (!(field instanceof HTMLElement)) return;
@@ -214,7 +219,7 @@ export function DocumentStudio() {
         professionalSlot,
       ) : null}
       {signaturePanelOpen && !assistantOpen ? (
-        <aside ref={sidePanelRef} tabIndex={-1} id="signature-settings-panel" className="signature-settings-panel print-hide" aria-label="Configurar firma y timbre">
+        <aside ref={sidePanelRef} tabIndex={-1} id="signature-settings-panel" className="signature-settings-panel print-hide" aria-label="Configurar profesional, firma y timbre">
           <SignatureEditor workspace={workspace} onClose={closeSidePanel} />
         </aside>
       ) : null}
@@ -271,8 +276,9 @@ export function DocumentStudio() {
           />
         ) : null}
 
-        {assistantActivated ? (
-          <div hidden={!assistantOpen}>
+        <DocumentWorkspaceShell
+          assistantOpen={assistantOpen}
+          assistant={assistantActivated ? (
             <Suspense fallback={<AiStudioFallback />}>
               <LazyAiStudio
                 active={assistantOpen}
@@ -283,24 +289,18 @@ export function DocumentStudio() {
                 onOpenDocument={openGeneratedDocument}
               />
             </Suspense>
-          </div>
-        ) : null}
-        <div hidden={assistantOpen}>
-          <div className="document-workspace-shell">
-            <main className="document-main">
-              <PatientEditor {...workspace} />
-              <ProfessionalEditor
-                signer={workspace.signer}
-                updateSigner={workspace.updateSigner}
-                variant="mobile"
-                onToggleSignature={toggleSignaturePanel}
-                signatureOpen={signaturePanelOpen}
-              />
-              <AiProvenance {...workspace} />
-              <DocumentPreview {...workspace} onConfigureTemplate={openTemplatePanel} onEditRequest={editFromPreview} />
-            </main>
-          </div>
-        </div>
+          ) : null}
+        >
+          <main className="document-main">
+            <ClinicalContextBar
+              {...workspace}
+              onToggleProfessionalPanel={toggleSignaturePanel}
+              professionalPanelOpen={signaturePanelOpen}
+            />
+            <AiProvenance {...workspace} />
+            <DocumentPreview {...workspace} onConfigureTemplate={openTemplatePanel} onEditRequest={editFromPreview} />
+          </main>
+        </DocumentWorkspaceShell>
         {workspace.historyOpen ? <DocumentHistoryDialog {...workspace} /> : null}
       </div>
     </>

@@ -2,6 +2,7 @@ import { useRef } from "react";
 import { FileImage, Pencil, UploadCloud, X } from "@/app/components/Icons";
 import { SignatureImageEditor } from "./SignatureImageEditor";
 import { SignatureProfileSelector } from "./SignatureProfileSelector";
+import { ProfessionalEditor } from "./ProfessionalEditor";
 import { DEFAULT_SIGNATURE_IMAGE_SETTINGS } from "./prepare-signature";
 import type { DocumentWorkspace } from "./use-document-workspace";
 
@@ -17,9 +18,11 @@ export function SignatureEditor({ onClose, workspace }: { onClose: () => void; w
   return (
     <div className="editor-section signature-editor">
       <div className="editor-section-title signature-heading">
-        <div><h2>Firma y timbre</h2><small>Seleccione una imagen o agregue una nueva.</small></div>
+        <div><h2>Profesional · Firma y timbre</h2><small>Datos e imágenes habituales del documento.</small></div>
         <button className="text-button signature-panel-close" onClick={onClose}><X size={14} /> Cerrar</button>
       </div>
+
+      <ProfessionalEditor signer={workspace.signer} updateSigner={workspace.updateSigner} variant="panel" />
 
       <div className="signature-asset-groups">
         <SignatureProfileSelector kind="signature" workspace={workspace} onAdd={() => openSignatureForm("signature", signer)} />
