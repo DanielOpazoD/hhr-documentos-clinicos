@@ -342,6 +342,8 @@ test("keeps one clear action hierarchy across the core studios", async () => {
   assert.match(forms, /className="button primary"[^>]*><Printer[^>]*\/> Abrir e imprimir/);
   assert.match(forms, /className="button secondary"[^>]*><Download[^>]*\/> Descargar/);
   assert.match(library, /className="button secondary full document-new-button"/);
+  assert.match(library, /const recentMenuOpen = mobileLibraryOpen && !newMenuOpen/);
+  assert.match(library, /\{!newMenuOpen \? <>[\s\S]*className="recent-heading"/);
   assert.match(scanner, /role="group" aria-label="Origen del documento"/);
   assert.match(scanner, /aria-pressed=\{sourceMode === "computer"\}/);
   assert.match(scanner, /aria-pressed=\{sourceMode === "mobile"\}/);
@@ -352,7 +354,46 @@ test("keeps one clear action hierarchy across the core studios", async () => {
   assert.match(globalStyles, /:focus-visible \{ outline: 3px solid var\(--cyan\); outline-offset: 2px; \}/);
   assert.match(globalStyles, /background: currentcolor/);
   assert.match(globalStyles, /\.scanner-source-panel\[hidden\] \{ display: none; \}/);
+  assert.match(globalStyles, /\.document-library \.template-menu button strong \{ font-size: 12px; \}/);
+  assert.match(globalStyles, /\.file-actions button, \.file-actions a \{ width: 40px; height: 40px;/);
+  assert.match(globalStyles, /\.files-grid \.file-card-body \{ align-items: stretch; flex-direction: column;/);
   assert.match(globalStyles, /@media \(min-width: 821px\) and \(max-width: 960px\)/);
+});
+
+test("uses one documented visual grammar across product surfaces", async () => {
+  const [primitives, dashboard, forms, files, scanner, settings, documents, styles, language, designQa, sourceMenu, sourceAi] = await Promise.all([
+    readFile(new URL("../app/components/VisualPrimitives.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/components/Dashboard.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/components/FormsStudio.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/components/FilesLibrary.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/components/ScannerDesk.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/configuracion/page.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/components/DocumentStudio.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/globals.css", import.meta.url), "utf8"),
+    readFile(new URL("../docs/VISUAL_LANGUAGE.md", import.meta.url), "utf8"),
+    readFile(new URL("../design-qa.md", import.meta.url), "utf8"),
+    readFile(new URL("../docs/assets/pr25-source-new-document-menu.webp", import.meta.url)),
+    readFile(new URL("../docs/assets/pr25-source-ai-template-workflow.webp", import.meta.url)),
+  ]);
+
+  assert.match(primitives, /export function PageHeader/);
+  assert.match(primitives, /export function SectionHeader/);
+  assert.match(primitives, /export function EmptyState/);
+  for (const surface of [dashboard, forms, files, scanner, settings, documents]) {
+    assert.match(surface, /<PageHeader/);
+  }
+  assert.match(dashboard, /!\(loaded & 1\)/);
+  assert.match(dashboard, /!\(loaded & 2\)/);
+  assert.equal((dashboard.match(/title="No disponible"/g) ?? []).length, 2);
+  assert.match(styles, /--r-compact: 8px/);
+  assert.match(styles, /\.studio-page \.header-actions \.button \{ min-height: 36px;/);
+  assert.match(styles, /\.page-header-context \{ width: 100%; align-items: flex-start; flex-wrap: wrap; \}/);
+  assert.match(styles, /@media \(prefers-reduced-motion: reduce\)/);
+  assert.match(language, /## Primitivas compartidas/);
+  assert.match(language, /## Superficies protegidas/);
+  assert.doesNotMatch(designQa, /(?:\/(?:Users|home|private|tmp|var\/folders)\/|[A-Z]:\\(?:Users|Documents and Settings)\\|file:\/\/)/i);
+  assert.ok(sourceMenu.byteLength > 20_000);
+  assert.ok(sourceAi.byteLength > 40_000);
 });
 
 test("keeps the clinical studios usable from mobile through desktop", async () => {
@@ -460,7 +501,8 @@ test("keeps the clinical studios usable from mobile through desktop", async () =
   assert.match(documentStudio, /aria-keyshortcuts="Control\+N Meta\+N"/);
   assert.match(documentStudio, /aria-keyshortcuts="Control\+S Meta\+S"/);
   assert.match(documentStudio, /aria-controls="document-library-content"/);
-  assert.match(documentStudio, /aria-expanded=\{libraryExpanded\}/);
+  assert.match(documentStudio, /aria-expanded=\{newMenuOpen\}/);
+  assert.match(documentStudio, /aria-expanded=\{recentMenuOpen\}/);
   assert.match(documentStudio, /hidden=\{!libraryExpanded\}/);
   assert.match(documentStudio, /aria-controls="document-ai-assistant"/);
   assert.match(documentStudio, /aria-label=\{assistantOpen \? "Volver al editor" : "Usar IA"\}/);
@@ -609,7 +651,7 @@ test("keeps the clinical studios usable from mobile through desktop", async () =
   const documentStudioSource = await readFile(new URL("../app/components/DocumentStudio.tsx", import.meta.url), "utf8");
   assert.doesNotMatch(documentStudioSource, /DocumentEditor|SectionsEditor|studio-view-switch/);
   assert.doesNotMatch(documentStudio, /downloadDocumentPdf|downloadPdf/);
-  assert.match(documentStudioSource, /document-header-context[\s\S]*<DocumentLibrary/);
+  assert.match(documentStudioSource, /document-studio-header compact-page-header[\s\S]*<DocumentLibrary/);
   assert.match(documentStudioSource, /<DocumentCommandActions[\s\S]*document-assistant-toggle[\s\S]*studio-print-button/);
   assert.doesNotMatch(documentStudioSource, /document-workspace-shell">\s*<DocumentLibrary/);
   assert.match(documentStudio, /DOCUMENT_FONT_SIZE_DEFAULT = 16/);
@@ -716,6 +758,10 @@ test("integrates connections and guarded AI usage into tabbed settings", async (
   assert.match(dashboard, /OpenAI · últimas 24 h/);
   assert.match(dashboard, /Modelo/);
   assert.match(dashboard, /No reemplaza la facturación del proveedor/);
+  assert.match(dashboard, /const \[reloadKey, setReloadKey\] = useState\(0\)/);
+  assert.match(dashboard, /setSummary\(null\)/);
+  assert.match(dashboard, /if \(!controller\.signal\.aborted\) setSummary\(nextSummary\)/);
+  assert.match(dashboard, /if \(days === period\) setReloadKey/);
   assert.match(usageApi, /GROUP BY provider_id, model/);
   assert.match(usageApi, /owner_email = \?/);
   assert.match(usageApi, /getAiExecutionAvailability/);
@@ -854,8 +900,8 @@ test("offers isolated OpenAI and local Gemma providers", async () => {
   assert.match(source, /LOCAL_IMAGE_TOKEN_RESERVE/);
   assert.match(source, /MAX_SOURCE_BATCH_SIZE = 15 \* 1024 \* 1024/);
   assert.match(source, /Puede analizar hasta 8 archivos por vez\. Quite uno antes de agregar más\./);
-  assert.match(source, /Prompts de documentos/);
-  assert.match(source, /Duplicar para editar/);
+  assert.match(source, /Plantillas IA/);
+  assert.match(source, /> Duplicar</);
   assert.match(source, /Usar por defecto/);
   assert.match(source, /clinical-draft-v7/);
   assert.match(source, /promptId/);
@@ -867,7 +913,7 @@ test("offers isolated OpenAI and local Gemma providers", async () => {
   assert.match(source, /Los prompts base no se pueden eliminar/);
   assert.match(source, /Mejorar con IA/);
   assert.match(source, /prompt_improvement/);
-  assert.match(source, /Propuesta aplicada; revísela antes de guardar/);
+  assert.match(source, /Propuesta lista para revisar/);
   assert.match(source, /Crear plantilla IA/);
   assert.match(source, /Mis plantillas/);
   assert.match(source, /Nada se guarda hasta que usted confirme/);
@@ -1028,10 +1074,11 @@ test("ships the eight reviewed clinical prompts as configurable defaults", async
     "telerheumatology-prompt.ts",
     "hospital-salvador-transfer-prompt.ts",
   ];
-  const [catalog, targets, importForm, promptSchema, prompts] = await Promise.all([
+  const [catalog, targets, importForm, promptManager, promptSchema, prompts] = await Promise.all([
     readFile(new URL("../app/features/ai/prompt-catalog.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/features/ai/targets.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/features/ai/AiImportForm.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/features/ai/PromptManager.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/features/ai/server/prompt.ts", import.meta.url), "utf8"),
     Promise.all(promptFiles.map((file) => readFile(new URL(`../app/features/ai/prompts/${file}`, import.meta.url), "utf8"))),
   ]);
@@ -1051,6 +1098,10 @@ test("ships the eight reviewed clinical prompts as configurable defaults", async
   assert.match(importForm, /role="group" aria-label="Contexto de generación"/);
   assert.match(importForm, /role="group" aria-label="Fuentes adjuntas"/);
   assert.match(importForm, /Word institucional/);
+  assert.match(importForm, /<LazyPromptManager key=\{controller\.target\} initialTarget=\{controller\.target\}/);
+  assert.doesNotMatch(importForm, /configuracion\?tab=ia/);
+  assert.match(promptManager, /initialTarget = "epicrisis"/);
+  assert.match(promptManager, /notifyPromptChanges/);
   assert.doesNotMatch(importForm, /ai-target-catalog|ai-prompt-mode/);
   assert.match(promptSchema, /sectionSchema\(target/);
   assert.match(promptSchema, /minItems: hospitalSalvador \? hospitalSalvadorFields\.length : 1/);

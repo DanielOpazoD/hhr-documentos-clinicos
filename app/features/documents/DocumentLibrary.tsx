@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { FilePlus2, FileText, Search, Sparkles, Trash2 } from "@/app/components/Icons";
+import { EmptyState } from "@/app/components/VisualPrimitives";
 import { documentTemplates } from "@/app/lib/catalog";
 import { createPromptProfile, proposePromptProfileFromDocuments } from "@/app/features/ai/prompt-client";
 import type { AiPromptInput, AiPromptProposal } from "@/app/features/ai/prompt-types";
@@ -71,7 +72,8 @@ export function DocumentLibrary({
   }, [confirmBulkDelete, confirmDeleteId, confirmPromptCreation, mobileLibraryOpen, newMenuOpen, selectionMode, setNewMenuOpen]);
 
   const allSelected = filteredDocuments.length > 0 && filteredDocuments.every((document) => selectedIds.has(document.id));
-  const libraryExpanded = mobileLibraryOpen || newMenuOpen;
+  const recentMenuOpen = mobileLibraryOpen && !newMenuOpen;
+  const libraryExpanded = recentMenuOpen || newMenuOpen;
   const toggleSelection = (id: string) => setSelectedIds((current) => {
     const next = new Set(current);
     if (next.has(id)) next.delete(id);
@@ -126,9 +128,9 @@ export function DocumentLibrary({
     <aside className="document-library print-hide">
       {promptProposal ? <PromptProposalDialog proposal={promptProposal} busy={promptBusy} error={promptSaveError} onClose={() => { setPromptProposal(null); setPromptSaveError(null); }} onSave={(input) => void savePromptProposal(input)} /> : null}
       <div className="document-library-mobile-actions">
-        <button className="button secondary full document-new-button" disabled={saving} onClick={() => {
+        <button className="button secondary full document-new-button" disabled={saving} aria-expanded={newMenuOpen} aria-controls="document-library-content" onClick={() => {
           const nextOpen = !newMenuOpen;
-          setMobileLibraryOpen(nextOpen);
+          setMobileLibraryOpen(false);
           setNewMenuOpen(nextOpen);
         }} aria-keyshortcuts="Control+N Meta+N">
           <FilePlus2 size={17} /> Nuevo documento
@@ -136,11 +138,12 @@ export function DocumentLibrary({
         <button
           className="button secondary document-library-toggle"
           type="button"
-          aria-expanded={libraryExpanded}
+          aria-expanded={recentMenuOpen}
           aria-controls="document-library-content"
           onClick={() => {
+            const nextOpen = !recentMenuOpen;
             setNewMenuOpen(false);
-            setMobileLibraryOpen(!libraryExpanded);
+            setMobileLibraryOpen(nextOpen);
           }}
         >
           Recientes <span>{storedDocuments.length}</span>
@@ -163,6 +166,7 @@ export function DocumentLibrary({
           </div>
         ) : null}
 
+        {!newMenuOpen ? <>
         <div className="recent-heading">
           <div><strong>Recientes</strong><span>{storedDocuments.length}</span></div>
           {storedDocuments.length ? (
@@ -274,8 +278,9 @@ export function DocumentLibrary({
           </div>
           </>
         ) : (
-          <p className="empty-recent">Los documentos guardados aparecerán aquí.</p>
+          <EmptyState compact className="empty-recent" title="Sin documentos guardados" description="Los documentos que guarde aparecerán aquí." />
         )}
+        </> : null}
       </div>
     </aside>
   );

@@ -1,6 +1,7 @@
 "use client";
 
 import { Trash2, UploadCloud, X } from "@/app/components/Icons";
+import { EmptyState, PageHeader } from "@/app/components/VisualPrimitives";
 import { FileCard } from "@/app/features/files/FileCard";
 import { FileDialogs } from "@/app/features/files/FileDialogs";
 import { FilesToolbar } from "@/app/features/files/FilesToolbar";
@@ -14,13 +15,14 @@ export function FilesLibrary() {
 
   return (
     <div className="page-wrap">
-      <header className="page-header">
-        <div><h1>Archivos</h1></div>
-        <div className="header-actions">
+      <PageHeader
+        title="Archivos"
+        description="Organice y recupere documentos privados desde una única biblioteca."
+        actions={<>
           <input ref={inputRef} type="file" hidden accept=".pdf,.docx,.jpg,.jpeg,.png,.heic,.heif" onChange={(event) => { const file = event.target.files?.[0]; if (file) void library.upload(file); event.target.value = ""; }} />
           <button className="button primary" onClick={() => inputRef.current?.click()} disabled={library.uploading}><UploadCloud size={16} /> {library.uploading ? "Subiendo…" : "Subir archivo"}</button>
-        </div>
-      </header>
+        </>}
+      />
 
       {library.message ? <div className="notice success" role="status">{library.message}<button onClick={() => library.setMessage(null)} aria-label="Cerrar"><X size={15} /></button></div> : null}
       {library.error ? <div className="notice error" role="alert">{library.error}<button onClick={() => library.setError(null)} aria-label="Cerrar"><X size={15} /></button></div> : null}
@@ -35,7 +37,9 @@ export function FilesLibrary() {
         </div>
       ) : null}
 
-      {library.filteredFiles.length ? (
+      {library.loading ? (
+        <EmptyState title="Cargando archivos…" />
+      ) : library.filteredFiles.length ? (
         <div className={`files-${library.view}`}>
           {library.filteredFiles.map((file) => (
             <FileCard
@@ -52,7 +56,7 @@ export function FilesLibrary() {
           ))}
         </div>
       ) : (
-        <div className="empty-state"><UploadCloud size={36} /><strong>No hay archivos</strong><p>{library.files.length ? "Cambie los filtros para ver otros resultados." : "Suba el primer documento a su respaldo."}</p><button className="button primary" onClick={() => inputRef.current?.click()}>Seleccionar archivo</button></div>
+        <EmptyState icon={<UploadCloud size={36} />} title="No hay archivos" description={library.files.length ? "Cambie los filtros para ver otros resultados." : "Suba el primer documento a su respaldo."} action={<button className="button primary" onClick={() => inputRef.current?.click()}>Seleccionar archivo</button>} />
       )}
 
       <FileDialogs {...library} />

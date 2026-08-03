@@ -1,20 +1,26 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Check, Copy, Loader2, Plus, Save, Sparkles, Star, Trash2 } from "@/app/components/Icons";
-import { aiTargets, getTargetName } from "./targets";
+import { Check, Copy, Plus, Save, Sparkles, Star, Trash2 } from "@/app/components/Icons";
+import { aiTargets } from "./targets";
 import { createPromptProfile, deletePromptProfile, fetchPromptProfiles, improvePromptProfile, updatePromptProfile } from "./prompt-client";
 import type { AiPromptInput, AiPromptProfile } from "./prompt-types";
 import type { AiTargetId } from "./types";
 
 const emptyDraft = (target: AiTargetId): AiPromptInput => ({ name: "", target, instructions: "", makeDefault: false });
+const preferredProfile = (profiles: AiPromptProfile[], target: AiTargetId) => profiles.find((item) => item.target === target && item.isDefault) ?? profiles.find((item) => item.target === target);
+const notifyPromptChanges = () => window.dispatchEvent(new CustomEvent("hhr:ai-prompts-changed"));
 
-export function PromptManager() {
+type Props = {
+  initialTarget?: AiTargetId;
+};
+
+export function PromptManager({ initialTarget = "epicrisis" }: Props) {
   const [profiles, setProfiles] = useState<AiPromptProfile[]>([]);
   const [loading, setLoading] = useState(true);
-  const [target, setTarget] = useState<AiTargetId>("epicrisis");
+  const [target, setTarget] = useState<AiTargetId>(initialTarget);
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [draft, setDraft] = useState<AiPromptInput>(() => emptyDraft("epicrisis"));
+  const [draft, setDraft] = useState<AiPromptInput>(() => emptyDraft(initialTarget));
   const [creating, setCreating] = useState(false);
   const [busy, setBusy] = useState(false);
   const [improving, setImproving] = useState(false);
@@ -31,24 +37,12 @@ export function PromptManager() {
     void fetchPromptProfiles().then((items) => {
       if (!active) return;
       setProfiles(items);
-      const initial = items.find((item) => item.target === "epicrisis" && item.isDefault) ?? items.find((item) => item.target === "epicrisis");
+      const initial = preferredProfile(items, initialTarget);
       if (initial) selectProfile(initial);
-    }).catch((cause) => active && setError(cause instanceof Error ? cause.message : "No se pudieron cargar los prompts."))
+    }).catch((cause) => active && setError(cause instanceof Error ? cause.message : "No se pudieron cargar las plantillas."))
       .finally(() => active && setLoading(false));
     return () => { active = false; };
-  }, []);
-
-  useEffect(() => {
-    function onKeyDown(event: KeyboardEvent) {
-      if (event.key === "Escape") { setConfirmDelete(false); setStatus(null); }
-      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "s") {
-        event.preventDefault();
-        if (!busy && (creating || (selected && !selected.builtIn))) void saveDraft();
-      }
-    }
-    window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
-  });
+  }, [initialTarget]);
 
   function selectProfile(profile: AiPromptProfile) {
     setSelectedId(profile.id);
@@ -63,7 +57,7 @@ export function PromptManager() {
 
   function changeTarget(nextTarget: AiTargetId) {
     setTarget(nextTarget);
-    const initial = profiles.find((item) => item.target === nextTarget && item.isDefault) ?? profiles.find((item) => item.target === nextTarget);
+    const initial = preferredProfile(profiles, nextTarget);
     if (initial) selectProfile(initial);
     else { setSelectedId(null); setDraft(emptyDraft(nextTarget)); }
   }
@@ -93,9 +87,10 @@ export function PromptManager() {
         : await updatePromptProfile(selectedId!, draft);
       setProfiles(response.prompts);
       if (response.prompt) selectProfile(response.prompt);
-      setStatus(creating ? "Prompt creado" : "Cambios guardados");
+      notifyPromptChanges();
+      setStatus(creating ? "Plantilla creada" : "Cambios guardados");
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "No se pudo guardar el prompt.");
+      setError(cause instanceof Error ? cause.message : "No se pudo guardar.");
     } finally { setBusy(false); }
   }
 
@@ -106,11 +101,12 @@ export function PromptManager() {
     try {
       const response = await deletePromptProfile(selected.id);
       setProfiles(response.prompts);
-      const replacement = response.prompts.find((item) => item.target === target && item.isDefault) ?? response.prompts.find((item) => item.target === target);
+      const replacement = preferredProfile(response.prompts, target);
       if (replacement) selectProfile(replacement);
-      setStatus("Prompt eliminado");
+      notifyPromptChanges();
+      setStatus("Plantilla eliminada");
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "No se pudo eliminar el prompt.");
+      setError(cause instanceof Error ? cause.message : "No se pudo eliminar.");
     } finally { setBusy(false); setConfirmDelete(false); }
   }
 
@@ -134,26 +130,26 @@ export function PromptManager() {
         makeDefault: improvingBuiltIn ? false : current.makeDefault,
       }));
       setImprovementSummary(improvement.summary);
-      setStatus("Propuesta aplicada; revísela antes de guardar");
+      setStatus("Propuesta lista para revisar");
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "No se pudo mejorar el prompt.");
+      setError(cause instanceof Error ? cause.message : "No se pudo mejorar.");
     } finally {
       setImproving(false);
     }
   }
 
-  return <section className="panel prompt-manager" id="prompts">
-    <div className="prompt-manager-heading"><div><span className="eyebrow">Inteligencia artificial</span><h2>Prompts de documentos</h2><p>Controle la estructura y el énfasis de cada borrador. Las reglas clínicas permanecen protegidas por el sistema.</p></div><button className="button primary" onClick={() => startNew()}><Plus size={16} /> Nuevo prompt</button></div>
-    {loading ? <div className="prompt-manager-loading"><Loader2 size={18} className="spin" /><span>Cargando prompts…</span></div> : <div className="prompt-manager-layout">
-      <aside className="prompt-list"><label>Tipo de documento<select value={target} onChange={(event) => changeTarget(event.target.value as AiTargetId)}>{aiTargets.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label><div>{visible.map((profile) => <button key={profile.id} className={selectedId === profile.id ? "active" : ""} onClick={() => selectProfile(profile)}><span><strong>{profile.name}</strong><small>{profile.builtIn ? "Base del sistema" : `Versión ${profile.revision}`}</small></span>{profile.isDefault ? <Star size={14} aria-label="Predeterminado" /> : null}</button>)}</div></aside>
+  return <section className="panel prompt-manager">
+    <div className="prompt-manager-heading"><div><span className="eyebrow">Documentos clínicos</span><h2>Plantillas IA</h2><p>Cree, edite y elija la plantilla predeterminada de cada documento. Las reglas clínicas permanecen protegidas.</p></div><button className="button primary" onClick={() => startNew()}><Plus size={16} /> Nueva</button></div>
+    {loading ? <p className="settings-loading prompt-manager-loading">Cargando plantillas…</p> : <div className="prompt-manager-layout">
+      <aside className="prompt-list"><label>Tipo de documento<select value={target} onChange={(event) => changeTarget(event.target.value as AiTargetId)}>{aiTargets.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label><div>{visible.map((profile) => <button key={profile.id} className={selectedId === profile.id ? "active" : ""} onClick={() => selectProfile(profile)}><span><strong>{profile.name}</strong><small>{profile.builtIn ? "Base HHR" : `Versión ${profile.revision}`}</small></span>{profile.isDefault ? <Star size={14} aria-label="Predeterminado" /> : null}</button>)}</div></aside>
       <form className="prompt-editor" onSubmit={(event) => { event.preventDefault(); void saveDraft(); }}>
-        <header><div><span className="eyebrow">{creating ? "Nuevo perfil" : selected?.builtIn ? "Solo lectura" : "Perfil editable"}</span><h3>{creating ? `Nuevo · ${getTargetName(draft.target)}` : selected?.name ?? "Seleccione un prompt"}</h3></div><div className="prompt-editor-actions"><button type="button" className="button secondary" disabled={busy || improving || draft.instructions.trim().length < 20} onClick={() => void improveDraft()}><Sparkles size={15} /> {improving ? "Mejorando…" : "Mejorar con IA"}</button>{selected?.builtIn ? <button type="button" className="button secondary" disabled={improving} onClick={() => startNew(selected)}><Copy size={15} /> Duplicar para editar</button> : null}</div></header>
-        <div className="prompt-fields"><label>Nombre<input value={draft.name} maxLength={80} disabled={selected?.builtIn || busy} onChange={(event) => setDraft((current) => ({ ...current, name: event.target.value }))} /></label><label>Tipo<select value={draft.target} disabled={selected?.builtIn || busy} onChange={(event) => setDraft((current) => ({ ...current, target: event.target.value as AiTargetId }))}>{aiTargets.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label></div>
+        <header><div><span className="eyebrow">{creating ? "Nueva plantilla" : selected?.builtIn ? "Solo lectura" : "Plantilla editable"}</span><h3>{creating ? "Nueva plantilla" : selected?.name ?? "Seleccione una plantilla"}</h3></div><div className="prompt-editor-actions"><button type="button" className="button secondary" disabled={busy || improving || draft.instructions.trim().length < 20} onClick={() => void improveDraft()}><Sparkles size={15} /> {improving ? "Mejorando…" : "Mejorar con IA"}</button>{selected?.builtIn ? <button type="button" className="button secondary" disabled={improving} onClick={() => startNew(selected)}><Copy size={15} /> Duplicar</button> : null}</div></header>
+        <div className="prompt-fields"><label>Nombre<input value={draft.name} maxLength={80} disabled={selected?.builtIn || busy} onChange={(event) => setDraft((current) => ({ ...current, name: event.target.value }))} /></label></div>
         <label className="prompt-instructions">Instrucciones<textarea value={draft.instructions} maxLength={16000} rows={14} readOnly={Boolean(selected?.builtIn)} disabled={busy} onChange={(event) => setDraft((current) => ({ ...current, instructions: event.target.value }))} /><small>{draft.instructions.length.toLocaleString("es-CL")} / 16.000</small></label>
         {!selected?.builtIn ? <label className="prompt-default"><input type="checkbox" checked={Boolean(draft.makeDefault)} disabled={busy} onChange={(event) => setDraft((current) => ({ ...current, makeDefault: event.target.checked }))} /><span><strong>Usar por defecto</strong><small>Se seleccionará al crear este tipo de documento.</small></span></label> : null}
         {improvementSummary ? <div className="prompt-ai-note"><Sparkles size={15} /><span><strong>Cambios propuestos</strong><small>{improvementSummary}</small></span></div> : null}
         {error ? <p className="form-error" role="alert">{error}</p> : null}{status ? <p className="form-success"><Check size={15} /> {status}</p> : null}
-        {!selected?.builtIn ? <footer><div>{!creating && !confirmDelete ? <button type="button" className="text-button danger" disabled={busy} onClick={() => setConfirmDelete(true)}><Trash2 size={14} /> Eliminar</button> : null}{confirmDelete ? <span className="inline-confirm"><small>¿Eliminar este prompt?</small><button type="button" onClick={() => void removeSelected()}>Sí</button><button type="button" onClick={() => setConfirmDelete(false)}>No</button></span> : null}</div><button className="button primary" disabled={busy || !draft.name.trim() || draft.instructions.trim().length < 20} aria-keyshortcuts="Control+S Meta+S"><Save size={15} /> {busy ? "Guardando…" : "Guardar"}</button></footer> : null}
+        {!selected?.builtIn ? <footer><div>{!creating && !confirmDelete ? <button type="button" className="text-button danger" disabled={busy} onClick={() => setConfirmDelete(true)}><Trash2 size={14} /> Eliminar</button> : null}{confirmDelete ? <span className="inline-confirm"><small>¿Eliminar esta plantilla?</small><button type="button" onClick={() => void removeSelected()}>Sí</button><button type="button" onClick={() => setConfirmDelete(false)}>No</button></span> : null}</div><button className="button primary" disabled={busy || !draft.name.trim() || draft.instructions.trim().length < 20}><Save size={15} /> {busy ? "Guardando…" : "Guardar"}</button></footer> : null}
       </form>
     </div>}
   </section>;

@@ -6,6 +6,7 @@
 // mobile capture remains functional in the self-contained Sites bundle.
 import QRCode from "@/app/vendor/qrcode/browser";
 import { Check, Clipboard, Clock3, FileImage, QrCode, RefreshCw, ScanLine, Smartphone, XCircle } from "@/app/components/Icons";
+import { PageHeader } from "@/app/components/VisualPrimitives";
 import { DesktopImageScanner } from "@/app/features/scanner/DesktopImageScanner";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { formatBytes } from "@/app/lib/client/format-bytes";
@@ -168,7 +169,7 @@ export function ScannerDesk() {
   const creating = pendingAction === "create";
   const revoking = pendingAction === "revoke";
 
-  return <div className="page-wrap scanner-page"><header className="page-header"><div><span className="eyebrow">Escáner</span><h1>Escáner de documentos</h1><p>Convierta imágenes existentes o capture nuevas desde el celular. El procesamiento mantiene sus originales en este dispositivo.</p></div></header>
+  return <div className="page-wrap scanner-page"><PageHeader eyebrow="Escáner" title="Escáner de documentos" description="Convierta imágenes existentes o capture nuevas desde el celular. El procesamiento mantiene sus originales en este dispositivo." />
     <div className="segmented scanner-source-switch" role="group" aria-label="Origen del documento">
       <button type="button" className={sourceMode === "computer" ? "active" : ""} aria-pressed={sourceMode === "computer"} onClick={() => setSourceMode("computer")}><FileImage size={17} /> Desde este equipo</button>
       <button type="button" className={sourceMode === "mobile" ? "active" : ""} aria-pressed={sourceMode === "mobile"} onClick={() => setSourceMode("mobile")}><Smartphone size={17} /> Desde el celular</button>

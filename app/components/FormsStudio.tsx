@@ -1,6 +1,7 @@
 "use client";
 
 import { Download, Eye, Printer } from "@/app/components/Icons";
+import { PageHeader } from "@/app/components/VisualPrimitives";
 import { useState } from "react";
 import { formCatalog } from "@/app/lib/catalog";
 
@@ -12,13 +13,15 @@ export function FormsStudio() {
   const viewerUrl = `${current.template}#page=1&view=FitH&toolbar=1&navpanes=0`;
 
   return <div className="page-wrap official-forms-page">
-    <header className="page-header compact-page-header">
-      <div><h1>Formularios</h1></div>
-      <div className="header-actions">
+    <PageHeader
+      className="compact-page-header"
+      title="Formularios"
+      description="Seleccione un formulario institucional y trabaje sobre el PDF original."
+      actions={<>
         <a className="button primary" href={viewerUrl} target="_blank" rel="noreferrer"><Printer size={16} /> Abrir e imprimir</a>
         <a className="button secondary" href={current.template} download={current.sourceFile}><Download size={16} /> Descargar</a>
-      </div>
-    </header>
+      </>}
+    />
 
     <div className="forms-workspace">
       <nav className="forms-navigation" aria-label="Formularios disponibles">

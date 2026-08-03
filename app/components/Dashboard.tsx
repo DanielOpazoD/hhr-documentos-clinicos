@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { ArrowRight, Clock3, FileCheck2, FilePlus2, FolderOpen, ScanLine, Sparkles, Stethoscope } from "@/app/components/Icons";
+import { EmptyState, PageHeader, SectionHeader } from "@/app/components/VisualPrimitives";
 import { useEffect, useState } from "react";
 import { formatBytes } from "@/app/lib/client/format-bytes";
 import { readApiResponse } from "@/app/lib/client/http";
@@ -19,6 +20,7 @@ const actions = [
 export function Dashboard() {
   const [documents, setDocuments] = useState<RecentDocument[]>([]);
   const [files, setFiles] = useState<RecentFile[]>([]);
+  const [loaded, setLoaded] = useState(-1);
   const [loadError, setLoadError] = useState<string | null>(null);
   useEffect(() => {
     const controller = new AbortController();
@@ -39,28 +41,33 @@ export function Dashboard() {
         : failure
           ? "No se pudo cargar toda la actividad reciente."
           : null);
+      setLoaded((documentsResult.status === "fulfilled" ? 1 : 0) | (filesResult.status === "fulfilled" ? 2 : 0));
     });
     return () => controller.abort();
   }, []);
+  const recentCaptures = files.filter((file) => file.origin === "QR móvil").slice(0, 4);
 
   return <div className="page-wrap dashboard-page">
-    <section className="hero-row">
-      <div><span className="eyebrow">Centro documental clínico</span><h1>¿Qué necesita hacer?</h1><p>Cree, revise, imprima y respalde documentos desde un solo lugar.</p></div>
-    </section>
+    <PageHeader
+      className="hero-row"
+      eyebrow="Centro documental clínico"
+      title="¿Qué necesita hacer?"
+      description="Cree, revise, imprima y respalde documentos desde un solo lugar."
+    />
 
     {loadError ? <p className="form-error standalone" role="status">{loadError}</p> : null}
 
     <section aria-labelledby="quick-title">
-      <div className="section-heading"><div><span className="eyebrow">Comenzar</span><h2 id="quick-title">Acciones principales</h2></div></div>
+      <SectionHeader eyebrow="Comenzar" title="Acciones principales" id="quick-title" />
       <div className="action-grid">{actions.map(action => { const Icon = action.icon; return <Link href={action.href} key={action.href} className={`action-card ${action.tone}`}><span className="action-icon"><Icon size={22} /></span><span className="eyebrow">{action.eyebrow}</span><h3>{action.title}</h3><p>{action.text}</p><span className="card-link"><span className="card-link-label">Abrir</span><ArrowRight size={15} /></span></Link>; })}</div>
     </section>
 
     <div className="dashboard-columns">
-      <section className="panel" aria-labelledby="recent-documents"><div className="panel-header"><div><span className="eyebrow">Actividad</span><h2 id="recent-documents">Documentos recientes</h2></div><Link href="/documentos">Ver todos</Link></div>
-        <div className="document-list">{documents.slice(0, 4).map(doc => <Link href={`/documentos?document=${encodeURIComponent(doc.id)}`} className="document-row" key={doc.id}><span className="file-glyph"><FileCheck2 size={18} /></span><span className="document-main"><strong>{doc.title}</strong>{doc.patientName ? <small>{[doc.patientName, doc.patientRutMasked].filter(Boolean).join(" · ")}</small> : null}</span><span className={`status-pill ${doc.status.toLowerCase()}`}>{doc.status}</span><span className="document-time">v{doc.version}<small><Clock3 size={12} /> {new Date(doc.updatedAt).toLocaleDateString("es-CL")}</small></span></Link>)}</div>
+      <section className="panel" aria-labelledby="recent-documents"><SectionHeader className="panel-header" eyebrow="Actividad" title="Documentos recientes" id="recent-documents" actions={<Link href="/documentos">Ver todos</Link>} />
+        {loaded < 0 ? <EmptyState compact title="Cargando actividad…" /> : !(loaded & 1) ? <EmptyState compact title="No disponible" /> : documents.length ? <div className="document-list">{documents.slice(0, 4).map(doc => <Link href={`/documentos?document=${encodeURIComponent(doc.id)}`} className="document-row" key={doc.id}><span className="file-glyph"><FileCheck2 size={18} /></span><span className="document-main"><strong>{doc.title}</strong>{doc.patientName ? <small>{[doc.patientName, doc.patientRutMasked].filter(Boolean).join(" · ")}</small> : null}</span><span className={`status-pill ${doc.status.toLowerCase()}`}>{doc.status}</span><span className="document-time">v{doc.version}<small><Clock3 size={12} /> {new Date(doc.updatedAt).toLocaleDateString("es-CL")}</small></span></Link>)}</div> : <EmptyState compact icon={<FileCheck2 size={28} />} title="Aún no hay documentos" description="Cree su primer documento clínico para verlo aquí." action={<Link href="/documentos">Crear documento</Link>} />}
       </section>
-      <section className="panel" aria-labelledby="recent-files"><div className="panel-header"><div><span className="eyebrow">Respaldo</span><h2 id="recent-files">Recibidos desde celular</h2></div><Link href="/archivos">Biblioteca</Link></div>
-        {files.length ? <div className="file-mini-list">{files.filter(file => file.origin === "QR móvil").slice(0, 4).map(file => <a href={`/api/files/${file.id}`} target="_blank" key={file.id}><span><FolderOpen size={17} /></span><div><strong>{file.name}</strong><small>{formatBytes(file.size)} · {new Date(file.createdAt).toLocaleDateString("es-CL")}</small></div></a>)}</div> : <div className="empty-state compact"><ScanLine size={28} /><strong>Aún no hay capturas</strong><p>Cree un QR temporal para recibir documentos.</p><Link href="/escaner">Iniciar escáner</Link></div>}
+      <section className="panel" aria-labelledby="recent-files"><SectionHeader className="panel-header" eyebrow="Respaldo" title="Recibidos desde celular" id="recent-files" actions={<Link href="/archivos">Biblioteca</Link>} />
+        {loaded < 0 ? <EmptyState compact title="Cargando respaldos…" /> : !(loaded & 2) ? <EmptyState compact title="No disponible" /> : recentCaptures.length ? <div className="file-mini-list">{recentCaptures.map(file => <a href={`/api/files/${file.id}`} target="_blank" key={file.id}><span><FolderOpen size={17} /></span><div><strong>{file.name}</strong><small>{formatBytes(file.size)} · {new Date(file.createdAt).toLocaleDateString("es-CL")}</small></div></a>)}</div> : <EmptyState compact icon={<ScanLine size={28} />} title="Aún no hay capturas" description="Cree un QR temporal para recibir documentos." action={<Link href="/escaner">Iniciar escáner</Link>} />}
       </section>
     </div>
   </div>;
