@@ -1,5 +1,4 @@
-import { useRef } from "react";
-import Link from "next/link";
+import { lazy, useRef } from "react";
 import { ArrowRight, FileText, FileUp, Settings, Sparkles, Trash2, X } from "@/app/components/Icons";
 import { AiProcessingStatus } from "./AiProcessingStatus";
 import { AiModelPicker } from "./AiModelPicker";
@@ -11,6 +10,11 @@ import type { AiStudioController } from "./use-ai-studio";
 type Props = {
   controller: AiStudioController;
 };
+
+const LazyPromptManager = lazy(async () => {
+  const loaded = await import("./PromptManager");
+  return { default: loaded.PromptManager };
+});
 
 export function AiImportForm({ controller }: Props) {
   const inputRef = useRef<HTMLInputElement>(null);
@@ -123,10 +127,19 @@ export function AiImportForm({ controller }: Props) {
                 />
               ) : null}
               <p>Recuerda tipo, plantilla y modelo; nunca pacientes ni archivos.</p>
-              <Link href="/configuracion?tab=ia">Administrar plantillas</Link>
             </div>
           </details>
         </div>
+
+        {controller.promptMode === "profile" ? (
+          <details className="tpl-prompt ai-template-settings">
+            <summary>
+              <Settings size={15} />
+              <span><strong>Configurar plantillas</strong><small>Crear, editar y elegir la predeterminada</small></span>
+            </summary>
+            <LazyPromptManager key={controller.target} initialTarget={controller.target} />
+          </details>
+        ) : null}
 
         <form
           className="ai-composer"

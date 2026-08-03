@@ -1,8 +1,4 @@
 /* Focused responsive layer: keep primary clinical work ahead of secondary navigation. */
-.mobile-action-label {
-  display: none;
-}
-
 .document-library-mobile-actions {
   flex: 0 0 auto;
 }
