@@ -34,6 +34,8 @@ Para OpenAI, configure la clave solo en el servidor:
 
 Defina `OPENAI_API_KEY` únicamente en el entorno del servidor. Puede seleccionar el modelo mediante `OPENAI_MODEL`; la plantilla incluida utiliza `gpt-5-mini`.
 
+`PUBLIC_APP_ORIGIN` fija el origen HTTPS canónico de los enlaces de captura móvil. El valor de ejemplo corresponde al sitio privado actual; cualquier dominio alternativo debe declararse explícitamente para que el QR no dependa de cabeceras reenviadas por la petición.
+
 También puede conectarse a un servidor local compatible con la API de OpenAI mediante `LOCAL_AI_BASE_URL` y `LOCAL_AI_MODEL`. Las claves reales nunca deben guardarse en el repositorio ni enviarse al navegador.
 
 Las operaciones costosas se reservan en D1 antes de contactar al modelo. Por defecto, cada usuario dispone de 40 intentos de OpenAI en una ventana móvil de 24 horas, con hasta 2 ejecuciones cloud simultáneas; el proveedor local tiene una ejecución simultánea independiente. Puede ajustar límites acotados mediante `AI_DAILY_CLOUD_LIMIT`, `AI_MAX_CONCURRENT_CLOUD` y `AI_MAX_CONCURRENT_LOCAL`. Los intentos cloud fallidos también consumen la ventana para impedir reintentos abusivos. Los borradores tienen 180 segundos y las operaciones de prompts 90 segundos antes de cancelarse de forma segura.

@@ -233,8 +233,22 @@ test("serializes terminal mobile snapshots and keeps scanner polling server-auth
   assert.match(sessionGet, /await fenceExpiredSession\(db, owner, session, snapshotAt\)/);
   assert.match(sessionGet, /files: snapshot\.files/);
   assert.match(sessionGet, /sessionResponse\(session, snapshotStatus\)/);
-  assert.match(mobileSessions, /mobileSessionPresentation\(request\.url, token\)/);
-  assert.match(presentation, /new URL\("\/captura", requestUrl\)/);
+  const sessionCreation = sourceSection(
+    mobileSessions,
+    "async function createMobileSession",
+    "async function revokeMobileSession",
+  );
+  const presentationIndex = sessionCreation.indexOf("const presentation = mobileSessionPresentation");
+  const sessionMutationIndex = sessionCreation.indexOf("await db.batch");
+  assert.equal(
+    presentationIndex >= 0 && presentationIndex < sessionMutationIndex,
+    true,
+    "La presentación debe completarse antes de mutar las sesiones en D1.",
+  );
+  assert.match(sessionCreation, /mobileSessionPresentation\(request\.url, token, configuredOrigin\)/);
+  assert.match(sessionCreation, /\.\.\.presentation/);
+  assert.match(presentation, /DEFAULT_PUBLIC_ORIGIN/);
+  assert.match(presentation, /new URL\("\/captura", publicOrigin\(requestUrl, configuredOrigin\)\)/);
   assert.match(presentation, /captureUrl\.hash = token/);
   assert.match(presentation, /data:image\/svg\+xml;charset=utf-8/);
   assert.match(scanner, /session\.qrDataUrl/);

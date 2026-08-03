@@ -53,10 +53,10 @@ flowchart LR
 ```mermaid
 flowchart LR
     Owner["Navegador autenticado"] --> Create["Crear sesión"]
-    Create --> Revoke["Revocar sesiones activas anteriores"]
+    Create --> Present["Validar origen y construir enlace/QR"]
+    Present --> Revoke["Revocar sesiones activas anteriores"]
     Revoke --> Session["Guardar hash, expiración y auditoría en D1"]
-    Session --> Present["Construir enlace y SVG en el servidor"]
-    Present --> QR["Entregar token una vez dentro del fragmento QR"]
+    Session --> QR["Entregar token una vez dentro del fragmento QR"]
     QR --> Mobile["Navegador móvil"]
     Mobile -->|"token en x-hhr-capture-token"| Validate["Validar sesión y capacidad"]
     Validate --> Reserve["Reservar archivo pendiente en D1"]
@@ -75,8 +75,9 @@ flowchart LR
    el mismo batch.
 2. El token aleatorio dura 10 minutos, se almacena solo como hash y no viaja en la ruta HTTP
    del QR.
-3. El servidor deriva el origen desde la URL autenticada, inserta el token únicamente en el
-   fragmento y genera el SVG; el navegador solo presenta y copia ese contrato.
+3. El servidor usa `PUBLIC_APP_ORIGIN` como origen canónico, permite la URL de la petición
+   solo en loopback local, inserta el token únicamente en el fragmento y genera el SVG. Un
+   fallo de configuración ocurre antes de revocar o crear sesiones en D1.
 4. La capacidad permite hasta 8 archivos y se reserva en D1 antes de escribir en R2.
 5. `x-hhr-upload-id` hace idempotente el reintento cuando la respuesta anterior se pierde.
 6. Un archivo solo se publica cuando R2 existe, la sesión sigue activa y la transición

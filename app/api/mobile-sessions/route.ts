@@ -6,6 +6,7 @@ import {
 import { cleanupPendingFileDeletes } from "@/app/features/files/server/delete-files";
 import { requestOwner } from "@/app/lib/server/auth";
 import { ensureDatabase } from "@/app/lib/server/database";
+import { appEnv } from "@/app/lib/server/environment";
 import { jsonError, observeApi, readJsonObject } from "@/app/lib/server/http";
 import { mobileSessionPresentation } from "@/app/lib/server/mobile-session-presentation";
 import { sha256 } from "@/app/lib/server/security";
@@ -125,6 +126,9 @@ async function createMobileSession(request: Request) {
   const now = new Date();
   const createdAt = now.toISOString();
   const expiresAt = new Date(now.getTime() + MOBILE_SESSION_TTL_MS).toISOString();
+  const runtime = appEnv();
+  const configuredOrigin = runtime.PUBLIC_APP_ORIGIN || process.env.PUBLIC_APP_ORIGIN;
+  const presentation = mobileSessionPresentation(request.url, token, configuredOrigin);
   const db = await ensureDatabase();
 
   await db.batch([
@@ -162,7 +166,7 @@ async function createMobileSession(request: Request) {
       token,
       expiresAt,
       status: "activa",
-      ...mobileSessionPresentation(request.url, token),
+      ...presentation,
     },
   }, { status: 201, headers: privateResponse });
 }
