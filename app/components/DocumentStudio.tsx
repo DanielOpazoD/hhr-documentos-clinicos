@@ -163,6 +163,7 @@ export function DocumentStudio() {
     sections: workspace.sections,
     signer: workspace.signer,
   });
+  const loadRetryLabel = workspace.loadRetryKind === "delete" ? "Reintentar eliminación" : "Reintentar";
   const readinessRef = useRef(readiness);
   useLayoutEffect(() => {
     readinessRef.current = readiness;
@@ -268,12 +269,12 @@ export function DocumentStudio() {
         {workspace.loadError ? (
           <OperationFeedback
             tone="error"
-            title="No se pudo cargar Documentos"
+            title="No se pudo completar la operación"
             message={workspace.loadError.message}
             supportId={workspace.loadError.supportId}
             onDismiss={workspace.dismissLoadError}
             actions={workspace.loadError.retryable ? (
-              <button type="button" className="text-button" onClick={() => void workspace.retryLoad()}>Reintentar</button>
+              <button type="button" className="text-button" onClick={() => void workspace.retryLoad()}>{loadRetryLabel}</button>
             ) : null}
           />
         ) : null}

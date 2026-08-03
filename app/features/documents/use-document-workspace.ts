@@ -32,7 +32,7 @@ export function useDocumentWorkspace() {
   const [recentQuery, setRecentQuery] = useState("");
   const [newMenuOpen, setNewMenuOpen] = useState(false);
   const [loadError, setLoadError] = useState<OperationFailure | null>(null);
-  const loadRetryRef = useRef<LoadRetry>({ kind: "list" });
+  const [loadRetry, setLoadRetry] = useState<LoadRetry>({ kind: "list" });
   const [saveError, setSaveError] = useState<DocumentSaveFailure | null>(null);
   const [deletingDocumentIds, setDeletingDocumentIds] = useState<Set<string>>(() => new Set());
   const [aiMetadata, setAiMetadata] = useState<StoredAiMetadata | null>(null);
@@ -89,7 +89,7 @@ export function useDocumentWorkspace() {
       setStoredDocuments(await listDocuments(signal));
     } catch (error) {
       if (!(error instanceof DOMException && error.name === "AbortError")) {
-        loadRetryRef.current = { kind: "list" };
+        setLoadRetry({ kind: "list" });
         setLoadError(toOperationFailure(error, "No se pudieron cargar los documentos."));
       }
     }
@@ -171,7 +171,7 @@ export function useDocumentWorkspace() {
       return true;
     } catch (error) {
       if (workspaceEpoch.current === requestEpoch) {
-        loadRetryRef.current = { kind: "open", id };
+        setLoadRetry({ kind: "open", id });
         setLoadError(toOperationFailure(error, "No se pudo abrir el documento."));
       }
       return false;
@@ -248,7 +248,7 @@ export function useDocumentWorkspace() {
       await refreshDocuments();
       return true;
     } catch (error) {
-      loadRetryRef.current = { kind: "delete", ids };
+      setLoadRetry({ kind: "delete", ids });
       setLoadError(toOperationFailure(error, "No se pudieron eliminar los documentos."));
       return false;
     } finally {
@@ -259,13 +259,12 @@ export function useDocumentWorkspace() {
   const deleteDocument = useCallback((id: string) => deleteDocuments([id]), [deleteDocuments]);
   const dismissLoadError = useCallback(() => setLoadError(null), []);
   const retryLoad = useCallback(async () => {
-    const retry = loadRetryRef.current;
     setLoadError(null);
-    if (retry.kind === "open") return openDocument(retry.id);
-    if (retry.kind === "delete") return deleteDocuments(retry.ids);
+    if (loadRetry.kind === "open") return openDocument(loadRetry.id);
+    if (loadRetry.kind === "delete") return deleteDocuments(loadRetry.ids);
     await refreshDocuments();
     return true;
-  }, [deleteDocuments, openDocument, refreshDocuments]);
+  }, [deleteDocuments, loadRetry, openDocument, refreshDocuments]);
   const updateSection = useCallback((id: string, patch: Partial<Pick<DocumentSection, "title" | "body">>) => {
     setSections((current) => current.map((section) =>
       section.id === id ? { ...section, ...patch } : section,
@@ -336,7 +335,7 @@ export function useDocumentWorkspace() {
     ...identityWorkspace,
     updateSigner, sections, status, documentId, documentUpdatedAt, version, savedAt,
     saving, dirty, storedDocuments, filteredDocuments, recentQuery, setRecentQuery,
-    newMenuOpen, setNewMenuOpen, loadError, saveError, dismissLoadError, retryLoad,
+    newMenuOpen, setNewMenuOpen, loadError, loadRetryKind: loadRetry.kind, saveError, dismissLoadError, retryLoad,
     deletingDocumentIds,
     ...historyWorkspace,
     ...signatureWorkspace,

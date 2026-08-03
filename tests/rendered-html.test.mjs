@@ -1254,11 +1254,12 @@ test("operation feedback keeps recovery and support details consistent", async (
   assert.match(component, /operation-feedback-actions/);
   assert.match(adapter, /cause\.userMessage/);
   assert.doesNotMatch(adapter, /message:\s*cause\.message/);
-  assert.match(documentWorkspace, /loadRetryRef\.current = \{ kind: "list" \}/);
-  assert.match(documentWorkspace, /loadRetryRef\.current = \{ kind: "open", id \}/);
-  assert.match(documentWorkspace, /loadRetryRef\.current = \{ kind: "delete", ids \}/);
-  assert.match(documentWorkspace, /retry\.kind === "open"[\s\S]*openDocument\(retry\.id\)/);
-  assert.match(documentWorkspace, /retry\.kind === "delete"[\s\S]*deleteDocuments\(retry\.ids\)/);
+  assert.match(documentWorkspace, /setLoadRetry\(\{ kind: "list" \}\)/);
+  assert.match(documentWorkspace, /setLoadRetry\(\{ kind: "open", id \}\)/);
+  assert.match(documentWorkspace, /setLoadRetry\(\{ kind: "delete", ids \}\)/);
+  assert.match(documentWorkspace, /loadRetry\.kind === "open"[\s\S]*openDocument\(loadRetry\.id\)/);
+  assert.match(documentWorkspace, /loadRetry\.kind === "delete"[\s\S]*deleteDocuments\(loadRetry\.ids\)/);
+  assert.match(documentStudio, /loadRetryKind === "delete"[\s\S]*Reintentar eliminación/);
   assert.match(styles, /\.operation-feedback-error/);
   assert.match(styles, /\.operation-feedback-support/);
   for (const migratedSurface of [documentStudio, commandBar, aiImport, aiResult, filesLibrary, scannerDesk, desktopScanner, mobileCapture]) {

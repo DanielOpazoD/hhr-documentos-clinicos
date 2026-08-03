@@ -18,7 +18,6 @@ test("keeps support references out of the human-facing message", () => {
   assert.equal(failure.message, "No se pudo guardar el documento.");
   assert.doesNotMatch(failure.message, new RegExp(supportId));
   assert.equal(failure.supportId, supportId);
-  assert.equal(failure.code, "SERVICE_UNAVAILABLE");
   assert.equal(failure.retryable, true);
 });
 

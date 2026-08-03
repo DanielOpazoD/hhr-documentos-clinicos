@@ -3,7 +3,6 @@ import { ApiClientError } from "./http.ts";
 export type OperationFailure = {
   message: string;
   supportId?: string;
-  code?: string;
   retryable: boolean;
 };
 
@@ -31,7 +30,6 @@ export function toOperationFailure(
     return {
       message: cause.userMessage,
       supportId: cause.requestId,
-      code: cause.code,
       retryable: options.retryable ?? retryableStatus(cause.status),
     };
   }
