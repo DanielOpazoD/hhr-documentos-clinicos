@@ -65,3 +65,45 @@ La iteración solicitada sobre menús y plantillas IA se compara además en [`do
 ## Resultado
 
 Final result: passed
+
+# PR27 · Workspace de Documentos artifact-first
+
+## Contrato y evidencia
+
+- Referencia: `main` posterior al PR26, antes de extraer la composición visual.
+- Implementación: rama `agent/artifact-first-document-workspace`.
+- Navegador: navegador integrado de Codex; 390 × 844 en móvil y 1440 × 900 en escritorio.
+- Estados comparados: editor vacío, asistente IA y panel móvil de profesional, firma y timbre.
+- El entorno local no dispone de los bindings remotos; los mensajes de carga visibles en ambas versiones son datos del entorno y no una regresión de composición.
+
+| Estado | Antes | Después | Resultado |
+| --- | --- | --- | --- |
+| Editor móvil | [`pr27-before-mobile.webp`](docs/assets/pr27-before-mobile.webp) | [`pr27-after-mobile.webp`](docs/assets/pr27-after-mobile.webp) | Aprobado |
+| Editor escritorio | [`pr27-before-desktop.webp`](docs/assets/pr27-before-desktop.webp) | [`pr27-after-desktop.webp`](docs/assets/pr27-after-desktop.webp) | Aprobado |
+| Asistente IA escritorio | [`pr27-before-ai-desktop.webp`](docs/assets/pr27-before-ai-desktop.webp) | [`pr27-after-ai-desktop.webp`](docs/assets/pr27-after-ai-desktop.webp) | Aprobado |
+
+## Hallazgos y correcciones
+
+- En móvil, la suma de cabecera, paciente y formulario profesional empujaba la barra del papel hasta `y=753` y la hoja comenzaba en `y=820`. El profesional ahora se resume en 44 px y abre el panel existente; la barra queda en `y=485` y la hoja comienza en `y=525`, dentro del primer viewport.
+- El paciente continúa siempre editable. No se agregó un asistente por pasos ni se ocultó información clínica esencial.
+- Escritorio conserva una barra de paciente de 71 px, el profesional habitual en la navegación lateral y la hoja como superficie dominante.
+- Editor e IA mantienen la misma cabecera, estado de documento y acción de retorno. El asistente conserva su selección al alternar porque ambas vistas viven dentro de un único `DocumentWorkspaceShell`.
+- `Nuevo documento` y `Recientes` conservan estados mutuamente excluyentes, foco visible y menús sin desborde en 390 px.
+- Los estilos de composición de Documentos tienen una sola autoridad en `app/features/documents/documents.css`; las hojas globales ya no duplican sus breakpoints.
+
+## Interacciones verificadas
+
+1. Abrir y cerrar `Nuevo documento` y `Recientes` con ratón y `Escape`.
+2. Abrir el panel móvil desde `Editar profesional, firma y timbre`; los tres campos profesionales y ambos grupos de imágenes permanecen disponibles.
+3. Cerrar el panel con `Escape`; el foco vuelve al botón que lo abrió.
+4. Alternar entre editor e IA; la jerarquía principal no cambia y el asistente permanece montado.
+5. Editar directamente título, identidad y secciones en la hoja; los selectores e identificadores usados por preflight no cambian.
+6. Revisar los contratos de impresión: contexto clínico, cabecera y panel son `print-hide`; papel, títulos, cuerpos, firma y fecha conservan sus reglas específicas.
+
+## Ratchet técnico
+
+- Base: 643.807 bytes JS/CSS total y 474.987 bytes para la ruta Documentos.
+- PR27: 643.780 bytes JS/CSS total y 474.960 bytes para la ruta Documentos.
+- Resultado: el límite no aumenta; se recuperan 27 bytes sin modificar presupuestos, dependencias, APIs, datos ni migraciones.
+
+Final result: passed

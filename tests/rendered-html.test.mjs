@@ -351,12 +351,13 @@ test("uses byte-identical original clinical PDFs", async () => {
 });
 
 test("keeps one clear action hierarchy across the core studios", async () => {
-  const [frame, forms, scanner, library, globalStyles] = await Promise.all([
+  const [frame, forms, scanner, library, globalStyles, documentStyles] = await Promise.all([
     readFile(new URL("../app/components/AppFrame.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/components/FormsStudio.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/components/ScannerDesk.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/features/documents/DocumentLibrary.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/globals.css", import.meta.url), "utf8"),
+    readFile(new URL("../app/features/documents/documents.css", import.meta.url), "utf8"),
   ]);
 
   assert.match(frame, /label: "Escáner", icon: ScanLine/);
@@ -376,14 +377,14 @@ test("keeps one clear action hierarchy across the core studios", async () => {
   assert.match(globalStyles, /:focus-visible \{ outline: 3px solid var\(--cyan\); outline-offset: 2px; \}/);
   assert.match(globalStyles, /background: currentcolor/);
   assert.match(globalStyles, /\.scanner-source-panel\[hidden\] \{ display: none; \}/);
-  assert.match(globalStyles, /\.document-library \.template-menu button strong \{ font-size: 12px; \}/);
+  assert.match(documentStyles, /\.template-menu button strong,[\s\S]*?font-size: 12px;/);
   assert.match(globalStyles, /\.file-actions button, \.file-actions a \{ width: 40px; height: 40px;/);
   assert.match(globalStyles, /\.files-grid \.file-card-body \{ align-items: stretch; flex-direction: column;/);
   assert.match(globalStyles, /@media \(min-width: 821px\) and \(max-width: 960px\)/);
 });
 
 test("uses one documented visual grammar across product surfaces", async () => {
-  const [primitives, dashboard, forms, files, scanner, settings, documents, styles, language, designQa, sourceMenu, sourceAi] = await Promise.all([
+  const [primitives, dashboard, forms, files, scanner, settings, documents, globalStyles, documentStyles, language, designQa, sourceMenu, sourceAi, ...pr27Visuals] = await Promise.all([
     readFile(new URL("../app/components/VisualPrimitives.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/components/Dashboard.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/components/FormsStudio.tsx", import.meta.url), "utf8"),
@@ -392,10 +393,19 @@ test("uses one documented visual grammar across product surfaces", async () => {
     readFile(new URL("../app/configuracion/page.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/components/DocumentStudio.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/globals.css", import.meta.url), "utf8"),
+    readFile(new URL("../app/features/documents/documents.css", import.meta.url), "utf8"),
     readFile(new URL("../docs/VISUAL_LANGUAGE.md", import.meta.url), "utf8"),
     readFile(new URL("../design-qa.md", import.meta.url), "utf8"),
     readFile(new URL("../docs/assets/pr25-source-new-document-menu.webp", import.meta.url)),
     readFile(new URL("../docs/assets/pr25-source-ai-template-workflow.webp", import.meta.url)),
+    ...[
+      "pr27-before-mobile.webp",
+      "pr27-after-mobile.webp",
+      "pr27-before-desktop.webp",
+      "pr27-after-desktop.webp",
+      "pr27-before-ai-desktop.webp",
+      "pr27-after-ai-desktop.webp",
+    ].map((name) => readFile(new URL(`../docs/assets/${name}`, import.meta.url))),
   ]);
 
   assert.match(primitives, /export function PageHeader/);
@@ -404,11 +414,12 @@ test("uses one documented visual grammar across product surfaces", async () => {
   for (const surface of [dashboard, forms, files, scanner, settings, documents]) {
     assert.match(surface, /<PageHeader/);
   }
+  const styles = `${globalStyles}\n${documentStyles}`;
   assert.match(dashboard, /!\(loaded & 1\)/);
   assert.match(dashboard, /!\(loaded & 2\)/);
   assert.equal((dashboard.match(/title="No disponible"/g) ?? []).length, 2);
   assert.match(styles, /--r-compact: 8px/);
-  assert.match(styles, /\.studio-page \.header-actions \.button \{ min-height: 36px;/);
+  assert.match(styles, /\.studio-page \.header-actions \.button \{[\s\S]*?min-height: 36px;/);
   assert.match(styles, /\.page-header-context \{ width: 100%; align-items: flex-start; flex-wrap: wrap; \}/);
   assert.match(styles, /@media \(prefers-reduced-motion: reduce\)/);
   assert.match(language, /## Primitivas compartidas/);
@@ -416,6 +427,9 @@ test("uses one documented visual grammar across product surfaces", async () => {
   assert.doesNotMatch(designQa, /(?:\/(?:Users|home|private|tmp|var\/folders)\/|[A-Z]:\\(?:Users|Documents and Settings)\\|file:\/\/)/i);
   assert.ok(sourceMenu.byteLength > 20_000);
   assert.ok(sourceAi.byteLength > 40_000);
+  assert.match(designQa, /# PR27 · Workspace de Documentos artifact-first/);
+  assert.equal(pr27Visuals.length, 6);
+  assert.ok(pr27Visuals.every((asset) => asset.byteLength > 10_000));
 });
 
 test("keeps the clinical studios usable from mobile through desktop", async () => {
@@ -431,8 +445,9 @@ test("keeps the clinical studios usable from mobile through desktop", async () =
     "../app/features/documents/PromptProposalDialog.tsx",
     "../app/features/documents/AiProvenance.tsx",
     "../app/features/documents/ai-metadata.ts",
-    "../app/features/documents/PatientEditor.tsx",
+    "../app/features/documents/ClinicalContextBar.tsx",
     "../app/features/documents/ProfessionalEditor.tsx",
+    "../app/features/documents/DocumentWorkspaceShell.tsx",
     "../app/features/documents/DocumentPreview.tsx",
     "../app/features/documents/document-readiness.ts",
     "../app/lib/document-layout.ts",
@@ -457,15 +472,16 @@ test("keeps the clinical studios usable from mobile through desktop", async () =
     "../app/api/documents/[id]/versions/route.ts",
     "../app/api/document-templates/route.ts",
   ];
-  const [moduleSources, globalStyles, responsiveStyles, layout, dashboard] = await Promise.all([
+  const [moduleSources, globalStyles, responsiveStyles, documentStyles, layout, dashboard] = await Promise.all([
     Promise.all(documentModules.map((path) => readFile(new URL(path, import.meta.url), "utf8"))),
     readFile(new URL("../app/globals.css", import.meta.url), "utf8"),
     readFile(new URL("../app/styles/responsive-focus.css", import.meta.url), "utf8"),
+    readFile(new URL("../app/features/documents/documents.css", import.meta.url), "utf8"),
     readFile(new URL("../app/layout.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/components/Dashboard.tsx", import.meta.url), "utf8"),
   ]);
   const documentStudio = moduleSources.join("\n");
-  const styles = `${globalStyles}\n${responsiveStyles}`;
+  const styles = `${globalStyles}\n${responsiveStyles}\n${documentStyles}`;
 
   assert.doesNotMatch(documentStudio, /aria-label="Vista del documento"|aria-controls="document-editor"/);
   assert.match(documentStudio, /id="document-preview"/);
@@ -490,7 +506,10 @@ test("keeps the clinical studios usable from mobile through desktop", async () =
   assert.match(documentStudio, /document-professional-slot/);
   assert.match(documentStudio, /createPortal/);
   assert.match(documentStudio, /variant="sidebar"/);
-  assert.match(documentStudio, /variant="mobile"/);
+  assert.match(documentStudio, /variant="panel"/);
+  assert.match(documentStudio, /professional-summary-trigger/);
+  assert.match(documentStudio, /DocumentWorkspaceShell/);
+  assert.match(documentStudio, /assistantOpen=\{assistantOpen\}/);
   assert.match(documentStudio, /Nombre, RUT y especialidad/);
   assert.match(documentStudio, /onEditRequest/);
   assert.doesNotMatch(documentStudio, /Seleccione un campo para editar/);
@@ -498,7 +517,7 @@ test("keeps the clinical studios usable from mobile through desktop", async () =
   assert.match(documentStudio, /Nombre completo/);
   assert.match(documentStudio, /updatePatientName/);
   assert.match(documentStudio, /patient\.fullName \?\? patientFullName\(patient\)/);
-  assert.doesNotMatch(await readFile(new URL("../app/features/documents/PatientEditor.tsx", import.meta.url), "utf8"), /patient-last-names|>Nombres<|>Apellidos</);
+  assert.doesNotMatch(await readFile(new URL("../app/features/documents/ClinicalContextBar.tsx", import.meta.url), "utf8"), /patient-last-names|>Nombres<|>Apellidos</);
   assert.match(documentStudio, /section-title-/);
   assert.match(documentStudio, /<h3>Rp\.<\/h3>/);
   assert.match(documentStudio, /signature-placement-zone/);
@@ -529,7 +548,7 @@ test("keeps the clinical studios usable from mobile through desktop", async () =
   assert.match(documentStudio, /aria-controls="document-ai-assistant"/);
   assert.match(documentStudio, /aria-label=\{assistantOpen \? "Volver al editor" : "Usar IA"\}/);
   assert.match(documentStudio, /signature-settings-panel/);
-  assert.match(documentStudio, /aria-label="Configurar firma y timbre"/);
+  assert.match(documentStudio, /aria-label="Configurar profesional, firma y timbre"/);
   assert.match(documentStudio, /sidePanelRef\.current\?\.focus\(\)/);
   assert.match(documentStudio, /key=\{workspace\.activeTemplateSetting\.templateId\}/);
   assert.match(documentStudio, /disabled=\{!templateSettingsLoaded\}/);
@@ -574,7 +593,8 @@ test("keeps the clinical studios usable from mobile through desktop", async () =
   assert.match(documentStudio, /Los cambios pendientes se guardan antes de imprimir/);
   assert.match(documentStudio, /onNavigate=\{editFromPreview\}/);
   assert.match(documentStudio, /fieldId === "signature-settings-trigger"/);
-  assert.match(documentStudio, /professional-editor-mobile \.signature-panel-trigger/);
+  assert.match(documentStudio, /compactViewport[\s\S]*?professional-summary-trigger/);
+  assert.match(documentStudio, /`panel-\$\{fieldId\}`/);
   assert.match(documentStudio, /if \(preflightOpen\) closePreflight\(\)/);
   assert.doesNotMatch(documentStudio, /identity-collapse-trigger|patientDetailsOpen|professionalDetailsOpen/);
   assert.match(documentStudio, /id="ai-document-origin"/);
@@ -618,7 +638,7 @@ test("keeps the clinical studios usable from mobile through desktop", async () =
   assert.match(documentStudio, /kind === "signature"\) workspace\.loadSignerProfile/);
   assert.match(documentStudio, /Servicio de Salud Metropolitano Oriente/);
   assert.doesNotMatch(await readFile(new URL("../app/features/documents/DocumentPreview.tsx", import.meta.url), "utf8"), /<h3>Paciente<\/h3>/);
-  assert.match(await readFile(new URL("../app/features/documents/PatientEditor.tsx", import.meta.url), "utf8"), /aria-labelledby="patient-editor-title"/);
+  assert.match(await readFile(new URL("../app/features/documents/ClinicalContextBar.tsx", import.meta.url), "utf8"), /aria-labelledby="patient-editor-title"/);
   assert.match(documentStudio, /SIGNATURE_Y_MAX_PERCENT = 67/);
   assert.match(documentStudio, /defaultProfileApplied\.current = true/);
   assert.match(documentStudio, /Boolean\(defaultProfile \|\| defaultStamp\)/);
@@ -692,6 +712,7 @@ test("keeps the clinical studios usable from mobile through desktop", async () =
   assert.match(styles, /@media \(hover: none\), \(pointer: coarse\)/);
   assert.match(styles, /\.print-only \{ display: block !important; \}/);
   assert.match(styles, /@media print \{[\s\S]*?\.clinical-paper \{[^}]*min-height: 0 !important;[^}]*padding: 0 !important;[^}]*break-inside: auto;/);
+  assert.doesNotMatch(documentStyles, /@media print \{[\s\S]*?\.document-workspace-view,/);
   assert.match(styles, /\.clinical-paper\.prescription-paper \{[^}]*min-height: 250mm !important;[^}]*padding-bottom: 28mm !important;/);
   assert.match(styles, /@media print \{[\s\S]*?\.signature-placement-zone \{ margin-top: 16px; \}[\s\S]*?\.signing-assets-canvas \{ min-height: 220px; \}/);
   assert.match(styles, /\.clinical-paper \.paper-date/);
@@ -709,17 +730,20 @@ test("keeps the clinical studios usable from mobile through desktop", async () =
   assert.match(styles, /\.document-workspace-state \{[^}]*display: flex;[^}]*white-space: nowrap;/);
   assert.match(styles, /\.document-workspace-state > span \{[^}]*text-overflow: ellipsis;/);
   assert.match(responsiveStyles, /\.document-workspace-state \{[^}]*min-width: 0;[^}]*flex: 1 1 0;/);
-  assert.match(styles, /\.studio-page \.header-actions \.button \{ min-height: 36px; flex: 0 0 auto; padding-inline: 12px; white-space: nowrap; \}/);
-  assert.match(styles, /\.studio-page \.header-actions \{ flex-wrap: nowrap; align-items: center; gap: 6px; \}/);
-  assert.match(styles, /\.studio-page \.header-actions \{ width: 100%; display: flex; justify-content: flex-end; \}/);
-  assert.match(styles, /\.professional-editor-mobile/);
+  assert.match(styles, /\.studio-page \.header-actions \.button \{[\s\S]*?min-height: 36px;[\s\S]*?flex: 0 0 auto;[\s\S]*?white-space: nowrap;/);
+  assert.match(styles, /\.studio-page \.header-actions \{[\s\S]*?flex-wrap: nowrap;[\s\S]*?align-items: center;[\s\S]*?gap: 6px;/);
+  assert.match(documentStyles, /@media \(max-width: 820px\)[\s\S]*?\.professional-summary \{[\s\S]*?display: grid;/);
+  assert.match(documentStyles, /\.paper-toolbar-actions \{[\s\S]*?flex-wrap: nowrap;/);
+  assert.doesNotMatch(globalStyles, /\.professional-editor-mobile|\.document-clinical-context/);
+  assert.doesNotMatch(responsiveStyles, /\.patient-editor|\.document-workspace-shell/);
   assert.doesNotMatch(styles, /\.document-editor-layout > \.mobile-hidden/);
   assert.match(styles, /\.page-header > \*, \.hero-row > \*.*min-width: 0;/);
   assert.match(layout, /styles\/responsive-focus\.css/);
+  assert.match(layout, /features\/documents\/documents\.css/);
   assert.match(dashboard, /card-link-label/);
   assert.match(dashboard, /\/documentos\?assistant=1/);
   assert.match(responsiveStyles, /\.dashboard-page \.action-card/);
-  assert.match(responsiveStyles, /\.document-library-content\[hidden\]/);
+  assert.match(documentStyles, /\.document-library-content\[hidden\]/);
   assert.match(responsiveStyles, /padding-bottom: calc\(78px \+ env\(safe-area-inset-bottom\)\)/);
 });
 
