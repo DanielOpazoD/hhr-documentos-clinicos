@@ -27,8 +27,8 @@ La iteración solicitada sobre menús y plantillas IA se compara además en [`do
 
 ## Iteración de feedback: menús y plantillas IA
 
-- Fuentes visuales: `/var/folders/6c/jzmkty3d3zdc1p13lrvwgm7m0000gn/T/codex-clipboard-ad26f2e6-b4d8-4f63-84f6-a5b8d02bdb19.png` (1328 × 866 px) y `/var/folders/6c/jzmkty3d3zdc1p13lrvwgm7m0000gn/T/codex-clipboard-7782c385-1fe3-48a7-bbc0-26d618174b92.png` (2020 × 1000 px).
-- Implementación: `pr25-new-document-menu-final.png` y `pr25-ai-templates-open.png`, capturadas desde `http://localhost:3030/documentos` a 1280 × 720 CSS px, `devicePixelRatio: 2`; la captura del navegador se normalizó a 1280 × 720 píxeles.
+- Fuentes visuales reproducibles: [`docs/assets/pr25-source-new-document-menu.webp`](docs/assets/pr25-source-new-document-menu.webp) (1328 × 680 px, SHA-256 `72be3df7db1b6f0ffcdf6acf6683b15eb665a11eb74e6df4ac0c84e9605afb60`) y [`docs/assets/pr25-source-ai-template-workflow.webp`](docs/assets/pr25-source-ai-template-workflow.webp) (2210 × 1110 px, SHA-256 `b33f11e0c9d771125fa36d56d4836fdab0fabebfe142395666e355313a72b18e`). La primera conserva únicamente la superficie necesaria para comparar el menú y excluye los registros clínicos inferiores.
+- Implementación: paneles derechos de [`docs/assets/pr25-feedback-visual-qa.webp`](docs/assets/pr25-feedback-visual-qa.webp) (SHA-256 `172dd68891a09a4e1ce4271eaeb1e2eca83f7acb50753f36aacdb2264796c065`), capturados desde `http://localhost:3030/documentos` a 1280 × 720 CSS px, `devicePixelRatio: 2`; la captura del navegador se normalizó a 1280 × 720 píxeles.
 - Normalización: la referencia del menú se escaló y recortó al borde superior de 1280 × 720; la referencia IA se ajustó completa dentro de 1280 × 720. La comparación no atribuye diferencias producidas solo por ese cambio de densidad o encuadre.
 - Estados: menú `Nuevo documento` abierto; asistente IA con `Configurar plantillas` abierto y `Certificado médico` seleccionado.
 - Evidencia de vista completa y región enfocada: las dos filas del comparativo son suficientemente legibles para revisar menú, contexto IA y editor; no fue necesario un tercer recorte.

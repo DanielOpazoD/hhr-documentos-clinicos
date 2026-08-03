@@ -355,11 +355,13 @@ test("keeps one clear action hierarchy across the core studios", async () => {
   assert.match(globalStyles, /background: currentcolor/);
   assert.match(globalStyles, /\.scanner-source-panel\[hidden\] \{ display: none; \}/);
   assert.match(globalStyles, /\.document-library \.template-menu button strong \{ font-size: 12px; \}/);
+  assert.match(globalStyles, /\.file-actions button, \.file-actions a \{ width: 40px; height: 40px;/);
+  assert.match(globalStyles, /\.files-grid \.file-card-body \{ align-items: stretch; flex-direction: column;/);
   assert.match(globalStyles, /@media \(min-width: 821px\) and \(max-width: 960px\)/);
 });
 
 test("uses one documented visual grammar across product surfaces", async () => {
-  const [primitives, dashboard, forms, files, scanner, settings, documents, styles, language] = await Promise.all([
+  const [primitives, dashboard, forms, files, scanner, settings, documents, styles, language, designQa, sourceMenu, sourceAi] = await Promise.all([
     readFile(new URL("../app/components/VisualPrimitives.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/components/Dashboard.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/components/FormsStudio.tsx", import.meta.url), "utf8"),
@@ -369,6 +371,9 @@ test("uses one documented visual grammar across product surfaces", async () => {
     readFile(new URL("../app/components/DocumentStudio.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/globals.css", import.meta.url), "utf8"),
     readFile(new URL("../docs/VISUAL_LANGUAGE.md", import.meta.url), "utf8"),
+    readFile(new URL("../design-qa.md", import.meta.url), "utf8"),
+    readFile(new URL("../docs/assets/pr25-source-new-document-menu.webp", import.meta.url)),
+    readFile(new URL("../docs/assets/pr25-source-ai-template-workflow.webp", import.meta.url)),
   ]);
 
   assert.match(primitives, /export function PageHeader/);
@@ -386,6 +391,9 @@ test("uses one documented visual grammar across product surfaces", async () => {
   assert.match(styles, /@media \(prefers-reduced-motion: reduce\)/);
   assert.match(language, /## Primitivas compartidas/);
   assert.match(language, /## Superficies protegidas/);
+  assert.doesNotMatch(designQa, /\/var\/folders/);
+  assert.ok(sourceMenu.byteLength > 20_000);
+  assert.ok(sourceAi.byteLength > 40_000);
 });
 
 test("keeps the clinical studios usable from mobile through desktop", async () => {
@@ -750,6 +758,10 @@ test("integrates connections and guarded AI usage into tabbed settings", async (
   assert.match(dashboard, /OpenAI · últimas 24 h/);
   assert.match(dashboard, /Modelo/);
   assert.match(dashboard, /No reemplaza la facturación del proveedor/);
+  assert.match(dashboard, /const \[reloadKey, setReloadKey\] = useState\(0\)/);
+  assert.match(dashboard, /setSummary\(null\)/);
+  assert.match(dashboard, /if \(!controller\.signal\.aborted\) setSummary\(nextSummary\)/);
+  assert.match(dashboard, /if \(days === period\) setReloadKey/);
   assert.match(usageApi, /GROUP BY provider_id, model/);
   assert.match(usageApi, /owner_email = \?/);
   assert.match(usageApi, /getAiExecutionAvailability/);

@@ -15,6 +15,7 @@ function money(value: number) {
 
 export function AiUsageDashboard() {
   const [days, setDays] = useState<(typeof periods)[number]>(30);
+  const [reloadKey, setReloadKey] = useState(0);
   const [summary, setSummary] = useState<AiUsageSummary | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -24,21 +25,28 @@ export function AiUsageDashboard() {
       .then((response) => readApiResponse<AiUsageSummary>(response, {
         fallbackMessage: "No se pudo consultar el uso.",
       }))
-      .then(setSummary)
+      .then((nextSummary) => {
+        if (!controller.signal.aborted) setSummary(nextSummary);
+      })
       .catch((cause) => {
         if (!controller.signal.aborted && !(cause instanceof DOMException && cause.name === "AbortError")) {
           setError(cause instanceof Error ? cause.message : "No se pudo consultar el uso.");
         }
       });
     return () => controller.abort();
-  }, [days]);
+  }, [days, reloadKey]);
 
   return (
     <section className="settings-section usage-section">
       <header className="usage-heading">
         <div><h2>Consumo de IA</h2><small>Solicitudes completadas en esta aplicación</small></div>
         <div className="usage-period" role="group" aria-label="Período">
-          {periods.map((period) => <button type="button" aria-pressed={days === period} key={period} className={days === period ? "active" : ""} onClick={() => { setError(null); setDays(period); }}>{period} días</button>)}
+          {periods.map((period) => <button type="button" aria-pressed={days === period} key={period} className={days === period ? "active" : ""} onClick={() => {
+            setSummary(null);
+            setError(null);
+            if (days === period) setReloadKey((current) => current + 1);
+            else setDays(period);
+          }}>{period} días</button>)}
         </div>
       </header>
 
