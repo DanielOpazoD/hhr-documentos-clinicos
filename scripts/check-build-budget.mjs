@@ -8,7 +8,7 @@ const manifestPath = join(clientRoot, ".vite", "manifest.json");
 const deferredPdfPath = join(clientRoot, "vendor", "jspdf.umd.min.js");
 const documentsEntryKey = "app/components/DocumentStudio.tsx";
 const assistantEntryKey = "app/components/AiStudio.tsx";
-const maxTotalBytes = 675_000;
+const maxTotalBytes = 650_000;
 const maxSingleAssetBytes = 220_000;
 const maxDeferredPdfBytes = 425_000;
 const maxDeferredAssistantBytes = 70_000;
@@ -16,7 +16,7 @@ const routeBudgets = [
   { label: "Shell", entry: "virtual:vinext-app-browser-entry", maxBytes: 385_000 },
   { label: "Inicio", entry: "app/components/Dashboard.tsx", maxBytes: 405_000 },
   { label: "Documentos", entry: documentsEntryKey, maxBytes: 478_000 },
-  { label: "Escáner", entry: "app/components/ScannerDesk.tsx", maxBytes: 380_000 },
+  { label: "Escáner", entry: "app/components/ScannerDesk.tsx", maxBytes: 350_000 },
   { label: "Archivos", entry: "app/components/FilesLibrary.tsx", maxBytes: 320_000 },
 ];
 
