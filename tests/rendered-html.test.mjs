@@ -510,6 +510,8 @@ test("keeps the clinical studios usable from mobile through desktop", async () =
   assert.match(documentStudio, /professional-summary-trigger/);
   assert.match(documentStudio, /DocumentWorkspaceShell/);
   assert.match(documentStudio, /assistantOpen=\{assistantOpen\}/);
+  assert.match(documentStudio, /hidden=\{!assistantOpen\}/);
+  assert.match(documentStudio, /hidden=\{assistantOpen\}/);
   assert.match(documentStudio, /Nombre, RUT y especialidad/);
   assert.match(documentStudio, /onEditRequest/);
   assert.doesNotMatch(documentStudio, /Seleccione un campo para editar/);
@@ -712,6 +714,8 @@ test("keeps the clinical studios usable from mobile through desktop", async () =
   assert.match(styles, /@media \(hover: none\), \(pointer: coarse\)/);
   assert.match(styles, /\.print-only \{ display: block !important; \}/);
   assert.match(styles, /@media print \{[\s\S]*?\.clinical-paper \{[^}]*min-height: 0 !important;[^}]*padding: 0 !important;[^}]*break-inside: auto;/);
+  assert.match(documentStyles, /\.document-workspace-view\[hidden\] \{[\s\S]*?display: none;/);
+  assert.match(documentStyles, /@media print \{[\s\S]*?\.document-workspace-shell,[\s\S]*?\.paper-panel \{[\s\S]*?display: block !important;/);
   assert.doesNotMatch(documentStyles, /@media print \{[\s\S]*?\.document-workspace-view,/);
   assert.match(styles, /\.clinical-paper\.prescription-paper \{[^}]*min-height: 250mm !important;[^}]*padding-bottom: 28mm !important;/);
   assert.match(styles, /@media print \{[\s\S]*?\.signature-placement-zone \{ margin-top: 16px; \}[\s\S]*?\.signing-assets-canvas \{ min-height: 220px; \}/);

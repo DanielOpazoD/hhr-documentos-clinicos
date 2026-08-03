@@ -103,7 +103,7 @@ Final result: passed
 ## Ratchet técnico
 
 - Base: 643.807 bytes JS/CSS total y 474.987 bytes para la ruta Documentos.
-- PR27: 643.780 bytes JS/CSS total y 474.960 bytes para la ruta Documentos.
-- Resultado: el límite no aumenta; se recuperan 27 bytes sin modificar presupuestos, dependencias, APIs, datos ni migraciones.
+- PR27: 643.743 bytes JS/CSS total y 474.923 bytes para la ruta Documentos.
+- Resultado: el límite no aumenta; se recuperan 64 bytes sin modificar presupuestos, dependencias, APIs, datos ni migraciones.
 
 Final result: passed

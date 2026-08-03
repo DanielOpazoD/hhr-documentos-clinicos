@@ -83,14 +83,9 @@
 }
 
 .document-library-mobile-actions > .button {
-  width: 100%;
   min-height: 36px;
   padding-inline: 9px;
   font-size: 11px;
-}
-
-.document-library-toggle {
-  width: auto !important;
 }
 
 .document-library-toggle > span,
@@ -680,7 +675,7 @@
   line-height: 1.45;
 }
 
-.document-ai-header h2:focus {
+.document-ai-header h2:focus:not(:focus-visible) {
   outline: none;
 }
 
