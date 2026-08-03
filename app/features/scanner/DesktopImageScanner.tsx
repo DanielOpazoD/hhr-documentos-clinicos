@@ -360,7 +360,7 @@ export function DesktopImageScanner() {
       </div>
     </div> : null}
     <div className="scanner-import-feedback">{error ? (
-      <OperationFeedback compact tone="error" title="No se pudo completar el procesamiento" message={error.message} supportId={error.supportId} code={error.code} onDismiss={() => setError(null)} />
+      <OperationFeedback compact tone="error" title="No se pudo completar el procesamiento" message={error.message} supportId={error.supportId} onDismiss={() => setError(null)} />
     ) : notice ? <OperationFeedback compact tone="success" title={notice} onDismiss={() => setNotice(null)} /> : null}</div>
     {review && reviewPage ? <ScanReviewEditor page={reviewPage} review={review} processing={busy === "processing"} detecting={detecting} onChange={change => setReview(current => current ? { ...current, ...change } : current)} onApply={() => void applyReview()} onRedetect={() => void redetectPage()} onClose={() => setReview(null)} /> : null}
   </section>;

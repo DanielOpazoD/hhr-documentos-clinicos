@@ -79,7 +79,6 @@ export function DocumentSaveError({ persist, reloadDocument, saveError, saving }
       title="No se pudo guardar el documento"
       message={saveError.message}
       supportId={saveError.supportId}
-      code={saveError.code}
       className="document-save-error"
       actions={<>
         {saveError.recovery === "retry" ? (

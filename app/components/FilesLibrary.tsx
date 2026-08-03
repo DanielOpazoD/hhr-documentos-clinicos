@@ -38,7 +38,6 @@ export function FilesLibrary() {
           }[library.error.operation]}
           message={library.error.message}
           supportId={library.error.supportId}
-          code={library.error.code}
           onDismiss={() => library.setError(null)}
           actions={library.error.operation === "load" && library.error.retryable ? (
             <button type="button" className="text-button" onClick={() => void library.retryLoad()}>Reintentar</button>

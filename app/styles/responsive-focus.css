@@ -228,7 +228,7 @@
   }
 
   .document-save-error {
-    grid-template-columns: auto minmax(0, 1fr);
+    grid-template-columns: minmax(0, 1fr);
   }
 
   .document-save-error .operation-feedback-actions {

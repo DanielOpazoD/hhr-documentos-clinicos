@@ -1,5 +1,4 @@
 "use client";
-
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { DocumentStatus } from "@/app/lib/catalog";
 import { getDocument, listDocuments, removeStoredDocuments } from "./api";
@@ -259,7 +258,6 @@ export function useDocumentWorkspace() {
   }, [createDocument, documentId, flushPendingSave, refreshDocuments]);
 
   const deleteDocument = useCallback((id: string) => deleteDocuments([id]), [deleteDocuments]);
-
   const dismissLoadError = useCallback(() => setLoadError(null), []);
   const retryLoad = useCallback(async () => {
     setLoadError(null);
@@ -268,7 +266,6 @@ export function useDocumentWorkspace() {
     await refreshDocuments();
     return true;
   }, [openDocument, refreshDocuments]);
-
   const updateSection = useCallback((id: string, patch: Partial<Pick<DocumentSection, "title" | "body">>) => {
     setSections((current) => current.map((section) =>
       section.id === id ? { ...section, ...patch } : section,
@@ -333,7 +330,6 @@ export function useDocumentWorkspace() {
       controller.abort();
     };
   }, [openDocument, refreshDocuments]);
-
   return {
     template, templateId, documentTitle, setDocumentTitle, visibleTitle, aiMetadata,
     ...templateWorkspace,

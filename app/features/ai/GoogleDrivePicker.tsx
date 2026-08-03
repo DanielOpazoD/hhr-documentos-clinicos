@@ -66,7 +66,6 @@ export function GoogleDrivePicker({
           title="No se pudo abrir Google Drive"
           message={error.message}
           supportId={error.supportId}
-          code={error.code}
           onDismiss={() => setError(null)}
           className="drive-picker-feedback"
         />

@@ -113,7 +113,6 @@ export function AiDraftResult({
             title={feedbackTitle}
             message={visibleFailure.message}
             supportId={visibleFailure.supportId}
-            code={visibleFailure.code}
             actions={openError && controller.createdId ? (
               <button type="button" className="text-button" onClick={() => void openSavedDraft(controller.createdId!)}>Reintentar apertura</button>
             ) : null}

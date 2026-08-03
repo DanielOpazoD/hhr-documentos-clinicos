@@ -229,7 +229,6 @@ export function AiImportForm({ controller }: Props) {
             title="No se pudo continuar con la generación"
             message={controller.error.message}
             supportId={controller.error.supportId}
-            code={controller.error.code}
             onDismiss={controller.clearError}
           />
         ) : null}

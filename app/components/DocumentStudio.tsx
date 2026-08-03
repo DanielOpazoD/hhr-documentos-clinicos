@@ -271,7 +271,6 @@ export function DocumentStudio() {
             title="No se pudo cargar Documentos"
             message={workspace.loadError.message}
             supportId={workspace.loadError.supportId}
-            code={workspace.loadError.code}
             onDismiss={workspace.dismissLoadError}
             actions={workspace.loadError.retryable ? (
               <button type="button" className="text-button" onClick={() => void workspace.retryLoad()}>Reintentar</button>
