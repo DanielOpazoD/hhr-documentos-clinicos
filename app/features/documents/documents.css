@@ -1,0 +1,1065 @@
+/* Documentos owns its workspace composition here; global styles stay product-wide. */
+.studio-page {
+  width: min(1680px, 100%);
+  padding: 24px clamp(16px, 2vw, 28px) 48px;
+}
+
+.studio-page .compact-page-header {
+  margin-bottom: 8px;
+}
+
+.studio-page .compact-page-header .page-header-copy {
+  min-width: 190px;
+  display: grid;
+  gap: 2px;
+}
+
+.document-studio-header {
+  align-items: center;
+  gap: 12px;
+}
+
+.document-studio-header .page-header-context {
+  min-width: 0;
+  flex: 1 1 auto;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.document-studio-header .page-header-copy h1 {
+  margin: 0;
+  font-size: clamp(25px, 2.1vw, 29px);
+}
+
+.document-studio-header .page-header-copy p {
+  color: var(--muted);
+  font-size: var(--fs-caption);
+}
+
+.studio-page .header-actions {
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 6px;
+}
+
+.studio-page .header-actions .button {
+  min-height: 36px;
+  flex: 0 0 auto;
+  padding-inline: 12px;
+  white-space: nowrap;
+}
+
+.studio-page .document-command-bar {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.document-assistant-toggle {
+  border-color: #c9d9da;
+  color: var(--cyan);
+}
+
+.document-assistant-toggle:hover,
+.document-assistant-toggle.active {
+  border-color: #a9c4c7;
+  background: #f1f8f8;
+  color: #105f69;
+}
+
+.document-library {
+  position: relative;
+  width: min(310px, 100%);
+  min-width: 250px;
+  flex: 0 1 310px;
+}
+
+.document-library-mobile-actions {
+  display: grid;
+  grid-template-columns: minmax(150px, 1fr) auto;
+  gap: 6px;
+}
+
+.document-library-mobile-actions > .button {
+  width: 100%;
+  min-height: 36px;
+  padding-inline: 9px;
+  font-size: 11px;
+}
+
+.document-library-toggle {
+  width: auto !important;
+}
+
+.document-library-toggle > span,
+.recent-heading span {
+  min-width: 20px;
+  padding: 2px 6px;
+  border-radius: 999px;
+  background: #edf2f2;
+  color: var(--muted);
+  text-align: center;
+}
+
+.document-library-content {
+  position: absolute;
+  z-index: 45;
+  top: calc(100% + 7px);
+  left: 0;
+  width: min(330px, calc(100vw - 32px));
+  max-height: min(64vh, 520px);
+  display: grid;
+  gap: 7px;
+  padding: 8px;
+  overflow: auto;
+  border: 1px solid var(--line);
+  border-radius: 11px;
+  background: #fff;
+  box-shadow: 0 16px 42px rgba(32, 33, 35, .14);
+}
+
+.document-library-content[hidden] {
+  display: none;
+}
+
+.template-menu,
+.recent-document-list {
+  display: grid;
+  gap: 3px;
+}
+
+.template-menu button {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 8px;
+  padding: 8px 7px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--cyan);
+  text-align: left;
+}
+
+.template-menu button:hover,
+.recent-document-list > div:hover {
+  background: #f5f8f7;
+}
+
+.template-menu button span,
+.recent-document-open > span {
+  min-width: 0;
+  display: grid;
+}
+
+.template-menu button strong,
+.recent-document-list strong {
+  overflow: hidden;
+  color: var(--ink);
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.template-menu button small,
+.recent-document-open > span:last-child small {
+  display: none;
+}
+
+.recent-heading,
+.recent-heading > div {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.recent-heading {
+  justify-content: space-between;
+  padding: 2px 3px 0;
+}
+
+.recent-heading strong,
+.recent-heading span,
+.recent-heading .text-button {
+  font-size: 11px;
+}
+
+.recent-search {
+  position: relative;
+}
+
+.recent-search > svg {
+  position: absolute;
+  top: 50%;
+  left: 10px;
+  color: var(--muted);
+  transform: translateY(-50%);
+}
+
+.recent-search input {
+  height: 36px;
+  padding-left: 31px;
+  font-size: var(--fs-control);
+}
+
+.document-selection-bar {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: 6px;
+  padding: 8px;
+  border-radius: 9px;
+  background: #f2f6f5;
+}
+
+.document-selection-bar label {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 10px;
+}
+
+.document-selection-bar input,
+.recent-document-checkbox {
+  width: 14px;
+  height: 14px;
+  margin: 0;
+  accent-color: var(--cyan);
+}
+
+.document-selection-bar > span {
+  color: var(--muted);
+  font-size: 10px;
+}
+
+.document-selection-bar button {
+  grid-column: 1 / -1;
+  min-height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  border: 0;
+  border-radius: 7px;
+  background: #fff;
+  color: var(--danger);
+  font-size: 10px;
+  font-weight: 750;
+}
+
+.document-selection-bar button:disabled {
+  color: #9aa7aa;
+}
+
+.document-selection-bar button.confirm {
+  background: var(--danger);
+  color: #fff;
+}
+
+.document-selection-bar button.confirm-ai {
+  background: var(--cyan);
+  color: #fff;
+}
+
+.document-selection-bar button.create-ai {
+  color: var(--cyan);
+}
+
+.document-library-feedback {
+  font-size: 10px;
+}
+
+.document-library-feedback.success,
+.recent-document-list em {
+  color: var(--cyan);
+}
+
+.document-library-feedback.error {
+  color: var(--danger);
+}
+
+.recent-document-list {
+  max-height: 330px;
+  overflow-y: auto;
+}
+
+.recent-document-list > div {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  border: 1px solid transparent;
+  border-radius: 9px;
+}
+
+.recent-document-list > div.active,
+.recent-document-list > div.selected {
+  border-color: #9fcbd0;
+  background: #edf7f8;
+}
+
+.recent-document-list > div.delete-pending {
+  border-color: #dfc2bf;
+  background: #fbf4f3;
+}
+
+.recent-document-list > div.selecting {
+  grid-template-columns: 24px minmax(0, 1fr);
+}
+
+.recent-document-checkbox {
+  margin-left: 7px;
+}
+
+.recent-document-open {
+  min-width: 0;
+  width: 100%;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 7px;
+  border: 0;
+  border-radius: inherit;
+  background: transparent;
+  color: var(--ink);
+  text-align: left;
+}
+
+.recent-document-open > span:last-child {
+  justify-items: end;
+}
+
+.recent-document-list small,
+.recent-document-list em {
+  overflow: hidden;
+  font-size: 11px;
+  font-style: normal;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.recent-document-list small {
+  color: var(--muted);
+}
+
+.recent-document-delete {
+  width: 28px;
+  min-width: 28px;
+  height: 28px;
+  display: grid;
+  place-items: center;
+  margin-right: 4px;
+  padding: 0;
+  overflow: hidden;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--muted);
+  opacity: 0;
+}
+
+.recent-document-list > div:hover .recent-document-delete,
+.recent-document-delete:focus-visible,
+.delete-pending .recent-document-delete {
+  opacity: 1;
+}
+
+.recent-document-delete:hover {
+  background: #f4e5e3;
+  color: var(--danger);
+}
+
+.delete-pending .recent-document-delete {
+  width: auto;
+  padding-inline: 7px;
+  background: var(--danger);
+  color: #fff;
+  font-size: 10px;
+  font-weight: 750;
+}
+
+.empty-recent {
+  min-height: 88px;
+}
+
+.document-workspace-shell,
+.document-workspace-view,
+.document-main {
+  min-width: 0;
+}
+
+.document-workspace-view[hidden] {
+  display: none;
+}
+
+.document-main {
+  display: grid;
+  gap: 8px;
+}
+
+.document-clinical-context {
+  min-width: 0;
+}
+
+.professional-summary {
+  display: none;
+}
+
+.patient-editor {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: end;
+  gap: 11px;
+  margin: 0;
+  padding: 8px 10px;
+  border: 1px solid #e3e3e7;
+  border-radius: 12px;
+  background: #fff;
+}
+
+.patient-editor h2 {
+  align-self: center;
+  color: var(--navy);
+  font-size: var(--fs-body);
+  font-weight: 650;
+}
+
+.patient-manual-grid {
+  display: grid;
+  grid-template-columns: minmax(180px, 1.45fr) minmax(112px, .65fr) repeat(2, minmax(145px, .85fr));
+  gap: 7px;
+}
+
+.patient-manual-grid label {
+  min-width: 0;
+  gap: 3px;
+  color: #55565f;
+  font-size: 11px;
+}
+
+.patient-manual-grid input {
+  width: 100%;
+  height: 36px;
+  margin-top: 0;
+  padding-inline: 9px;
+  border-color: #dedee3;
+  border-radius: 8px;
+  background: #fbfbfc;
+  font-size: var(--fs-control);
+  transition: border-color .14s ease, background .14s ease, box-shadow .14s ease;
+}
+
+.patient-manual-grid input:hover {
+  border-color: #c2c2c8;
+  background: #fff;
+}
+
+.patient-manual-grid input:focus {
+  border-color: #98bbc0;
+  outline: 3px solid var(--cyan);
+  background: #fff;
+}
+
+.professional-editor {
+  position: relative;
+  flex: 0 0 auto;
+  padding: 10px;
+  border: 1px solid #dfe7e7;
+  border-radius: 12px;
+  background: #fafcfc;
+}
+
+.professional-editor > header {
+  display: grid;
+  grid-template-columns: 28px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 9px;
+}
+
+.professional-editor > header > span {
+  width: 28px;
+  height: 28px;
+  display: grid;
+  place-items: center;
+  border-radius: 8px;
+  background: #e9f3f3;
+  color: var(--cyan);
+}
+
+.professional-editor > header div {
+  min-width: 0;
+  display: grid;
+  gap: 1px;
+}
+
+.professional-editor > header strong {
+  font-size: 12px;
+}
+
+.professional-editor > header small {
+  overflow: hidden;
+  color: var(--muted);
+  font-size: 10px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.professional-fields {
+  display: grid;
+  gap: 4px;
+}
+
+.professional-fields label {
+  margin-top: 3px;
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 750;
+}
+
+.professional-fields input {
+  height: 34px;
+  padding-inline: 9px;
+  background: #fff;
+  font-size: 12px;
+}
+
+.professional-editor-sidebar {
+  padding: 9px 26px 9px 8px;
+  border-color: #dfe4e4;
+  background: #fff;
+}
+
+.professional-editor-sidebar > header {
+  grid-template-columns: 24px minmax(0, 1fr);
+  gap: 6px;
+  margin-bottom: 7px;
+}
+
+.professional-editor-sidebar > header > span {
+  width: 24px;
+  height: 24px;
+  border-radius: 7px;
+}
+
+.professional-editor-sidebar > header strong {
+  font-size: 11px;
+}
+
+.professional-editor-sidebar .professional-fields {
+  gap: 2px;
+}
+
+.professional-editor-sidebar .professional-fields input {
+  height: 34px;
+  padding-inline: 8px;
+  font-size: var(--fs-caption);
+}
+
+.professional-editor-panel {
+  margin-bottom: 12px;
+  padding: 10px;
+  border-color: #e3e7e7;
+  background: #f8faf9;
+}
+
+.professional-editor-panel > header {
+  margin-bottom: 7px;
+}
+
+.signature-panel-trigger {
+  min-width: 31px;
+  height: 31px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  padding: 0 8px;
+  border: 1px solid #c8d9db;
+  border-radius: 8px;
+  background: #fff;
+  color: var(--cyan);
+  font-size: 9px;
+  font-weight: 750;
+}
+
+.signature-panel-trigger:hover,
+.signature-panel-trigger[aria-expanded="true"] {
+  border-color: #9fc3c7;
+  background: #eef7f7;
+  color: #105f69;
+}
+
+.professional-editor-sidebar .signature-panel-trigger {
+  position: absolute;
+  z-index: 2;
+  top: 50%;
+  right: 0;
+  width: 20px;
+  min-width: 20px;
+  height: 38px;
+  padding: 0;
+  transform: translateY(-50%);
+  border-right: 0;
+  border-radius: 7px 0 0 7px;
+  background: #f6f8f8;
+  box-shadow: none;
+}
+
+.signature-settings-panel {
+  position: fixed;
+  z-index: 70;
+  left: calc(var(--sidebar-width) + 12px);
+  bottom: 12px;
+  width: min(420px, calc(100vw - var(--sidebar-width) - 28px));
+  max-height: calc(100vh - 24px);
+  overflow: auto;
+  border: 1px solid #d9dfe0;
+  border-radius: 12px;
+  background: #fff;
+  box-shadow: 0 18px 50px rgba(32, 33, 35, .16);
+}
+
+.signature-settings-panel .signature-editor {
+  padding: 16px;
+  border: 0;
+  background: #fff;
+}
+
+.signature-settings-panel .editor-section-title {
+  margin-bottom: 12px;
+}
+
+.signature-settings-panel .editor-section-title h2 {
+  font-size: 15px;
+}
+
+.document-ai-assistant {
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: #fbfbfc;
+}
+
+.document-ai-header {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--line);
+  background: #fff;
+}
+
+.document-ai-mark {
+  width: 36px;
+  height: 36px;
+  display: grid;
+  place-items: center;
+  border-radius: 10px;
+  background: #e9f3f3;
+  color: var(--cyan);
+}
+
+.document-ai-header > div {
+  min-width: 0;
+}
+
+.document-ai-header h2 {
+  font-size: 15px;
+}
+
+.document-ai-header p {
+  max-width: 650px;
+  margin: 3px 0 0;
+  color: var(--muted);
+  font-size: 10px;
+  line-height: 1.45;
+}
+
+.document-ai-header h2:focus {
+  outline: none;
+}
+
+.document-ai-assistant > .ai-composer-shell,
+.document-ai-assistant > .ai-result-layout {
+  padding: 14px;
+}
+
+.document-ai-assistant .panel {
+  border-radius: 11px;
+  box-shadow: none;
+}
+
+.simplified-studio .paper-panel {
+  padding: 8px;
+}
+
+.simplified-studio .paper-toolbar {
+  min-height: 34px;
+  justify-content: flex-end;
+  margin-bottom: 6px;
+}
+
+.simplified-studio .clinical-paper {
+  width: min(100%, 920px);
+}
+
+.paper-toolbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.paper-add-section,
+.paper-template-settings {
+  min-height: 28px;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 0 7px;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--cyan);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.paper-add-section:hover,
+.paper-template-settings:hover {
+  background: rgba(26, 116, 132, .08);
+}
+
+.paper-template-settings.error {
+  color: var(--danger);
+}
+
+.typography-tools {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+@media (max-width: 1240px) {
+  .patient-editor {
+    grid-template-columns: 1fr;
+    align-items: stretch;
+    gap: 7px;
+  }
+}
+
+@media (min-width: 821px) and (max-width: 960px) {
+  .document-studio-header {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .document-studio-header .page-header-context {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .studio-page .header-actions {
+    width: 100%;
+    justify-content: flex-end;
+  }
+}
+
+@media (min-width: 821px) and (max-width: 1240px) {
+  .document-library {
+    min-width: 230px;
+    flex-basis: 270px;
+  }
+}
+
+@media (max-width: 820px) {
+  .studio-page {
+    padding: 12px 10px calc(86px + env(safe-area-inset-bottom));
+  }
+
+  .studio-page .compact-page-header {
+    align-items: stretch;
+    flex-direction: column;
+    gap: 7px;
+    margin-bottom: 8px;
+  }
+
+  .studio-page .compact-page-header .page-header-context {
+    width: 100%;
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 6px;
+  }
+
+  .studio-page .compact-page-header h1 {
+    font-size: 23px;
+  }
+
+  .studio-page .header-actions {
+    width: 100%;
+    display: flex;
+    justify-content: flex-end;
+    margin-left: 0;
+  }
+
+  .studio-page .document-command-bar {
+    flex: 1 1 auto;
+  }
+
+  .document-library {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .studio-page .header-actions .button {
+    width: auto;
+    min-height: 36px;
+  }
+
+  .studio-print-button {
+    min-height: 36px;
+    padding-inline: 10px;
+  }
+
+  .document-clinical-context {
+    display: grid;
+    gap: 6px;
+  }
+
+  .professional-summary {
+    order: -1;
+    min-width: 0;
+    min-height: 44px;
+    display: grid;
+    grid-template-columns: 28px minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 7px;
+    border: 1px solid #e3e3e7;
+    border-radius: 10px;
+    background: #fff;
+  }
+
+  .professional-summary-mark {
+    width: 28px;
+    height: 28px;
+    display: grid;
+    place-items: center;
+    border-radius: 8px;
+    background: #e9f3f3;
+    color: var(--cyan);
+  }
+
+  .professional-summary-copy {
+    min-width: 0;
+    display: grid;
+    gap: 1px;
+  }
+
+  .professional-summary-copy strong,
+  .professional-summary-copy small {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .professional-summary-copy strong {
+    font-size: 11px;
+  }
+
+  .professional-summary-copy small {
+    color: var(--muted);
+    font-size: 9px;
+  }
+
+  .professional-summary-trigger {
+    min-width: 58px;
+    height: 30px;
+    padding-inline: 7px;
+  }
+
+  .patient-editor {
+    grid-template-columns: 1fr;
+    gap: 5px;
+    padding: 7px;
+    border-radius: 10px;
+  }
+
+  .patient-editor h2 {
+    font-size: 12px;
+  }
+
+  .patient-manual-grid {
+    grid-template-columns: 1fr 1fr;
+    gap: 5px 6px;
+  }
+
+  .patient-name-field {
+    grid-column: 1 / -1;
+  }
+
+  .patient-manual-grid label:last-child {
+    grid-column: auto;
+  }
+
+  .patient-manual-grid label {
+    font-size: 10px;
+  }
+
+  .patient-manual-grid input {
+    height: 34px;
+    min-height: 34px;
+    padding-inline: 8px;
+    font-size: 12px;
+  }
+
+  .signature-settings-panel {
+    right: 10px;
+    bottom: calc(76px + env(safe-area-inset-bottom));
+    left: 10px;
+    width: auto;
+    max-height: calc(100vh - 148px - env(safe-area-inset-bottom));
+  }
+
+  .paper-toolbar-actions {
+    width: 100%;
+    flex-wrap: nowrap;
+    justify-content: flex-end;
+    gap: 3px;
+  }
+
+  .paper-add-section,
+  .paper-template-settings {
+    width: 28px;
+    min-width: 28px;
+    height: 26px;
+    min-height: 26px;
+    justify-content: center;
+    overflow: hidden;
+    padding: 0;
+    color: transparent;
+    font-size: 0;
+  }
+
+  .paper-add-section svg,
+  .paper-template-settings svg {
+    flex: 0 0 auto;
+    color: var(--cyan);
+  }
+
+  .paper-template-settings > span,
+  .paper-template-settings > strong {
+    display: none;
+  }
+
+  .paper-toolbar-actions .document-type-control {
+    grid-template-columns: repeat(4, 24px);
+  }
+
+  .paper-toolbar-actions .typography-control-icon,
+  .paper-toolbar-actions .document-type-control button,
+  .paper-toolbar-actions .document-type-control output {
+    width: 24px;
+    height: 26px;
+  }
+
+  .paper-toolbar-actions .typography-control-icon svg {
+    width: 12px;
+    height: 12px;
+  }
+
+  .paper-toolbar-actions .document-type-control output {
+    font-size: 10px;
+  }
+
+  .document-ai-header {
+    padding: 12px 13px;
+  }
+
+  .document-ai-header .simulation-badge {
+    display: none;
+  }
+
+  .document-ai-assistant > .ai-composer-shell,
+  .document-ai-assistant > .ai-result-layout {
+    padding: 9px;
+  }
+}
+
+@media (max-width: 520px) {
+  .document-studio-header .page-header-copy p {
+    display: none;
+  }
+
+  .studio-page .header-actions .button {
+    width: 38px;
+    min-width: 38px;
+    padding-inline: 0;
+  }
+
+  .studio-page .header-actions .button span {
+    display: none;
+  }
+
+  .document-assistant-toggle svg {
+    width: 17px;
+    height: 17px;
+  }
+
+  .document-ai-header {
+    gap: 8px;
+    padding: 11px;
+  }
+
+  .document-ai-mark {
+    width: 32px;
+    height: 32px;
+  }
+
+  .document-ai-header h2 {
+    font-size: 14px;
+  }
+
+  .document-ai-header p {
+    font-size: 9px;
+  }
+
+  .studio-page .history-button {
+    flex: 0 0 38px;
+  }
+
+  .document-history-dialog {
+    width: 100%;
+    max-height: 92vh;
+  }
+
+  .document-history-content {
+    padding-inline: 13px;
+  }
+
+  .document-version-list article {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+
+  .document-version-list article > .button {
+    grid-column: 1 / -1;
+    width: 100%;
+  }
+}
+
+@media print {
+  .document-workspace-shell,
+  .document-main,
+  .paper-panel {
+    display: block !important;
+    width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    border: 0 !important;
+    background: #fff !important;
+  }
+}
