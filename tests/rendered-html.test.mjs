@@ -1231,3 +1231,20 @@ test("fills the official Hospital del Salvador Word without changing its institu
   assert.doesNotMatch(withoutIdentityXml, /Contenido verificado [12]<\/w:t>/);
   assert.ok((withoutIdentityXml.match(/No consignado/g) ?? []).length >= 2);
 });
+
+test("operation feedback keeps recovery and support details consistent", async () => {
+  const [component, adapter, styles] = await Promise.all([
+    readFile(new URL("../app/components/OperationFeedback.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/lib/client/operation-feedback.ts", import.meta.url), "utf8"),
+    readFile(new URL("../app/globals.css", import.meta.url), "utf8"),
+  ]);
+
+  assert.match(component, /role=\{isAlert \? "alert" : "status"\}/);
+  assert.match(component, /aria-live=\{isAlert \? "assertive" : "polite"\}/);
+  assert.match(component, /Detalles para soporte/);
+  assert.match(component, /operation-feedback-actions/);
+  assert.match(adapter, /cause\.userMessage/);
+  assert.doesNotMatch(adapter, /message:\s*cause\.message/);
+  assert.match(styles, /\.operation-feedback-error/);
+  assert.match(styles, /\.operation-feedback-support/);
+});
