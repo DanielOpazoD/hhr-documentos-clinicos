@@ -78,6 +78,7 @@ export async function startLocalApp({ seedSql = [], vars = {} } = {}) {
         OPENAI_API_KEY: "",
         LOCAL_AI_BASE_URL: "",
         LOCAL_AI_API_KEY: "",
+        PUBLIC_APP_ORIGIN: externalOrigin,
         ...vars,
       },
       experimental: {

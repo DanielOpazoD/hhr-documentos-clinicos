@@ -2,9 +2,6 @@
 
 /* eslint-disable @next/next/no-img-element -- The QR image is generated as an ephemeral data URL and should not be optimized remotely. */
 
-// The small QR encoder is vendored from the MIT-licensed `qrcode` package so
-// mobile capture remains functional in the self-contained Sites bundle.
-import QRCode from "@/app/vendor/qrcode/browser";
 import { Check, Clipboard, Clock3, FileImage, QrCode, RefreshCw, ScanLine, Smartphone, XCircle } from "@/app/components/Icons";
 import { PageHeader } from "@/app/components/VisualPrimitives";
 import { DesktopImageScanner } from "@/app/features/scanner/DesktopImageScanner";
@@ -18,7 +15,7 @@ import {
 } from "@/app/features/files/mobile-session-client";
 import type { SavedFile } from "@/app/features/files/types";
 
-type ScannerSession = CreatedMobileSession & { url: string; qr: string };
+type ScannerSession = CreatedMobileSession;
 type PollMode = "active" | "terminal";
 type ScannerSourceMode = "computer" | "mobile";
 
@@ -49,12 +46,10 @@ export function ScannerDesk() {
     setCopied(false);
     try {
       const created = await createMobileSession();
-      const url = `${window.location.origin}/captura#${created.token}`;
-      const qr = await QRCode.toDataURL(url, { width: 360, margin: 2, color: { dark: "#123b49", light: "#ffffff" } });
       sessionLifecycleRef.current += 1;
       currentSessionIdRef.current = created.id;
       terminalSnapshotCompletedRef.current = null;
-      setSession({ ...created, url, qr });
+      setSession(created);
       setSeconds(remainingSeconds(created.expiresAt));
       setReceived([]);
       setPollError(null);
@@ -157,7 +152,7 @@ export function ScannerDesk() {
     if (!session) return;
     setActionError(null);
     try {
-      await navigator.clipboard.writeText(session.url);
+      await navigator.clipboard.writeText(session.captureUrl);
       setCopied(true);
       window.setTimeout(() => setCopied(false), 1800);
     } catch {
@@ -178,7 +173,7 @@ export function ScannerDesk() {
       <DesktopImageScanner />
     </div>
     <div className="scanner-source-panel" hidden={sourceMode !== "mobile"}>
-      <div className="scanner-layout"><section className="panel qr-panel"><div className="panel-header"><div><span className="eyebrow">Paso 1</span><h2>Escanee el código QR</h2></div>{session ? <span className={active ? "session-state active" : "session-state"}><span />{active ? "Sesión activa" : session.status === "revocada" ? "Revocada" : "Expirada"}</span> : null}</div>{session ? <><div className={active ? "qr-wrap" : "qr-wrap expired"}><img src={session.qr} alt="Código QR temporal para abrir el escáner móvil" />{!active ? <div><XCircle size={32} /><strong>Sesión cerrada</strong></div> : null}</div><div className="timer"><Clock3 size={16} /><span>Válido por <strong>{String(Math.floor(seconds / 60)).padStart(2, "0")}:{String(seconds % 60).padStart(2, "0")}</strong></span></div><div className="qr-actions"><button className="button secondary" onClick={() => void copy()} disabled={!active || pendingAction !== null}>{copied ? <Check size={16} /> : <Clipboard size={16} />}{copied ? "Copiado" : "Copiar enlace"}</button><button className="button secondary danger" onClick={() => void revoke()} disabled={!active || pendingAction !== null}><XCircle size={16} /> {revoking ? "Revocando…" : "Revocar QR"}</button></div></> : <div className="loading-card"><QrCode size={38} /><p>{creating ? "Creando sesión segura…" : "No hay una sesión activa."}</p></div>}{visibleError ? <p className="form-error" role="alert">{visibleError}</p> : null}<button className="text-button centered" onClick={() => void createSession()} disabled={pendingAction !== null}><RefreshCw size={14} className={creating ? "spin" : ""} /> {creating ? "Generando…" : "Generar un QR nuevo"}</button></section>
+      <div className="scanner-layout"><section className="panel qr-panel"><div className="panel-header"><div><span className="eyebrow">Paso 1</span><h2>Escanee el código QR</h2></div>{session ? <span className={active ? "session-state active" : "session-state"}><span />{active ? "Sesión activa" : session.status === "revocada" ? "Revocada" : "Expirada"}</span> : null}</div>{session ? <><div className={active ? "qr-wrap" : "qr-wrap expired"}><img src={session.qrDataUrl} alt="Código QR temporal para abrir el escáner móvil" />{!active ? <div><XCircle size={32} /><strong>Sesión cerrada</strong></div> : null}</div><div className="timer"><Clock3 size={16} /><span>Válido por <strong>{String(Math.floor(seconds / 60)).padStart(2, "0")}:{String(seconds % 60).padStart(2, "0")}</strong></span></div><div className="qr-actions"><button className="button secondary" onClick={() => void copy()} disabled={!active || pendingAction !== null}>{copied ? <Check size={16} /> : <Clipboard size={16} />}{copied ? "Copiado" : "Copiar enlace"}</button><button className="button secondary danger" onClick={() => void revoke()} disabled={!active || pendingAction !== null}><XCircle size={16} /> {revoking ? "Revocando…" : "Revocar QR"}</button></div></> : <div className="loading-card"><QrCode size={38} /><p>{creating ? "Creando sesión segura…" : "No hay una sesión activa."}</p></div>}{visibleError ? <p className="form-error" role="alert">{visibleError}</p> : null}<button className="text-button centered" onClick={() => void createSession()} disabled={pendingAction !== null}><RefreshCw size={14} className={creating ? "spin" : ""} /> {creating ? "Generando…" : "Generar un QR nuevo"}</button></section>
         <section className="panel scanner-guide"><div className="panel-header"><div><span className="eyebrow">Paso 2</span><h2>Capture y envíe</h2></div></div><ol className="step-list"><li><span><Smartphone size={19} /></span><div><strong>Abra el enlace en el celular</strong><p>No incluye nombre, RUT ni datos clínicos.</p></div></li><li><span><ScanLine size={19} /></span><div><strong>Tome una o varias fotos</strong><p>Puede rotar y ordenar las páginas antes de subir.</p></div></li><li><span><FileImage size={19} /></span><div><strong>Elija imágenes o PDF</strong><p>Máximo 15 MB por archivo y 10 minutos de sesión.</p></div></li></ol><div className="received-box"><div><strong>Archivos recibidos en esta sesión</strong><span>{received.length}</span></div>{received.length ? received.map(file => <a href={`/api/files/${file.id}`} target="_blank" rel="noreferrer" key={file.id}><FileImage size={17} /><p><strong>{file.name}</strong><small>{formatBytes(file.size)}</small></p><Check size={16} /></a>) : <p className="waiting-copy"><span className="pulse-dot" />{active ? "Esperando documentos desde el celular…" : "Genere una sesión para recibir documentos."}</p>}</div></section>
       </div>
     </div>

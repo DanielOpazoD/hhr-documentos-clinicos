@@ -82,6 +82,19 @@ async function createMobileSession(owner) {
   return jsonResponse(await ownedFetch(owner, "/api/mobile-sessions", { method: "POST" }), 201);
 }
 
+function assertMobileSessionPresentation(session) {
+  const captureUrl = new URL(session.captureUrl);
+  assert.equal(captureUrl.hostname, "hhr.integration.test");
+  assert.equal(captureUrl.protocol, "https:");
+  assert.equal(captureUrl.pathname, "/captura");
+  assert.equal(captureUrl.search, "");
+  assert.equal(captureUrl.hash, `#${session.token}`);
+  assert.match(session.qrDataUrl, /^data:image\/svg\+xml;charset=utf-8,/);
+  const svg = decodeURIComponent(session.qrDataUrl.split(",", 2)[1]);
+  assert.match(svg, /^<svg[^>]+shape-rendering="crispEdges">/);
+  assert.equal(svg.includes(session.token), false);
+}
+
 function mobileUploadFetch(token, init = {}) {
   const { uploadId, ...requestInit } = init;
   const headers = new Headers(requestInit.headers);
@@ -388,6 +401,8 @@ test("keeps exactly one mobile capture session active per owner", async () => {
   const ownerB = `mobile-b-${crypto.randomUUID()}@hhr.test`;
   const first = (await createMobileSession(ownerA)).session;
   const second = (await createMobileSession(ownerA)).session;
+  assertMobileSessionPresentation(first);
+  assertMobileSessionPresentation(second);
   assert.notEqual(first.id, second.id);
   assert.notEqual(first.token, second.token);
   const remainingMs = Date.parse(second.expiresAt) - Date.now();
@@ -421,6 +436,60 @@ test("keeps exactly one mobile capture session active per owner", async () => {
   assert.deepEqual([...concurrentStatuses].sort((a, b) => a - b), [200, 410]);
   const activeIndex = concurrentStatuses.findIndex(status => status === 200);
   await jsonResponse(await jsonRequest(ownerA, "/api/mobile-sessions", "PATCH", { id: concurrent[activeIndex].session.id }), 200);
+});
+
+test("keeps mobile QR presentation canonical and fails before mutating sessions", async () => {
+  const spoofedOwner = `mobile-origin-${crypto.randomUUID()}@hhr.test`;
+  const spoofedHeaders = new Headers({
+    "oai-authenticated-user-email": spoofedOwner,
+    "x-forwarded-host": "attacker.example",
+    "x-forwarded-proto": "http",
+  });
+  const spoofedResponse = await app.fetch("http://attacker.example/api/mobile-sessions", {
+    method: "POST",
+    headers: spoofedHeaders,
+  });
+  const spoofedSession = (await jsonResponse(spoofedResponse, 201)).session;
+  assertMobileSessionPresentation(spoofedSession);
+  assert.equal(spoofedSession.captureUrl.includes("attacker.example"), false);
+  await jsonResponse(await jsonRequest(
+    spoofedOwner,
+    "/api/mobile-sessions",
+    "PATCH",
+    { id: spoofedSession.id },
+  ), 200);
+
+  const preservedOwner = `mobile-presentation-failure-${crypto.randomUUID()}@hhr.test`;
+  const preservedSessionId = crypto.randomUUID();
+  const createdAt = new Date(Date.now() - 60_000).toISOString();
+  const expiresAt = new Date(Date.now() + 9 * 60_000).toISOString();
+  const invalidOriginApp = await startLocalApp({
+    vars: { PUBLIC_APP_ORIGIN: "http://attacker.example/path" },
+    seedSql: [`
+      INSERT INTO mobile_upload_sessions
+        (id, owner_email, token_hash, expires_at, status, created_at, updated_at)
+      VALUES
+        ('${preservedSessionId}', '${preservedOwner}', 'preserved-session-hash', '${expiresAt}', 'activa', '${createdAt}', '${createdAt}')
+    `],
+  });
+
+  try {
+    const headers = { "oai-authenticated-user-email": preservedOwner };
+    const failedCreation = await invalidOriginApp.fetch("/api/mobile-sessions", {
+      method: "POST",
+      headers,
+    });
+    await jsonResponse(failedCreation, 500);
+
+    const preserved = await jsonResponse(await invalidOriginApp.fetch(
+      `/api/mobile-sessions?id=${preservedSessionId}`,
+      { headers },
+    ), 200);
+    assert.equal(preserved.session.status, "activa");
+    assert.equal(preserved.session.id, preservedSessionId);
+  } finally {
+    await invalidOriginApp.close();
+  }
 });
 
 test("attributes mobile files to their exact session without origin spoofing", async () => {

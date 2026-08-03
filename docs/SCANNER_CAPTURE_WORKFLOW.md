@@ -13,6 +13,8 @@ móvil usa una capacidad temporal y un protocolo de publicación D1/R2 recuperab
 - PDF del escáner: `app/features/scanner/scanned-pdf.ts`; carga diferida de `jsPDF`:
   `app/lib/client/js-pdf.ts`.
 - Sesiones: `app/api/mobile-sessions/route.ts`.
+- Enlace y QR temporal: `app/lib/server/mobile-session-presentation.ts`; el cliente recibe
+  el SVG final y no carga el codificador.
 - Recepción móvil: `app/api/mobile-upload/route.ts`.
 - Persistencia final: dominio Archivos mediante `app/features/files/client.ts` y
   `app/api/files/route.ts`.
@@ -51,7 +53,8 @@ flowchart LR
 ```mermaid
 flowchart LR
     Owner["Navegador autenticado"] --> Create["Crear sesión"]
-    Create --> Revoke["Revocar sesiones activas anteriores"]
+    Create --> Present["Validar origen y construir enlace/QR"]
+    Present --> Revoke["Revocar sesiones activas anteriores"]
     Revoke --> Session["Guardar hash, expiración y auditoría en D1"]
     Session --> QR["Entregar token una vez dentro del fragmento QR"]
     QR --> Mobile["Navegador móvil"]
@@ -72,11 +75,14 @@ flowchart LR
    el mismo batch.
 2. El token aleatorio dura 10 minutos, se almacena solo como hash y no viaja en la ruta HTTP
    del QR.
-3. La capacidad permite hasta 8 archivos y se reserva en D1 antes de escribir en R2.
-4. `x-hhr-upload-id` hace idempotente el reintento cuando la respuesta anterior se pierde.
-5. Un archivo solo se publica cuando R2 existe, la sesión sigue activa y la transición
+3. El servidor usa `PUBLIC_APP_ORIGIN` como origen canónico, permite la URL de la petición
+   solo en loopback local, inserta el token únicamente en el fragmento y genera el SVG. Un
+   fallo de configuración ocurre antes de revocar o crear sesiones en D1.
+4. La capacidad permite hasta 8 archivos y se reserva en D1 antes de escribir en R2.
+5. `x-hhr-upload-id` hace idempotente el reintento cuando la respuesta anterior se pierde.
+6. Un archivo solo se publica cuando R2 existe, la sesión sigue activa y la transición
    `pendiente → activo` queda auditada.
-6. El navegador autenticado consulta únicamente sesiones y archivos de su propietario; el
+7. El navegador autenticado consulta únicamente sesiones y archivos de su propietario; el
    móvil conoce la capacidad, no la identidad del propietario.
 
 ## Condiciones terminales
