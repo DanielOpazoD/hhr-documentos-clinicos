@@ -391,7 +391,7 @@ test("uses one documented visual grammar across product surfaces", async () => {
   assert.match(styles, /@media \(prefers-reduced-motion: reduce\)/);
   assert.match(language, /## Primitivas compartidas/);
   assert.match(language, /## Superficies protegidas/);
-  assert.doesNotMatch(designQa, /\/var\/folders/);
+  assert.doesNotMatch(designQa, /(?:\/(?:Users|home|private|tmp|var\/folders)\/|[A-Z]:\\(?:Users|Documents and Settings)\\|file:\/\/)/i);
   assert.ok(sourceMenu.byteLength > 20_000);
   assert.ok(sourceAi.byteLength > 40_000);
 });
