@@ -1233,10 +1233,14 @@ test("fills the official Hospital del Salvador Word without changing its institu
 });
 
 test("operation feedback keeps recovery and support details consistent", async () => {
-  const [component, adapter, styles] = await Promise.all([
+  const [component, adapter, styles, documentStudio, commandBar, aiImport, aiResult] = await Promise.all([
     readFile(new URL("../app/components/OperationFeedback.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/lib/client/operation-feedback.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/globals.css", import.meta.url), "utf8"),
+    readFile(new URL("../app/components/DocumentStudio.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/features/documents/DocumentCommandBar.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/features/ai/AiImportForm.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/features/ai/AiDraftResult.tsx", import.meta.url), "utf8"),
   ]);
 
   assert.match(component, /role=\{isAlert \? "alert" : "status"\}/);
@@ -1247,4 +1251,8 @@ test("operation feedback keeps recovery and support details consistent", async (
   assert.doesNotMatch(adapter, /message:\s*cause\.message/);
   assert.match(styles, /\.operation-feedback-error/);
   assert.match(styles, /\.operation-feedback-support/);
+  for (const migratedSurface of [documentStudio, commandBar, aiImport, aiResult]) {
+    assert.match(migratedSurface, /OperationFeedback/);
+    assert.doesNotMatch(migratedSurface, /className="form-error/);
+  }
 });

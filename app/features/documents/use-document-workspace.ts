@@ -22,6 +22,7 @@ import { useDocumentHistory } from "./use-document-history";
 import { useDocumentTypography } from "./use-document-typography";
 import { sectionsFromTemplateSetting, templateSettingFor } from "./template-settings";
 import { useTemplateSettings } from "./use-template-settings";
+import { toOperationFailure, type OperationFailure } from "@/app/lib/client/operation-feedback";
 export function useDocumentWorkspace() {
   const defaultTemplate = getTemplate(DEFAULT_TEMPLATE_ID);
   const [templateId, setTemplateId] = useState<string>(defaultTemplate.id);
@@ -36,7 +37,7 @@ export function useDocumentWorkspace() {
   const [storedDocuments, setStoredDocuments] = useState<StoredDocument[]>([]);
   const [recentQuery, setRecentQuery] = useState("");
   const [newMenuOpen, setNewMenuOpen] = useState(false);
-  const [loadError, setLoadError] = useState<string | null>(null);
+  const [loadError, setLoadError] = useState<OperationFailure | null>(null);
   const [saveError, setSaveError] = useState<DocumentSaveFailure | null>(null);
   const [deletingDocumentIds, setDeletingDocumentIds] = useState<Set<string>>(() => new Set());
   const [aiMetadata, setAiMetadata] = useState<StoredAiMetadata | null>(null);
@@ -93,7 +94,7 @@ export function useDocumentWorkspace() {
       setStoredDocuments(await listDocuments(signal));
     } catch (error) {
       if (!(error instanceof DOMException && error.name === "AbortError")) {
-        setLoadError(error instanceof Error ? error.message : "No se pudieron cargar los documentos.");
+        setLoadError(toOperationFailure(error, "No se pudieron cargar los documentos."));
       }
     }
   }, [setLoadError, setStoredDocuments]);
@@ -174,7 +175,7 @@ export function useDocumentWorkspace() {
       return true;
     } catch (error) {
       if (workspaceEpoch.current === requestEpoch) {
-        setLoadError(error instanceof Error ? error.message : "No se pudo abrir el documento.");
+        setLoadError(toOperationFailure(error, "No se pudo abrir el documento."));
       }
       return false;
     }
@@ -250,7 +251,7 @@ export function useDocumentWorkspace() {
       await refreshDocuments();
       return true;
     } catch (error) {
-      setLoadError(error instanceof Error ? error.message : "No se pudieron eliminar los documentos.");
+      setLoadError(toOperationFailure(error, "No se pudieron eliminar los documentos."));
       return false;
     } finally {
       setDeletingDocumentIds(new Set());
@@ -258,6 +259,15 @@ export function useDocumentWorkspace() {
   }, [createDocument, documentId, flushPendingSave, refreshDocuments]);
 
   const deleteDocument = useCallback((id: string) => deleteDocuments([id]), [deleteDocuments]);
+
+  const dismissLoadError = useCallback(() => setLoadError(null), []);
+  const retryLoad = useCallback(async () => {
+    setLoadError(null);
+    const requested = new URLSearchParams(window.location.search).get("document");
+    if (requested) return openDocument(requested);
+    await refreshDocuments();
+    return true;
+  }, [openDocument, refreshDocuments]);
 
   const updateSection = useCallback((id: string, patch: Partial<Pick<DocumentSection, "title" | "body">>) => {
     setSections((current) => current.map((section) =>
@@ -330,7 +340,7 @@ export function useDocumentWorkspace() {
     ...identityWorkspace,
     updateSigner, sections, status, documentId, documentUpdatedAt, version, savedAt,
     saving, dirty, storedDocuments, filteredDocuments, recentQuery, setRecentQuery,
-    newMenuOpen, setNewMenuOpen, loadError, saveError,
+    newMenuOpen, setNewMenuOpen, loadError, saveError, dismissLoadError, retryLoad,
     deletingDocumentIds,
     ...historyWorkspace,
     ...signatureWorkspace,

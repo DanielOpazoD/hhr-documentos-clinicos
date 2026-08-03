@@ -4,6 +4,7 @@ import { lazy, Suspense, useCallback, useEffect, useLayoutEffect, useRef, useSta
 import { createPortal } from "react-dom";
 import { Printer, Sparkles, X } from "@/app/components/Icons";
 import { PageHeader } from "@/app/components/VisualPrimitives";
+import { OperationFeedback } from "@/app/components/OperationFeedback";
 import { DocumentCommandActions, DocumentSaveError } from "@/app/features/documents/DocumentCommandBar";
 import { AiProvenance } from "@/app/features/documents/AiProvenance";
 import { DocumentLibrary } from "@/app/features/documents/DocumentLibrary";
@@ -264,7 +265,19 @@ export function DocumentStudio() {
           {!assistantOpen ? <DocumentLibrary {...workspace} /> : null}
         </PageHeader>
 
-        {workspace.loadError ? <p className="form-error standalone">{workspace.loadError}</p> : null}
+        {workspace.loadError ? (
+          <OperationFeedback
+            tone="error"
+            title="No se pudo cargar Documentos"
+            message={workspace.loadError.message}
+            supportId={workspace.loadError.supportId}
+            code={workspace.loadError.code}
+            onDismiss={workspace.dismissLoadError}
+            actions={workspace.loadError.retryable ? (
+              <button type="button" className="text-button" onClick={() => void workspace.retryLoad()}>Reintentar</button>
+            ) : null}
+          />
+        ) : null}
         <DocumentSaveError {...workspace} />
         {preflightOpen && !assistantOpen ? (
           <DocumentPreflight

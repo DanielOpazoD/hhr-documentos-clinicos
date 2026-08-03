@@ -8,6 +8,11 @@ import type { AiImportResult, AiPatient, AiProgress, AiPromptMode, AiProviderId,
 import type { AiPromptProfile } from "./prompt-types";
 import type { DocumentTemplateSectionSetting } from "@/app/features/documents/types";
 import { AI_WORKFLOW_MEMORY_KEY, parseAiWorkflowMemory, serializeAiWorkflowMemory } from "./workflow-memory";
+import {
+  operationFailure,
+  toOperationFailure,
+  type OperationFailure,
+} from "@/app/lib/client/operation-feedback";
 
 const AI_SELECTION_STORAGE_KEY = "hhr.ai-selection.v1";
 type StoredAiSelection = { provider?: AiProviderId; model?: string };
@@ -83,7 +88,7 @@ export function useAiStudio({ initialPromptId, initialTarget, initialTemplateId,
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const [saving, setSaving] = useState(false);
   const [identityConfirmed, setIdentityConfirmed] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<OperationFailure | null>(null);
   const [createdId, setCreatedId] = useState<string | null>(null);
   const [draftHasChanges, setDraftHasChanges] = useState(false);
   const [draftContext, setDraftContext] = useState<{
@@ -149,7 +154,7 @@ export function useAiStudio({ initialPromptId, initialTarget, initialTemplateId,
         }
       })
       .catch(() => {
-        if (active) setError("No se pudo consultar la disponibilidad de los modelos.");
+        if (active) setError(operationFailure("No se pudo consultar la disponibilidad de los modelos.", { retryable: true }));
       })
       .finally(() => {
         if (active) setProvidersLoading(false);
@@ -165,7 +170,7 @@ export function useAiStudio({ initialPromptId, initialTarget, initialTemplateId,
         setPromptProfiles(profiles);
       })
       .catch(() => {
-        if (active) setError("No se pudieron consultar los prompts de documentos.");
+        if (active) setError(operationFailure("No se pudieron consultar las plantillas de documentos.", { retryable: true }));
       })
       .finally(() => {
         if (active) setPromptsLoading(false);
@@ -285,7 +290,7 @@ export function useAiStudio({ initialPromptId, initialTarget, initialTemplateId,
         setProgress(null);
         return null;
       }
-      setError(cause instanceof Error ? cause.message : "No se pudo conectar con el servicio de IA.");
+      setError(toOperationFailure(cause, "No se pudo conectar con el servicio de IA."));
       return null;
     } finally {
       if (processingControllerRef.current === controller) {
@@ -307,7 +312,7 @@ export function useAiStudio({ initialPromptId, initialTarget, initialTemplateId,
   async function createDraft() {
     if (savingRef.current) return null;
     if (!identityConfirmed) {
-      setError("Revise y confirme los datos de identidad antes de guardar.");
+      setError(operationFailure("Revise y confirme los datos de identidad antes de guardar."));
       return null;
     }
     savingRef.current = true;
@@ -332,7 +337,7 @@ export function useAiStudio({ initialPromptId, initialTarget, initialTemplateId,
       setDraftHasChanges(false);
       return documentId;
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "No se pudo guardar el borrador.");
+      setError(toOperationFailure(cause, "No se pudo guardar el borrador."));
       return null;
     } finally {
       savingRef.current = false;
@@ -387,7 +392,7 @@ export function useAiStudio({ initialPromptId, initialTarget, initialTemplateId,
   function addFiles(nextFiles: File[]) {
     const merged = [...files, ...nextFiles];
     if (merged.length > 8) {
-      setError("Puede analizar hasta 8 archivos por vez. Quite uno antes de agregar más.");
+      setError(operationFailure("Puede analizar hasta 8 archivos por vez. Quite uno antes de agregar más."));
       return;
     }
     setFiles(merged);
@@ -411,6 +416,10 @@ export function useAiStudio({ initialPromptId, initialTarget, initialTemplateId,
     setError(null);
     setProgress(null);
     setIdentityConfirmed(false);
+  }
+
+  function clearError() {
+    setError(null);
   }
 
   function selectProvider(nextProvider: AiProviderId) {
@@ -453,6 +462,7 @@ export function useAiStudio({ initialPromptId, initialTarget, initialTemplateId,
     identityConfirmed,
     setIdentityConfirmed,
     error,
+    clearError,
     createdId,
     draftHasChanges,
     draftTarget: draftContext?.target ?? target,
