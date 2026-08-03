@@ -14,6 +14,8 @@ export type MobileSession = {
 
 export type CreatedMobileSession = MobileSession & {
   token: string;
+  captureUrl: string;
+  qrDataUrl: string;
 };
 
 export type CaptureSession = Pick<MobileSession, "id" | "expiresAt"> & {

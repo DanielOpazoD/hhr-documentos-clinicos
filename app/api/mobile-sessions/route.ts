@@ -7,6 +7,7 @@ import { cleanupPendingFileDeletes } from "@/app/features/files/server/delete-fi
 import { requestOwner } from "@/app/lib/server/auth";
 import { ensureDatabase } from "@/app/lib/server/database";
 import { jsonError, observeApi, readJsonObject } from "@/app/lib/server/http";
+import { mobileSessionPresentation } from "@/app/lib/server/mobile-session-presentation";
 import { sha256 } from "@/app/lib/server/security";
 import { after } from "next/server";
 
@@ -156,7 +157,13 @@ async function createMobileSession(request: Request) {
   ]);
 
   return Response.json({
-    session: { id, token, expiresAt, status: "activa" },
+    session: {
+      id,
+      token,
+      expiresAt,
+      status: "activa",
+      ...mobileSessionPresentation(request.url, token),
+    },
   }, { status: 201, headers: privateResponse });
 }
 

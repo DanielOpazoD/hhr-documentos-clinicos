@@ -82,6 +82,19 @@ async function createMobileSession(owner) {
   return jsonResponse(await ownedFetch(owner, "/api/mobile-sessions", { method: "POST" }), 201);
 }
 
+function assertMobileSessionPresentation(session) {
+  const captureUrl = new URL(session.captureUrl);
+  assert.equal(captureUrl.hostname, "hhr.integration.test");
+  assert.match(captureUrl.protocol, /^https?:$/);
+  assert.equal(captureUrl.pathname, "/captura");
+  assert.equal(captureUrl.search, "");
+  assert.equal(captureUrl.hash, `#${session.token}`);
+  assert.match(session.qrDataUrl, /^data:image\/svg\+xml;charset=utf-8,/);
+  const svg = decodeURIComponent(session.qrDataUrl.split(",", 2)[1]);
+  assert.match(svg, /^<svg[^>]+shape-rendering="crispEdges">/);
+  assert.equal(svg.includes(session.token), false);
+}
+
 function mobileUploadFetch(token, init = {}) {
   const { uploadId, ...requestInit } = init;
   const headers = new Headers(requestInit.headers);
@@ -388,6 +401,8 @@ test("keeps exactly one mobile capture session active per owner", async () => {
   const ownerB = `mobile-b-${crypto.randomUUID()}@hhr.test`;
   const first = (await createMobileSession(ownerA)).session;
   const second = (await createMobileSession(ownerA)).session;
+  assertMobileSessionPresentation(first);
+  assertMobileSessionPresentation(second);
   assert.notEqual(first.id, second.id);
   assert.notEqual(first.token, second.token);
   const remainingMs = Date.parse(second.expiresAt) - Date.now();

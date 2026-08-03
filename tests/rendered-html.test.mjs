@@ -125,8 +125,8 @@ test("ships the clinical routes, storage bindings and source templates", async (
   assert.match(mobileCapture, /restartAfterDeletedUpload/);
   assert.match(mobileCapture, /sentPageCount \+ remainingFiles/);
   assert.match(mobileCapture, /selected\.length > available/);
-  assert.match(scanner, /\/captura#\$\{created\.token\}/);
-  assert.doesNotMatch(scanner, /\/captura\/\$\{/);
+  assert.match(scanner, /session\.captureUrl/);
+  assert.doesNotMatch(scanner, /\/captura[#\/]\$\{/);
   assert.match(captureEntry, /sessionStorage/);
   assert.match(captureEntry, /window\.location\.hash/);
   assert.match(captureEntry, /history\.replaceState/);
@@ -192,10 +192,11 @@ test("ships the clinical routes, storage bindings and source templates", async (
 });
 
 test("serializes terminal mobile snapshots and keeps scanner polling server-authoritative", async () => {
-  const [mobileSessions, mobileUpload, scanner] = await Promise.all([
+  const [mobileSessions, mobileUpload, scanner, presentation] = await Promise.all([
     readFile(new URL("../app/api/mobile-sessions/route.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/api/mobile-upload/route.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/components/ScannerDesk.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/lib/server/mobile-session-presentation.ts", import.meta.url), "utf8"),
   ]);
 
   const expirationFence = sourceSection(
@@ -232,6 +233,13 @@ test("serializes terminal mobile snapshots and keeps scanner polling server-auth
   assert.match(sessionGet, /await fenceExpiredSession\(db, owner, session, snapshotAt\)/);
   assert.match(sessionGet, /files: snapshot\.files/);
   assert.match(sessionGet, /sessionResponse\(session, snapshotStatus\)/);
+  assert.match(mobileSessions, /mobileSessionPresentation\(request\.url, token\)/);
+  assert.match(presentation, /new URL\("\/captura", requestUrl\)/);
+  assert.match(presentation, /captureUrl\.hash = token/);
+  assert.match(presentation, /data:image\/svg\+xml;charset=utf-8/);
+  assert.match(scanner, /session\.qrDataUrl/);
+  assert.match(scanner, /session\.captureUrl/);
+  assert.doesNotMatch(scanner, /vendor\/qrcode|window\.location\.origin|QRCode\.toDataURL/);
 
   const uploadFinalization = sourceSection(
     mobileUpload,
