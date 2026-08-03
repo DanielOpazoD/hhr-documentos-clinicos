@@ -3,13 +3,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { DocumentStatus } from "@/app/lib/catalog";
 import { getDocument, listDocuments, removeStoredDocuments } from "./api";
 import { formatSavedTime } from "./formatters";
-import {
-  createSections,
-  DEFAULT_TEMPLATE_ID,
-  getTemplate,
-  normalizeSections,
-  normalizeTemplateId,
-} from "./templates";
+import { createSections, DEFAULT_TEMPLATE_ID, getTemplate, normalizeSections, normalizeTemplateId } from "./templates";
 import type { DocumentSection, StoredAiMetadata, StoredDocument } from "./types";
 import { useSignatureWorkspace } from "./use-signature-workspace";
 import { useDocumentIdentity } from "./use-document-identity";
@@ -22,6 +16,7 @@ import { useDocumentTypography } from "./use-document-typography";
 import { sectionsFromTemplateSetting, templateSettingFor } from "./template-settings";
 import { useTemplateSettings } from "./use-template-settings";
 import { toOperationFailure, type OperationFailure } from "@/app/lib/client/operation-feedback";
+type LoadRetry = { kind: "list" } | { kind: "open"; id: string } | { kind: "delete"; ids: string[] };
 export function useDocumentWorkspace() {
   const defaultTemplate = getTemplate(DEFAULT_TEMPLATE_ID);
   const [templateId, setTemplateId] = useState<string>(defaultTemplate.id);
@@ -37,6 +32,7 @@ export function useDocumentWorkspace() {
   const [recentQuery, setRecentQuery] = useState("");
   const [newMenuOpen, setNewMenuOpen] = useState(false);
   const [loadError, setLoadError] = useState<OperationFailure | null>(null);
+  const loadRetryRef = useRef<LoadRetry>({ kind: "list" });
   const [saveError, setSaveError] = useState<DocumentSaveFailure | null>(null);
   const [deletingDocumentIds, setDeletingDocumentIds] = useState<Set<string>>(() => new Set());
   const [aiMetadata, setAiMetadata] = useState<StoredAiMetadata | null>(null);
@@ -93,6 +89,7 @@ export function useDocumentWorkspace() {
       setStoredDocuments(await listDocuments(signal));
     } catch (error) {
       if (!(error instanceof DOMException && error.name === "AbortError")) {
+        loadRetryRef.current = { kind: "list" };
         setLoadError(toOperationFailure(error, "No se pudieron cargar los documentos."));
       }
     }
@@ -174,6 +171,7 @@ export function useDocumentWorkspace() {
       return true;
     } catch (error) {
       if (workspaceEpoch.current === requestEpoch) {
+        loadRetryRef.current = { kind: "open", id };
         setLoadError(toOperationFailure(error, "No se pudo abrir el documento."));
       }
       return false;
@@ -250,6 +248,7 @@ export function useDocumentWorkspace() {
       await refreshDocuments();
       return true;
     } catch (error) {
+      loadRetryRef.current = { kind: "delete", ids };
       setLoadError(toOperationFailure(error, "No se pudieron eliminar los documentos."));
       return false;
     } finally {
@@ -260,12 +259,13 @@ export function useDocumentWorkspace() {
   const deleteDocument = useCallback((id: string) => deleteDocuments([id]), [deleteDocuments]);
   const dismissLoadError = useCallback(() => setLoadError(null), []);
   const retryLoad = useCallback(async () => {
+    const retry = loadRetryRef.current;
     setLoadError(null);
-    const requested = new URLSearchParams(window.location.search).get("document");
-    if (requested) return openDocument(requested);
+    if (retry.kind === "open") return openDocument(retry.id);
+    if (retry.kind === "delete") return deleteDocuments(retry.ids);
     await refreshDocuments();
     return true;
-  }, [openDocument, refreshDocuments]);
+  }, [deleteDocuments, openDocument, refreshDocuments]);
   const updateSection = useCallback((id: string, patch: Partial<Pick<DocumentSection, "title" | "body">>) => {
     setSections((current) => current.map((section) =>
       section.id === id ? { ...section, ...patch } : section,
