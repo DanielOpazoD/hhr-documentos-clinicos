@@ -47,6 +47,9 @@ test("builds the clinical document workspace from a production product identity"
   assert.match(buildBudget, /routeBudgets/);
   assert.match(buildBudget, /maxDeferredPdfBytes/);
   assert.match(buildBudget, /maxDeferredAssistantBytes/);
+  assert.match(buildBudget, /maxDeferredTemplateSettingsBytes/);
+  assert.match(buildBudget, /sharedCssFiles/);
+  assert.match(buildBudget, /documentCssFiles/);
   assert.match(buildBudget, /dynamicImports/);
   assert.match(buildBudget, /manifest\.json/);
   assert.match(databaseCheck, /mkdtemp/);
@@ -715,6 +718,8 @@ test("keeps the clinical studios usable from mobile through desktop", async () =
   assert.match(styles, /\.print-only \{ display: block !important; \}/);
   assert.match(styles, /@media print \{[\s\S]*?\.clinical-paper \{[^}]*min-height: 0 !important;[^}]*padding: 0 !important;[^}]*break-inside: auto;/);
   assert.match(documentStyles, /\.document-workspace-view\[hidden\] \{[\s\S]*?display: none;/);
+  assert.match(documentStyles, /\.document-workspace-shell,\s*\.document-workspace-view,\s*\.document-main \{\s*min-width: 0;/);
+  assert.match(documentStyles, /\.document-main \{\s*display: grid;\s*gap: 8px;/);
   assert.match(documentStyles, /@media print \{[\s\S]*?\.document-workspace-shell,[\s\S]*?\.paper-panel \{[\s\S]*?display: block !important;/);
   assert.doesNotMatch(documentStyles, /@media print \{[\s\S]*?\.document-workspace-view,/);
   assert.match(styles, /\.clinical-paper\.prescription-paper \{[^}]*min-height: 250mm !important;[^}]*padding-bottom: 28mm !important;/);
@@ -743,7 +748,13 @@ test("keeps the clinical studios usable from mobile through desktop", async () =
   assert.doesNotMatch(styles, /\.document-editor-layout > \.mobile-hidden/);
   assert.match(styles, /\.page-header > \*, \.hero-row > \*.*min-width: 0;/);
   assert.match(layout, /styles\/responsive-focus\.css/);
-  assert.match(layout, /features\/documents\/documents\.css/);
+  assert.doesNotMatch(layout, /features\/documents\/documents\.css/);
+  assert.match(await readFile(new URL("../app/components/DocumentStudio.tsx", import.meta.url), "utf8"), /features\/documents\/documents\.css/);
+  assert.match(await readFile(new URL("../app/components/DocumentStudio.tsx", import.meta.url), "utf8"), /LazyTemplateSettingsEditor = lazy/);
+  assert.match(dashboard, /document-list-main/);
+  assert.doesNotMatch(globalStyles, /\.document-main/);
+  assert.doesNotMatch(globalStyles, /\.tpl-editor/);
+  assert.match(documentStyles, /\.tpl-editor/);
   assert.match(dashboard, /card-link-label/);
   assert.match(dashboard, /\/documentos\?assistant=1/);
   assert.match(responsiveStyles, /\.dashboard-page \.action-card/);
