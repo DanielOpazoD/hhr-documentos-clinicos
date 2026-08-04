@@ -785,6 +785,8 @@ test("contains no production sample workflow or fictitious record creation", asy
   assert.match(settings, /id: "uso"/);
   assert.match(headersConfig, /X-Content-Type-Options/);
   assert.match(headersConfig, /Permissions-Policy/);
+  assert.match(headersConfig, /Referrer-Policy", value: "strict-origin-when-cross-origin"/);
+  assert.match(headersConfig, /source: "\/captura"[\s\S]*Referrer-Policy", value: "no-referrer"/);
 });
 
 test("integrates connections and guarded AI usage into tabbed settings", async () => {
