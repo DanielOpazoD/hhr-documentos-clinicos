@@ -47,8 +47,8 @@ export function AiDraftResult({
       if (await onOpenDocument(documentId) === false) {
         setOpenError(operationFailure("El borrador quedó guardado, pero no se pudo abrir. Puede volver a intentarlo.", { retryable: true }));
       }
-    } catch {
-      setOpenError(operationFailure("El borrador quedó guardado, pero no se pudo abrir. Puede volver a intentarlo.", { retryable: true }));
+    } catch (cause) {
+      setOpenError(toOperationFailure(cause, "El borrador quedó guardado, pero no se pudo abrir. Puede volver a intentarlo."));
     }
   }
 
@@ -113,8 +113,12 @@ export function AiDraftResult({
             title={feedbackTitle}
             message={visibleFailure.message}
             supportId={visibleFailure.supportId}
-            actions={openError && controller.createdId ? (
+            actions={downloadError ? (downloadError.retryable ? (
+              <button type="button" className="text-button" onClick={() => void downloadOfficialWord()}>Reintentar descarga</button>
+            ) : null) : openError ? (openError.retryable && controller.createdId ? (
               <button type="button" className="text-button" onClick={() => void openSavedDraft(controller.createdId!)}>Reintentar apertura</button>
+            ) : null) : controller.error?.retryable ? (
+              <button type="button" className="text-button" onClick={controller.retryError}>Reintentar guardado</button>
             ) : null}
             onDismiss={() => {
               if (downloadError) setDownloadError(null);

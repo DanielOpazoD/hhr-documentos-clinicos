@@ -113,7 +113,9 @@ export function ScannerDesk() {
         }
       } catch (cause) {
         if (controller.signal.aborted || !isCurrentSession()) return;
-        setPollError(toOperationFailure(cause, "No se pudieron consultar los archivos recibidos."));
+        const failure = toOperationFailure(cause, "No se pudieron consultar los archivos recibidos.");
+        setPollError(failure);
+        if (!failure.retryable) return;
         const retryDelay = mode === "active"
           ? ACTIVE_POLL_INTERVAL_MS
           : TERMINAL_RETRY_DELAYS_MS[terminalFailureCount];

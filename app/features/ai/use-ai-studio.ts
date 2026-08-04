@@ -16,6 +16,7 @@ import {
 
 const AI_SELECTION_STORAGE_KEY = "hhr.ai-selection.v1";
 type StoredAiSelection = { provider?: AiProviderId; model?: string };
+type AiRetryOperation = "analyze" | "save" | (() => void);
 
 const emptyResult: AiImportResult = {
   documentKind: "",
@@ -68,6 +69,7 @@ export function useAiStudio({ initialPromptId, initialTarget, initialTemplateId,
   const processingRef = useRef(false);
   const processingControllerRef = useRef<AbortController | null>(null);
   const savingRef = useRef(false);
+  const retryErrorRef = useRef<AiRetryOperation | null>(null);
   const [files, setFiles] = useState<File[]>([]);
   const [target, setTarget] = useState<AiTargetId>(initialTarget ?? "epicrisis");
   const [provider, setProvider] = useState<AiProviderId>("openai");
@@ -134,7 +136,9 @@ export function useAiStudio({ initialPromptId, initialTarget, initialTemplateId,
 
   useEffect(() => {
     let active = true;
-    void fetchAiProviders()
+    const loadProviders = () => {
+      setProvidersLoading(true);
+      void fetchAiProviders()
       .then((availableProviders) => {
         if (!active) return;
         setProviders(availableProviders);
@@ -153,28 +157,39 @@ export function useAiStudio({ initialPromptId, initialTarget, initialTemplateId,
           setModel(savedModel && selected.models.some((item) => item.id === savedModel) ? savedModel : selected.model);
         }
       })
-      .catch(() => {
-        if (active) setError(operationFailure("No se pudo consultar la disponibilidad de los modelos.", { retryable: true }));
+      .catch((cause) => {
+        if (!active) return;
+        const failure = toOperationFailure(cause, "No se pudo consultar la disponibilidad de los modelos.");
+        retryErrorRef.current = failure.retryable ? loadProviders : null;
+        setError(failure);
       })
       .finally(() => {
         if (active) setProvidersLoading(false);
       });
+    };
+    loadProviders();
     return () => { active = false; };
   }, []);
 
   useEffect(() => {
     let active = true;
-    const refreshPrompts = () => void fetchPromptProfiles()
+    const refreshPrompts = () => {
+      setPromptsLoading(true);
+      void fetchPromptProfiles()
       .then((profiles) => {
         if (!active) return;
         setPromptProfiles(profiles);
       })
-      .catch(() => {
-        if (active) setError(operationFailure("No se pudieron consultar las plantillas de documentos.", { retryable: true }));
+      .catch((cause) => {
+        if (!active) return;
+        const failure = toOperationFailure(cause, "No se pudieron consultar las plantillas de documentos.");
+        retryErrorRef.current = failure.retryable ? refreshPrompts : null;
+        setError(failure);
       })
       .finally(() => {
         if (active) setPromptsLoading(false);
       });
+    };
     refreshPrompts();
     window.addEventListener("hhr:ai-prompts-changed", refreshPrompts);
     return () => {
@@ -239,6 +254,7 @@ export function useAiStudio({ initialPromptId, initialTarget, initialTemplateId,
     setCancelling(false);
     setProgress({ stage: "preparing", label: "Preparando archivos", detail: "Validando formatos y tamaños" });
     setError(null);
+    retryErrorRef.current = null;
     setCreatedId(null);
     try {
       const nextResult = await importWithAi({
@@ -290,7 +306,9 @@ export function useAiStudio({ initialPromptId, initialTarget, initialTemplateId,
         setProgress(null);
         return null;
       }
-      setError(toOperationFailure(cause, "No se pudo conectar con el servicio de IA."));
+      const failure = toOperationFailure(cause, "No se pudo conectar con el servicio de IA.");
+      retryErrorRef.current = failure.retryable ? "analyze" : null;
+      setError(failure);
       return null;
     } finally {
       if (processingControllerRef.current === controller) {
@@ -312,12 +330,14 @@ export function useAiStudio({ initialPromptId, initialTarget, initialTemplateId,
   async function createDraft() {
     if (savingRef.current) return null;
     if (!identityConfirmed) {
+      retryErrorRef.current = null;
       setError(operationFailure("Revise y confirme los datos de identidad antes de guardar."));
       return null;
     }
     savingRef.current = true;
     setSaving(true);
     setError(null);
+    retryErrorRef.current = null;
     try {
       const savedTarget = draftContext?.target ?? target;
       const savedPromptMode = draftContext?.promptMode ?? promptMode;
@@ -337,7 +357,9 @@ export function useAiStudio({ initialPromptId, initialTarget, initialTemplateId,
       setDraftHasChanges(false);
       return documentId;
     } catch (cause) {
-      setError(toOperationFailure(cause, "No se pudo guardar el borrador."));
+      const failure = toOperationFailure(cause, "No se pudo guardar el borrador.");
+      retryErrorRef.current = failure.retryable ? "save" : null;
+      setError(failure);
       return null;
     } finally {
       savingRef.current = false;
@@ -414,12 +436,23 @@ export function useAiStudio({ initialPromptId, initialTarget, initialTemplateId,
     setDraftHasChanges(false);
     setDraftContext(null);
     setError(null);
+    retryErrorRef.current = null;
     setProgress(null);
     setIdentityConfirmed(false);
   }
 
   function clearError() {
     setError(null);
+    retryErrorRef.current = null;
+  }
+
+  function retryError() {
+    const operation = retryErrorRef.current;
+    retryErrorRef.current = null;
+    setError(null);
+    if (typeof operation === "function") operation();
+    else if (operation === "analyze") void analyze();
+    else if (operation === "save") void createDraft();
   }
 
   function selectProvider(nextProvider: AiProviderId) {
@@ -463,6 +496,7 @@ export function useAiStudio({ initialPromptId, initialTarget, initialTemplateId,
     setIdentityConfirmed,
     error,
     clearError,
+    retryError,
     createdId,
     draftHasChanges,
     draftTarget: draftContext?.target ?? target,

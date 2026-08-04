@@ -81,7 +81,7 @@ export function DocumentSaveError({ persist, reloadDocument, saveError, saving }
       supportId={saveError.supportId}
       className="document-save-error"
       actions={<>
-        {saveError.recovery === "retry" ? (
+        {saveError.recovery === "retry" && saveError.retryable ? (
           <button className="text-button" disabled={saving} onClick={() => void persist()}>Reintentar guardado</button>
         ) : null}
         {saveError.recovery === "reload" ? (

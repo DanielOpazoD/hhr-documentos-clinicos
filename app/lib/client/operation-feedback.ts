@@ -11,7 +11,7 @@ type FailureOptions = {
 };
 
 function retryableStatus(status: number): boolean {
-  return status === 408 || status === 425 || status === 429 || status >= 500;
+  return [408, 425, 429, 500, 502, 503, 504].includes(status);
 }
 
 export function operationFailure(message: string, options: FailureOptions = {}): OperationFailure {
@@ -36,10 +36,6 @@ export function toOperationFailure(
 
   if (cause instanceof TypeError) {
     return operationFailure(fallbackMessage, { retryable: options.retryable ?? true });
-  }
-
-  if (cause instanceof Error && cause.message.trim()) {
-    return operationFailure(cause.message, options);
   }
 
   return operationFailure(fallbackMessage, options);

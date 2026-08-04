@@ -38,6 +38,15 @@ test("classifies transient and validation failures without reading localized cop
   assert.equal(validation.retryable, false);
 });
 
+test("retries only known transient HTTP failures", () => {
+  for (const status of [408, 425, 429, 500, 502, 503, 504]) {
+    assert.equal(toOperationFailure(new ApiClientError({ message: "Temporal", status }), "Error").retryable, true);
+  }
+  for (const status of [400, 401, 403, 409, 422, 501, 505]) {
+    assert.equal(toOperationFailure(new ApiClientError({ message: "Permanente", status }), "Error").retryable, false);
+  }
+});
+
 test("uses safe contextual copy for browser network failures", () => {
   const failure = toOperationFailure(
     new TypeError("Failed to fetch private upstream URL"),
@@ -47,4 +56,15 @@ test("uses safe contextual copy for browser network failures", () => {
   assert.equal(failure.message, "No se pudo conectar con el servicio.");
   assert.doesNotMatch(failure.message, /private upstream|Failed to fetch/);
   assert.equal(failure.retryable, true);
+});
+
+test("does not expose messages from generic errors", () => {
+  const failure = toOperationFailure(
+    new Error("/private/path patient=confidential"),
+    "No se pudo completar la operación.",
+  );
+
+  assert.equal(failure.message, "No se pudo completar la operación.");
+  assert.doesNotMatch(failure.message, /private|confidential/);
+  assert.equal(failure.retryable, false);
 });

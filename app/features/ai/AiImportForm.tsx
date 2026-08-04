@@ -229,6 +229,7 @@ export function AiImportForm({ controller }: Props) {
             title="No se pudo continuar con la generación"
             message={controller.error.message}
             supportId={controller.error.supportId}
+            actions={controller.error.retryable ? <button type="button" className="text-button" onClick={controller.retryError}>Reintentar</button> : null}
             onDismiss={controller.clearError}
           />
         ) : null}

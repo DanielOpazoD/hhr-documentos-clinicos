@@ -66,6 +66,7 @@ export function GoogleDrivePicker({
           title="No se pudo abrir Google Drive"
           message={error.message}
           supportId={error.supportId}
+          actions={error.retryable ? <button type="button" className="text-button" onClick={() => void openPicker()}>Reintentar</button> : null}
           onDismiss={() => setError(null)}
           className="drive-picker-feedback"
         />

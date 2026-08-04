@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Copy, Plus, Save, Sparkles, Star, Trash2 } from "@/app/components/Icons";
 import { OperationFeedback } from "@/app/components/OperationFeedback";
 import { toOperationFailure, type OperationFailure } from "@/app/lib/client/operation-feedback";
@@ -30,6 +30,7 @@ export function PromptManager({ initialTarget = "epicrisis" }: Props) {
   const [status, setStatus] = useState<string | null>(null);
   const [error, setError] = useState<OperationFailure | null>(null);
   const [improvementSummary, setImprovementSummary] = useState<string | null>(null);
+  const retryDeleteRef = useRef(false);
 
   const visible = useMemo(() => profiles.filter((profile) => profile.target === target), [profiles, target]);
   const selected = profiles.find((profile) => profile.id === selectedId) ?? null;
@@ -54,6 +55,7 @@ export function PromptManager({ initialTarget = "epicrisis" }: Props) {
     setConfirmDelete(false);
     setStatus(null);
     setError(null);
+    retryDeleteRef.current = false;
     setImprovementSummary(null);
   }
 
@@ -70,6 +72,7 @@ export function PromptManager({ initialTarget = "epicrisis" }: Props) {
     setConfirmDelete(false);
     setStatus(null);
     setError(null);
+    retryDeleteRef.current = false;
     setImprovementSummary(null);
     setDraft(source ? {
       name: `${source.name} personalizado`.slice(0, 80),
@@ -82,6 +85,7 @@ export function PromptManager({ initialTarget = "epicrisis" }: Props) {
   async function saveDraft() {
     setBusy(true);
     setError(null);
+    retryDeleteRef.current = false;
     setStatus(null);
     try {
       const response = creating
@@ -100,6 +104,7 @@ export function PromptManager({ initialTarget = "epicrisis" }: Props) {
     if (!selected || selected.builtIn) return;
     setBusy(true);
     setError(null);
+    retryDeleteRef.current = false;
     try {
       const response = await deletePromptProfile(selected.id);
       setProfiles(response.prompts);
@@ -108,7 +113,9 @@ export function PromptManager({ initialTarget = "epicrisis" }: Props) {
       notifyPromptChanges();
       setStatus("Plantilla eliminada");
     } catch (cause) {
-      setError(toOperationFailure(cause, "No se pudo eliminar la plantilla."));
+      const failure = toOperationFailure(cause, "No se pudo eliminar la plantilla.");
+      retryDeleteRef.current = failure.retryable;
+      setError(failure);
     } finally { setBusy(false); setConfirmDelete(false); }
   }
 
@@ -116,6 +123,7 @@ export function PromptManager({ initialTarget = "epicrisis" }: Props) {
     if (draft.instructions.trim().length < 20 || draft.name.trim().length < 3) return;
     setImproving(true);
     setError(null);
+    retryDeleteRef.current = false;
     setStatus(null);
     setImprovementSummary(null);
     try {
@@ -150,7 +158,7 @@ export function PromptManager({ initialTarget = "epicrisis" }: Props) {
         <label className="prompt-instructions">Instrucciones<textarea value={draft.instructions} maxLength={16000} rows={14} readOnly={Boolean(selected?.builtIn)} disabled={busy} onChange={(event) => setDraft((current) => ({ ...current, instructions: event.target.value }))} /><small>{draft.instructions.length.toLocaleString("es-CL")} / 16.000</small></label>
         {!selected?.builtIn ? <label className="prompt-default"><input type="checkbox" checked={Boolean(draft.makeDefault)} disabled={busy} onChange={(event) => setDraft((current) => ({ ...current, makeDefault: event.target.checked }))} /><span><strong>Usar por defecto</strong><small>Se seleccionará al crear este tipo de documento.</small></span></label> : null}
         {improvementSummary ? <div className="prompt-ai-note"><Sparkles size={15} /><span><strong>Cambios propuestos</strong><small>{improvementSummary}</small></span></div> : null}
-        {error ? <OperationFeedback compact tone="error" title="No se pudo completar la operación" message={error.message} supportId={error.supportId} onDismiss={() => setError(null)} /> : null}
+        {error ? <OperationFeedback compact tone="error" title="No se pudo completar la operación" message={error.message} supportId={error.supportId} actions={error.retryable && retryDeleteRef.current ? <button type="button" className="text-button" onClick={() => void removeSelected()}>Reintentar eliminación</button> : null} onDismiss={() => { retryDeleteRef.current = false; setError(null); }} /> : null}
         {status ? <OperationFeedback compact tone="success" title={status} onDismiss={() => setStatus(null)} /> : null}
         {!selected?.builtIn ? <footer><div>{!creating && !confirmDelete ? <button type="button" className="text-button danger" disabled={busy} onClick={() => setConfirmDelete(true)}><Trash2 size={14} /> Eliminar</button> : null}{confirmDelete ? <span className="inline-confirm"><small>¿Eliminar esta plantilla?</small><button type="button" onClick={() => void removeSelected()}>Sí</button><button type="button" onClick={() => setConfirmDelete(false)}>No</button></span> : null}</div><button className="button primary" disabled={busy || !draft.name.trim() || draft.instructions.trim().length < 20}><Save size={15} /> {busy ? "Guardando…" : "Guardar"}</button></footer> : null}
       </form>
