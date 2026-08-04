@@ -18,7 +18,12 @@ import { DocumentPreflight } from "@/app/features/documents/DocumentPreflight";
 import { evaluateDocumentReadiness } from "@/app/features/documents/document-readiness";
 import { useDocumentWorkspace } from "@/app/features/documents/use-document-workspace";
 import { useDocumentKeyboard } from "@/app/features/documents/use-document-keyboard";
-import { TemplateSettingsEditor } from "@/app/features/documents/TemplateSettingsEditor";
+import "@/app/features/documents/documents.css";
+
+const LazyTemplateSettingsEditor = lazy(async () => {
+  const loaded = await import("@/app/features/documents/TemplateSettingsEditor");
+  return { default: loaded.TemplateSettingsEditor };
+});
 
 const LazyAiStudio = lazy(async () => {
   const loaded = await import("@/app/components/AiStudio");
@@ -227,7 +232,9 @@ export function DocumentStudio() {
       ) : null}
       {sidePanel === "template" && !assistantOpen ? (
         <aside ref={sidePanelRef} tabIndex={-1} className="signature-settings-panel template-settings-panel print-hide" aria-label="Configurar plantilla del documento">
-          <TemplateSettingsEditor key={workspace.activeTemplateSetting.templateId} workspace={workspace} onClose={closeSidePanel} />
+          <Suspense fallback={<div className="tpl-editor" role="status" aria-busy="true" aria-live="polite">Preparando plantilla…</div>}>
+            <LazyTemplateSettingsEditor key={workspace.activeTemplateSetting.templateId} workspace={workspace} onClose={closeSidePanel} />
+          </Suspense>
         </aside>
       ) : null}
       <div className="page-wrap studio-page simplified-studio">

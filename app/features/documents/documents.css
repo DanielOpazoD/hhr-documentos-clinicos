@@ -632,6 +632,151 @@
   font-size: 15px;
 }
 
+.template-settings-panel {
+  right: 12px;
+  left: auto;
+  width: min(430px, calc(100vw - 24px));
+}
+
+.tpl-editor {
+  display: grid;
+  gap: 12px;
+  padding: 16px;
+}
+
+.tpl-editor > header,
+.tpl-editor > footer,
+.tpl-sections > header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.tpl-editor header > div,
+.tpl-prompt summary span {
+  min-width: 0;
+  display: grid;
+}
+
+.tpl-editor h2 {
+  margin: 0;
+  font-size: 15px;
+}
+
+.tpl-editor small {
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.tpl-editor > header small,
+.tpl-prompt summary small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tpl-editor label {
+  font-size: 12px;
+}
+
+.tpl-editor input,
+.tpl-editor select {
+  height: 36px;
+  font-size: 13px;
+}
+
+.tpl-sections,
+.tpl-prompt {
+  border: 1px solid #e2e6e6;
+  border-radius: 10px;
+}
+
+.tpl-sections {
+  padding: 10px;
+}
+
+.tpl-sections > header {
+  margin-bottom: 7px;
+}
+
+.tpl-sections > div {
+  display: grid;
+  gap: 5px;
+}
+
+.tpl-sections article {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 30px;
+}
+
+.tpl-sections article > input {
+  height: 34px;
+  padding-inline: 8px;
+  background: #fbfbfc;
+  font-size: 12px;
+}
+
+.tpl-prompt > summary {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 8px;
+  padding: 10px;
+  color: var(--cyan);
+  cursor: pointer;
+  list-style: none;
+}
+
+.tpl-prompt > summary::-webkit-details-marker {
+  display: none;
+}
+
+.tpl-prompt summary strong {
+  color: var(--ink);
+}
+
+.tpl-prompt[open] > summary {
+  border-bottom: 1px solid #e8ecec;
+}
+
+.tpl-prompt > div {
+  display: grid;
+  gap: 9px;
+  padding: 10px;
+}
+
+.tpl-prompt textarea {
+  min-height: 150px;
+  font-size: 12px;
+}
+
+.tpl-no-ai {
+  margin: 0;
+  padding: 9px 10px;
+  background: #f5f7f7;
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.tpl-editor > .form-success {
+  margin: 0;
+}
+
+.tpl-editor > footer {
+  padding-top: 11px;
+  border-top: 1px solid #e9eded;
+}
+
+.tpl-editor > footer small {
+  max-width: 180px;
+}
+
+.tpl-editor > footer .button {
+  min-height: 36px;
+  font-size: 12px;
+}
+
 .document-ai-assistant {
   overflow: hidden;
   border: 1px solid var(--line);

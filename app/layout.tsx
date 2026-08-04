@@ -4,7 +4,6 @@ import { headers } from "next/headers";
 import { productIdentity } from "@/app/lib/product";
 import "./globals.css";
 import "./styles/responsive-focus.css";
-import "./features/documents/documents.css";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",

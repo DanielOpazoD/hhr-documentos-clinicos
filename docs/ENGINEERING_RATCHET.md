@@ -76,6 +76,21 @@ Un presupuesto vacío no significa ejecución ilimitada: conserva los límites a
 repositorio. Superar un límite exige una decisión explícita, no cambiar silenciosamente la
 puerta de calidad.
 
+### Fronteras de carga verificables
+
+El presupuesto web se mide desde el manifiesto de producción, no suponiendo que cada ruta
+carga todos los estilos generados. El shell comparte solo el CSS sin propietario explícito;
+cada entrada suma sus importaciones estáticas y sus hojas asociadas. Las herramientas
+opcionales conservan un presupuesto diferido separado y no pueden reaparecer en la carga
+inicial de su módulo.
+
+Para Documentos esto implica tres contratos automáticos:
+
+- sus estilos pertenecen a la entrada de `DocumentStudio` y no a la raíz de la aplicación;
+- el asistente IA y la configuración avanzada de plantillas siguen siendo importaciones
+  dinámicas;
+- el total de artefactos no aumenta su límite para acomodar una nueva separación.
+
 ## Aplicación al producto
 
 HHR Documentos separa cinco planos sin mostrarlos como complejidad al usuario:
