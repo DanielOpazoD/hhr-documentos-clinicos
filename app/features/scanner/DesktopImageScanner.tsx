@@ -3,6 +3,7 @@
 /* eslint-disable @next/next/no-img-element -- Processed previews are local object URLs. */
 
 import { Check, Download, FileImage, Loader2, Pencil, Save, Trash2, UploadCloud } from "@/app/components/Icons";
+import { OperationFeedback } from "@/app/components/OperationFeedback";
 import { uploadSavedFile } from "@/app/features/files/client";
 import { detectDocumentCorners } from "@/app/features/scanner/document-detection";
 import {
@@ -12,6 +13,11 @@ import {
 } from "@/app/features/scanner/ScanReviewEditor";
 import { createScannedPdf } from "@/app/features/scanner/scanned-pdf";
 import { formatBytes } from "@/app/lib/client/format-bytes";
+import {
+  operationFailure,
+  toOperationFailure,
+  type OperationFailure,
+} from "@/app/lib/client/operation-feedback";
 import {
   prepareScanSource,
   renderScannedPage,
@@ -91,13 +97,17 @@ export function DesktopImageScanner() {
   const [name, setName] = useState("Documento escaneado");
   const [filter, setFilter] = useState<ScanFilter>("auto");
   const [busy, setBusy] = useState<"processing" | "download" | "save" | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setErrorState] = useState<OperationFailure | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [dragActive, setDragActive] = useState(false);
   const [review, setReview] = useState<ScanReviewState | null>(null);
   const [detecting, setDetecting] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const pagesRef = useRef<ImportedPage[]>([]);
+
+  function setError(value: string | OperationFailure | null) {
+    setErrorState(typeof value === "string" ? operationFailure(value) : value);
+  }
 
   useEffect(() => { pagesRef.current = pages; }, [pages]);
   useEffect(() => () => pagesRef.current.forEach(releasePageUrls), []);
@@ -292,7 +302,7 @@ export function DesktopImageScanner() {
       const saved = await uploadSavedFile(file);
       setNotice(`“${saved.name}” quedó guardado de forma privada en Archivos.`);
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "No se pudo guardar el documento.");
+      setError(toOperationFailure(cause, "No se pudo guardar el documento."));
     } finally { setBusy(null); }
   }
 
@@ -349,7 +359,9 @@ export function DesktopImageScanner() {
         <div><button className="button secondary" disabled={Boolean(busy) || !name.trim()} onClick={() => void downloadPdf()}>{busy === "download" ? <Loader2 size={16} className="spin" /> : <Download size={16} />}{busy === "download" ? "Preparando…" : "Descargar PDF"}</button><button className="button primary" disabled={Boolean(busy) || !name.trim()} onClick={() => void savePdf()}>{busy === "save" ? <Loader2 size={16} className="spin" /> : <Save size={16} />}{busy === "save" ? "Guardando…" : "Guardar en Archivos"}</button></div>
       </div>
     </div> : null}
-    <div className="scanner-import-feedback" aria-live="polite">{error ? <p className="form-error" role="alert">{error}</p> : notice ? <p className="form-success"><Check size={15} /> {notice}</p> : null}</div>
+    <div className="scanner-import-feedback">{error ? (
+      <OperationFeedback compact tone="error" title="No se pudo completar el procesamiento" message={error.message} supportId={error.supportId} onDismiss={() => setError(null)} />
+    ) : notice ? <OperationFeedback compact tone="success" title={notice} onDismiss={() => setNotice(null)} /> : null}</div>
     {review && reviewPage ? <ScanReviewEditor page={reviewPage} review={review} processing={busy === "processing"} detecting={detecting} onChange={change => setReview(current => current ? { ...current, ...change } : current)} onApply={() => void applyReview()} onRedetect={() => void redetectPage()} onClose={() => setReview(null)} /> : null}
   </section>;
 }

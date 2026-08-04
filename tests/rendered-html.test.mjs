@@ -669,7 +669,7 @@ test("keeps the clinical studios usable from mobile through desktop", async () =
   assert.match(commandBarSource, /\{dirty && !saveError \? \(/);
   assert.match(commandBarSource, /Reintentar guardado/);
   assert.doesNotMatch(commandBarSource, /saveError\.includes\(/);
-  assert.match(commandBarSource, /saveError\.recovery === "retry"[\s\S]*Reintentar guardado/);
+  assert.match(commandBarSource, /saveError\.recovery === "retry" && saveError\.retryable[\s\S]*Reintentar guardado/);
   assert.match(commandBarSource, /saveError\.recovery === "reload"[\s\S]*Descartar cambios y recargar/);
   assert.match(documentStudio, /current\.setSaveError\(null\);\s*setSaving\(true\)/);
   assert.match(commandBarSource, /\{status\} · v\{version\}/);
@@ -1230,4 +1230,52 @@ test("fills the official Hospital del Salvador Word without changing its institu
   const withoutIdentityXml = strFromU8(unzipSync(withoutIdentity)["word/document.xml"]);
   assert.doesNotMatch(withoutIdentityXml, /Contenido verificado [12]<\/w:t>/);
   assert.ok((withoutIdentityXml.match(/No consignado/g) ?? []).length >= 2);
+});
+
+test("operation feedback keeps recovery and support details consistent", async () => {
+  const [component, adapter, styles, documentStudio, documentWorkspace, commandBar, aiImport, aiResult, aiStudio, drivePicker, promptManager, filesLibrary, scannerDesk, desktopScanner, mobileCapture] = await Promise.all([
+    readFile(new URL("../app/components/OperationFeedback.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/lib/client/operation-feedback.ts", import.meta.url), "utf8"),
+    readFile(new URL("../app/globals.css", import.meta.url), "utf8"),
+    readFile(new URL("../app/components/DocumentStudio.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/features/documents/use-document-workspace.ts", import.meta.url), "utf8"),
+    readFile(new URL("../app/features/documents/DocumentCommandBar.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/features/ai/AiImportForm.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/features/ai/AiDraftResult.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/features/ai/use-ai-studio.ts", import.meta.url), "utf8"),
+    readFile(new URL("../app/features/ai/GoogleDrivePicker.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/features/ai/PromptManager.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/components/FilesLibrary.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/components/ScannerDesk.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/features/scanner/DesktopImageScanner.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/components/MobileCapture.tsx", import.meta.url), "utf8"),
+  ]);
+
+  assert.match(component, /role=\{isAlert \? "alert" : "status"\}/);
+  assert.match(component, /aria-live=\{isAlert \? "assertive" : "polite"\}/);
+  assert.match(component, /Detalles para soporte/);
+  assert.match(component, /operation-feedback-actions/);
+  assert.match(adapter, /cause\.userMessage/);
+  assert.doesNotMatch(adapter, /message:\s*cause\.message/);
+  assert.match(documentWorkspace, /setLoadRetry\(\{ kind: "list" \}\)/);
+  assert.match(documentWorkspace, /setLoadRetry\(\{ kind: "open", id \}\)/);
+  assert.match(documentWorkspace, /setLoadRetry\(\{ kind: "delete", ids \}\)/);
+  assert.match(documentWorkspace, /loadRetry\.kind === "open"[\s\S]*openDocument\(loadRetry\.id\)/);
+  assert.match(documentWorkspace, /loadRetry\.kind === "delete"[\s\S]*deleteDocuments\(loadRetry\.ids\)/);
+  assert.match(documentStudio, /loadRetryKind === "delete"[\s\S]*Reintentar eliminación/);
+  assert.match(scannerDesk, /if \(!failure\.retryable\) return;[\s\S]*window\.setTimeout/);
+  assert.match(mobileCapture, /actions=\{accessError\?\.retryable \?/);
+  assert.match(aiImport, /controller\.error\.retryable[\s\S]*controller\.retryError/);
+  assert.match(aiResult, /downloadError\.retryable[\s\S]*Reintentar descarga/);
+  assert.match(aiResult, /openError\.retryable[\s\S]*Reintentar apertura/);
+  assert.match(aiStudio, /retryErrorRef\.current = failure\.retryable \? "analyze" : null/);
+  assert.match(aiStudio, /retryErrorRef\.current = failure\.retryable \? "save" : null/);
+  assert.match(drivePicker, /error\.retryable[\s\S]*openPicker\(\)/);
+  assert.match(promptManager, /error\.retryable && retryDeleteRef\.current[\s\S]*Reintentar eliminación/);
+  assert.match(styles, /\.operation-feedback-error/);
+  assert.match(styles, /\.operation-feedback-support/);
+  for (const migratedSurface of [documentStudio, commandBar, aiImport, aiResult, filesLibrary, scannerDesk, desktopScanner, mobileCapture]) {
+    assert.match(migratedSurface, /OperationFeedback/);
+    assert.doesNotMatch(migratedSurface, /className="form-error/);
+  }
 });

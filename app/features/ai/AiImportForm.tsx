@@ -1,5 +1,6 @@
 import { lazy, useRef } from "react";
 import { ArrowRight, FileText, FileUp, Settings, Sparkles, Trash2, X } from "@/app/components/Icons";
+import { OperationFeedback } from "@/app/components/OperationFeedback";
 import { AiProcessingStatus } from "./AiProcessingStatus";
 import { AiModelPicker } from "./AiModelPicker";
 import { GoogleDrivePicker } from "./GoogleDrivePicker";
@@ -221,7 +222,17 @@ export function AiImportForm({ controller }: Props) {
           <p className="ai-official-template-note"><FileText size={14} /> La IA completará los 18 campos del Word institucional.</p>
         ) : null}
         {controller.processing ? <AiProcessingStatus controller={controller} /> : null}
-        {controller.error ? <p className="form-error" role="alert">{controller.error}</p> : null}
+        {controller.error ? (
+          <OperationFeedback
+            compact
+            tone="error"
+            title="No se pudo continuar con la generación"
+            message={controller.error.message}
+            supportId={controller.error.supportId}
+            actions={controller.error.retryable ? <button type="button" className="text-button" onClick={controller.retryError}>Reintentar</button> : null}
+            onDismiss={controller.clearError}
+          />
+        ) : null}
       </section>
     </div>
   );

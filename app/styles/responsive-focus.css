@@ -228,13 +228,12 @@
   }
 
   .document-save-error {
-    align-items: stretch;
-    flex-direction: column;
+    grid-template-columns: minmax(0, 1fr);
   }
 
-  .document-save-error-actions {
+  .document-save-error .operation-feedback-actions {
+    grid-column: 1 / -1;
     justify-content: flex-start;
-    flex-wrap: wrap;
   }
 
 }

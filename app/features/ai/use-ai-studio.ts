@@ -8,9 +8,15 @@ import type { AiImportResult, AiPatient, AiProgress, AiPromptMode, AiProviderId,
 import type { AiPromptProfile } from "./prompt-types";
 import type { DocumentTemplateSectionSetting } from "@/app/features/documents/types";
 import { AI_WORKFLOW_MEMORY_KEY, parseAiWorkflowMemory, serializeAiWorkflowMemory } from "./workflow-memory";
+import {
+  operationFailure,
+  toOperationFailure,
+  type OperationFailure,
+} from "@/app/lib/client/operation-feedback";
 
 const AI_SELECTION_STORAGE_KEY = "hhr.ai-selection.v1";
 type StoredAiSelection = { provider?: AiProviderId; model?: string };
+type AiRetryOperation = "analyze" | "save" | (() => void);
 
 const emptyResult: AiImportResult = {
   documentKind: "",
@@ -63,6 +69,7 @@ export function useAiStudio({ initialPromptId, initialTarget, initialTemplateId,
   const processingRef = useRef(false);
   const processingControllerRef = useRef<AbortController | null>(null);
   const savingRef = useRef(false);
+  const retryErrorRef = useRef<AiRetryOperation | null>(null);
   const [files, setFiles] = useState<File[]>([]);
   const [target, setTarget] = useState<AiTargetId>(initialTarget ?? "epicrisis");
   const [provider, setProvider] = useState<AiProviderId>("openai");
@@ -83,7 +90,7 @@ export function useAiStudio({ initialPromptId, initialTarget, initialTemplateId,
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const [saving, setSaving] = useState(false);
   const [identityConfirmed, setIdentityConfirmed] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<OperationFailure | null>(null);
   const [createdId, setCreatedId] = useState<string | null>(null);
   const [draftHasChanges, setDraftHasChanges] = useState(false);
   const [draftContext, setDraftContext] = useState<{
@@ -129,7 +136,9 @@ export function useAiStudio({ initialPromptId, initialTarget, initialTemplateId,
 
   useEffect(() => {
     let active = true;
-    void fetchAiProviders()
+    const loadProviders = () => {
+      setProvidersLoading(true);
+      void fetchAiProviders()
       .then((availableProviders) => {
         if (!active) return;
         setProviders(availableProviders);
@@ -148,28 +157,39 @@ export function useAiStudio({ initialPromptId, initialTarget, initialTemplateId,
           setModel(savedModel && selected.models.some((item) => item.id === savedModel) ? savedModel : selected.model);
         }
       })
-      .catch(() => {
-        if (active) setError("No se pudo consultar la disponibilidad de los modelos.");
+      .catch((cause) => {
+        if (!active) return;
+        const failure = toOperationFailure(cause, "No se pudo consultar la disponibilidad de los modelos.");
+        retryErrorRef.current = failure.retryable ? loadProviders : null;
+        setError(failure);
       })
       .finally(() => {
         if (active) setProvidersLoading(false);
       });
+    };
+    loadProviders();
     return () => { active = false; };
   }, []);
 
   useEffect(() => {
     let active = true;
-    const refreshPrompts = () => void fetchPromptProfiles()
+    const refreshPrompts = () => {
+      setPromptsLoading(true);
+      void fetchPromptProfiles()
       .then((profiles) => {
         if (!active) return;
         setPromptProfiles(profiles);
       })
-      .catch(() => {
-        if (active) setError("No se pudieron consultar los prompts de documentos.");
+      .catch((cause) => {
+        if (!active) return;
+        const failure = toOperationFailure(cause, "No se pudieron consultar las plantillas de documentos.");
+        retryErrorRef.current = failure.retryable ? refreshPrompts : null;
+        setError(failure);
       })
       .finally(() => {
         if (active) setPromptsLoading(false);
       });
+    };
     refreshPrompts();
     window.addEventListener("hhr:ai-prompts-changed", refreshPrompts);
     return () => {
@@ -234,6 +254,7 @@ export function useAiStudio({ initialPromptId, initialTarget, initialTemplateId,
     setCancelling(false);
     setProgress({ stage: "preparing", label: "Preparando archivos", detail: "Validando formatos y tamaños" });
     setError(null);
+    retryErrorRef.current = null;
     setCreatedId(null);
     try {
       const nextResult = await importWithAi({
@@ -285,7 +306,9 @@ export function useAiStudio({ initialPromptId, initialTarget, initialTemplateId,
         setProgress(null);
         return null;
       }
-      setError(cause instanceof Error ? cause.message : "No se pudo conectar con el servicio de IA.");
+      const failure = toOperationFailure(cause, "No se pudo conectar con el servicio de IA.");
+      retryErrorRef.current = failure.retryable ? "analyze" : null;
+      setError(failure);
       return null;
     } finally {
       if (processingControllerRef.current === controller) {
@@ -307,12 +330,14 @@ export function useAiStudio({ initialPromptId, initialTarget, initialTemplateId,
   async function createDraft() {
     if (savingRef.current) return null;
     if (!identityConfirmed) {
-      setError("Revise y confirme los datos de identidad antes de guardar.");
+      retryErrorRef.current = null;
+      setError(operationFailure("Revise y confirme los datos de identidad antes de guardar."));
       return null;
     }
     savingRef.current = true;
     setSaving(true);
     setError(null);
+    retryErrorRef.current = null;
     try {
       const savedTarget = draftContext?.target ?? target;
       const savedPromptMode = draftContext?.promptMode ?? promptMode;
@@ -332,7 +357,9 @@ export function useAiStudio({ initialPromptId, initialTarget, initialTemplateId,
       setDraftHasChanges(false);
       return documentId;
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "No se pudo guardar el borrador.");
+      const failure = toOperationFailure(cause, "No se pudo guardar el borrador.");
+      retryErrorRef.current = failure.retryable ? "save" : null;
+      setError(failure);
       return null;
     } finally {
       savingRef.current = false;
@@ -387,7 +414,7 @@ export function useAiStudio({ initialPromptId, initialTarget, initialTemplateId,
   function addFiles(nextFiles: File[]) {
     const merged = [...files, ...nextFiles];
     if (merged.length > 8) {
-      setError("Puede analizar hasta 8 archivos por vez. Quite uno antes de agregar más.");
+      setError(operationFailure("Puede analizar hasta 8 archivos por vez. Quite uno antes de agregar más."));
       return;
     }
     setFiles(merged);
@@ -409,8 +436,23 @@ export function useAiStudio({ initialPromptId, initialTarget, initialTemplateId,
     setDraftHasChanges(false);
     setDraftContext(null);
     setError(null);
+    retryErrorRef.current = null;
     setProgress(null);
     setIdentityConfirmed(false);
+  }
+
+  function clearError() {
+    setError(null);
+    retryErrorRef.current = null;
+  }
+
+  function retryError() {
+    const operation = retryErrorRef.current;
+    retryErrorRef.current = null;
+    setError(null);
+    if (typeof operation === "function") operation();
+    else if (operation === "analyze") void analyze();
+    else if (operation === "save") void createDraft();
   }
 
   function selectProvider(nextProvider: AiProviderId) {
@@ -453,6 +495,8 @@ export function useAiStudio({ initialPromptId, initialTarget, initialTemplateId,
     identityConfirmed,
     setIdentityConfirmed,
     error,
+    clearError,
+    retryError,
     createdId,
     draftHasChanges,
     draftTarget: draftContext?.target ?? target,

@@ -3,6 +3,8 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { FolderOpen, Loader2 } from "@/app/components/Icons";
+import { OperationFeedback } from "@/app/components/OperationFeedback";
+import { toOperationFailure, type OperationFailure } from "@/app/lib/client/operation-feedback";
 import { fetchGoogleDriveConfig, selectGoogleDriveFiles, type GoogleDriveConfig } from "@/app/features/integrations/google-drive";
 
 export function GoogleDrivePicker({
@@ -18,7 +20,7 @@ export function GoogleDrivePicker({
 }) {
   const [config, setConfig] = useState<GoogleDriveConfig | null>(null);
   const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<OperationFailure | null>(null);
 
   useEffect(() => {
     let active = true;
@@ -36,7 +38,7 @@ export function GoogleDrivePicker({
       const files = await selectGoogleDriveFiles(config, 8 - fileCount);
       if (files.length) onFiles(files);
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "No se pudo abrir Google Drive.");
+      setError(toOperationFailure(cause, "No se pudo abrir Google Drive."));
     } finally {
       setBusy(false);
     }
@@ -57,7 +59,18 @@ export function GoogleDrivePicker({
       </button>
       {!compact ? (config && !config.configured ? <small>Requiere <Link href="/configuracion?tab=conexiones">configuración</Link></small> : <small>Acceso puntual; no se guarda la sesión</small>) : null}
       {compact && config && !config.configured ? <small><Link href="/configuracion?tab=conexiones">Configurar Drive</Link></small> : null}
-      {error ? <p className="form-error" role="alert">{error}</p> : null}
+      {error ? (
+        <OperationFeedback
+          compact
+          tone="error"
+          title="No se pudo abrir Google Drive"
+          message={error.message}
+          supportId={error.supportId}
+          actions={error.retryable ? <button type="button" className="text-button" onClick={() => void openPicker()}>Reintentar</button> : null}
+          onDismiss={() => setError(null)}
+          className="drive-picker-feedback"
+        />
+      ) : null}
     </div>
   );
 }

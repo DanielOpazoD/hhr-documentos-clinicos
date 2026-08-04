@@ -1,4 +1,5 @@
 import { Clock3, Save } from "@/app/components/Icons";
+import { OperationFeedback } from "@/app/components/OperationFeedback";
 import type { DocumentWorkspace } from "./use-document-workspace";
 
 type Props = Pick<
@@ -73,16 +74,20 @@ export function DocumentCommandActions({
 export function DocumentSaveError({ persist, reloadDocument, saveError, saving }: Pick<Props, "persist" | "reloadDocument" | "saveError" | "saving">) {
   if (!saveError) return null;
   return (
-    <div className="form-error document-save-error" role="alert">
-      <span>{saveError.message}</span>
-      <div className="document-save-error-actions">
-        {saveError.recovery === "retry" ? (
+    <OperationFeedback
+      tone="error"
+      title="No se pudo guardar el documento"
+      message={saveError.message}
+      supportId={saveError.supportId}
+      className="document-save-error"
+      actions={<>
+        {saveError.recovery === "retry" && saveError.retryable ? (
           <button className="text-button" disabled={saving} onClick={() => void persist()}>Reintentar guardado</button>
         ) : null}
         {saveError.recovery === "reload" ? (
           <button className="text-button" disabled={saving} onClick={() => void reloadDocument()}>Descartar cambios y recargar</button>
         ) : null}
-      </div>
-    </div>
+      </>}
+    />
   );
 }

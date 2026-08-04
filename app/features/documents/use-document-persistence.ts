@@ -7,11 +7,15 @@ import { patientFullName } from "./identity";
 import { saveDocument } from "./api";
 import { formatSavedTime } from "./formatters";
 import { isApiConflict } from "@/app/lib/client/http";
+import {
+  operationFailure,
+  toOperationFailure,
+  type OperationFailure,
+} from "@/app/lib/client/operation-feedback";
 
 type MutableValue<T> = { current: T };
 
-export type DocumentSaveFailure = {
-  message: string;
+export type DocumentSaveFailure = OperationFailure & {
   recovery: "reload" | "retry";
 };
 
@@ -61,7 +65,7 @@ export function useDocumentPersistence(options: {
     const nextStatus = requestedStatus ?? snapshot.status;
     if (nextStatus !== "Borrador" && !patientFullName(snapshot.patient)) {
       current.setSaveError({
-        message: "Ingrese el nombre del paciente para guardar.",
+        ...operationFailure("Ingrese el nombre del paciente para guardar."),
         recovery: "retry",
       });
       return Promise.resolve(false);
@@ -98,7 +102,7 @@ export function useDocumentPersistence(options: {
       } catch (error) {
         if (current.workspaceEpoch.current === requestWorkspaceEpoch) {
           current.setSaveError({
-            message: error instanceof Error ? error.message : "No se pudo guardar.",
+            ...toOperationFailure(error, "No se pudo guardar el documento."),
             recovery: isApiConflict(error) ? "reload" : "retry",
           });
         }

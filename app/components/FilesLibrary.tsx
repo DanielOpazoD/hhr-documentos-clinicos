@@ -1,6 +1,7 @@
 "use client";
 
-import { Trash2, UploadCloud, X } from "@/app/components/Icons";
+import { Trash2, UploadCloud } from "@/app/components/Icons";
+import { OperationFeedback } from "@/app/components/OperationFeedback";
 import { EmptyState, PageHeader } from "@/app/components/VisualPrimitives";
 import { FileCard } from "@/app/features/files/FileCard";
 import { FileDialogs } from "@/app/features/files/FileDialogs";
@@ -24,8 +25,25 @@ export function FilesLibrary() {
         </>}
       />
 
-      {library.message ? <div className="notice success" role="status">{library.message}<button onClick={() => library.setMessage(null)} aria-label="Cerrar"><X size={15} /></button></div> : null}
-      {library.error ? <div className="notice error" role="alert">{library.error}<button onClick={() => library.setError(null)} aria-label="Cerrar"><X size={15} /></button></div> : null}
+      {library.message ? <OperationFeedback tone="success" title={library.message} onDismiss={() => library.setMessage(null)} /> : null}
+      {library.error ? (
+        <OperationFeedback
+          tone="error"
+          title={{
+            load: "No se pudieron cargar los archivos",
+            rename: "No se pudo cambiar el nombre",
+            delete: "No se pudieron eliminar los archivos",
+            upload: "No se pudo subir el archivo",
+            archive: "No se pudo actualizar el archivo",
+          }[library.error.operation]}
+          message={library.error.message}
+          supportId={library.error.supportId}
+          onDismiss={() => library.setError(null)}
+          actions={library.error.operation === "load" && library.error.retryable ? (
+            <button type="button" className="text-button" onClick={() => void library.retryLoad()}>Reintentar</button>
+          ) : null}
+        />
+      ) : null}
 
       <FilesToolbar {...library} />
 

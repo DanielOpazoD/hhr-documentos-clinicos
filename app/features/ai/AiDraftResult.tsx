@@ -1,7 +1,13 @@
 "use client";
 
 import { useState } from "react";
-import { Check, Download, FileSearch, FileText, Sparkles, Trash2 } from "@/app/components/Icons";
+import { Download, FileSearch, FileText, Sparkles, Trash2 } from "@/app/components/Icons";
+import { OperationFeedback } from "@/app/components/OperationFeedback";
+import {
+  operationFailure,
+  toOperationFailure,
+  type OperationFailure,
+} from "@/app/lib/client/operation-feedback";
 import { AiIdentityEditor } from "./AiIdentityEditor";
 import { AiSectionEvidence } from "./AiSectionEvidence";
 import { HospitalSalvadorEditor } from "./HospitalSalvadorEditor";
@@ -16,12 +22,12 @@ export function AiDraftResult({
   onOpenDocument: (id: string) => boolean | void | Promise<boolean | void>;
 }) {
   const [downloading, setDownloading] = useState(false);
-  const [downloadError, setDownloadError] = useState<string | null>(null);
-  const [openError, setOpenError] = useState<string | null>(null);
+  const [downloadError, setDownloadError] = useState<OperationFailure | null>(null);
+  const [openError, setOpenError] = useState<OperationFailure | null>(null);
 
   async function downloadOfficialWord() {
     if (!controller.identityConfirmed) {
-      setDownloadError("Revise y confirme los datos de identidad antes de descargar.");
+      setDownloadError(operationFailure("Revise y confirme los datos de identidad antes de descargar."));
       return;
     }
     setDownloading(true);
@@ -29,7 +35,7 @@ export function AiDraftResult({
     try {
       await downloadHospitalSalvadorDocx(controller.result.sections, controller.result.patient, controller.result.signer);
     } catch (cause) {
-      setDownloadError(cause instanceof Error ? cause.message : "No se pudo generar el Word oficial.");
+      setDownloadError(toOperationFailure(cause, "No se pudo generar el Word oficial."));
     } finally {
       setDownloading(false);
     }
@@ -39,10 +45,10 @@ export function AiDraftResult({
     setOpenError(null);
     try {
       if (await onOpenDocument(documentId) === false) {
-        setOpenError("El borrador quedó guardado, pero no se pudo abrir. Puede volver a intentarlo.");
+        setOpenError(operationFailure("El borrador quedó guardado, pero no se pudo abrir. Puede volver a intentarlo.", { retryable: true }));
       }
-    } catch {
-      setOpenError("El borrador quedó guardado, pero no se pudo abrir. Puede volver a intentarlo.");
+    } catch (cause) {
+      setOpenError(toOperationFailure(cause, "El borrador quedó guardado, pero no se pudo abrir. Puede volver a intentarlo."));
     }
   }
 
@@ -50,6 +56,13 @@ export function AiDraftResult({
     const documentId = await controller.createDraft();
     if (documentId) await openSavedDraft(documentId);
   }
+
+  const visibleFailure = downloadError ?? openError ?? controller.error;
+  const feedbackTitle = downloadError
+    ? "No se pudo preparar el documento"
+    : openError
+      ? "El borrador se guardó, pero no se pudo abrir"
+      : "No se pudo guardar el borrador";
 
   return (
     <div className="ai-result-layout simplified-ai-result">
@@ -93,10 +106,30 @@ export function AiDraftResult({
             </button>
           )}
         </div>
-        {downloadError ? <p className="form-error">{downloadError}</p> : null}
-        {openError ? <p className="form-error" role="alert">{openError}</p> : null}
-        {controller.error ? <p className="form-error">{controller.error}</p> : null}
-        {controller.createdId ? <p className="ai-saved"><Check size={15} /> Guardado en Documentos</p> : null}
+        {visibleFailure ? (
+          <OperationFeedback
+            compact
+            tone="error"
+            title={feedbackTitle}
+            message={visibleFailure.message}
+            supportId={visibleFailure.supportId}
+            actions={downloadError ? (downloadError.retryable ? (
+              <button type="button" className="text-button" onClick={() => void downloadOfficialWord()}>Reintentar descarga</button>
+            ) : null) : openError ? (openError.retryable && controller.createdId ? (
+              <button type="button" className="text-button" onClick={() => void openSavedDraft(controller.createdId!)}>Reintentar apertura</button>
+            ) : null) : controller.error?.retryable ? (
+              <button type="button" className="text-button" onClick={controller.retryError}>Reintentar guardado</button>
+            ) : null}
+            onDismiss={() => {
+              if (downloadError) setDownloadError(null);
+              else if (openError) setOpenError(null);
+              else controller.clearError();
+            }}
+          />
+        ) : null}
+        {controller.createdId && !visibleFailure ? (
+          <OperationFeedback compact tone="success" title="Guardado en Documentos" />
+        ) : null}
       </section>
     </div>
   );

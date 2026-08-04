@@ -4,6 +4,7 @@
 
 import { Check, Clipboard, Clock3, FileImage, QrCode, RefreshCw, ScanLine, Smartphone, XCircle } from "@/app/components/Icons";
 import { PageHeader } from "@/app/components/VisualPrimitives";
+import { OperationFeedback } from "@/app/components/OperationFeedback";
 import { DesktopImageScanner } from "@/app/features/scanner/DesktopImageScanner";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { formatBytes } from "@/app/lib/client/format-bytes";
@@ -14,6 +15,11 @@ import {
   type CreatedMobileSession,
 } from "@/app/features/files/mobile-session-client";
 import type { SavedFile } from "@/app/features/files/types";
+import {
+  operationFailure,
+  toOperationFailure,
+  type OperationFailure,
+} from "@/app/lib/client/operation-feedback";
 
 type ScannerSession = CreatedMobileSession;
 type PollMode = "active" | "terminal";
@@ -33,8 +39,8 @@ export function ScannerDesk() {
   const [copied, setCopied] = useState(false);
   const [received, setReceived] = useState<SavedFile[]>([]);
   const [pendingAction, setPendingAction] = useState<"create" | "revoke" | null>(null);
-  const [actionError, setActionError] = useState<string | null>(null);
-  const [pollError, setPollError] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<OperationFailure | null>(null);
+  const [pollError, setPollError] = useState<OperationFailure | null>(null);
   const requestedInitialSession = useRef(false);
   const currentSessionIdRef = useRef<string | null>(null);
   const sessionLifecycleRef = useRef(0);
@@ -54,7 +60,7 @@ export function ScannerDesk() {
       setReceived([]);
       setPollError(null);
     } catch (cause) {
-      setActionError(cause instanceof Error ? cause.message : "No se pudo crear una sesión móvil.");
+      setActionError(toOperationFailure(cause, "No se pudo crear una sesión móvil."));
     } finally {
       setPendingAction(null);
     }
@@ -107,7 +113,9 @@ export function ScannerDesk() {
         }
       } catch (cause) {
         if (controller.signal.aborted || !isCurrentSession()) return;
-        setPollError(cause instanceof Error ? cause.message : "No se pudieron consultar los archivos recibidos.");
+        const failure = toOperationFailure(cause, "No se pudieron consultar los archivos recibidos.");
+        setPollError(failure);
+        if (!failure.retryable) return;
         const retryDelay = mode === "active"
           ? ACTIVE_POLL_INTERVAL_MS
           : TERMINAL_RETRY_DELAYS_MS[terminalFailureCount];
@@ -142,7 +150,7 @@ export function ScannerDesk() {
       terminalSnapshotCompletedRef.current = null;
       setSession(current => current?.id === sessionId ? { ...current, ...revoked } : current);
     } catch (cause) {
-      setActionError(cause instanceof Error ? cause.message : "No se pudo revocar la sesión.");
+      setActionError(toOperationFailure(cause, "No se pudo revocar la sesión."));
     } finally {
       setPendingAction(null);
     }
@@ -156,7 +164,7 @@ export function ScannerDesk() {
       setCopied(true);
       window.setTimeout(() => setCopied(false), 1800);
     } catch {
-      setActionError("No se pudo copiar el enlace. Intente nuevamente.");
+      setActionError(operationFailure("No se pudo copiar el enlace. Intente nuevamente."));
     }
   }
 
@@ -173,7 +181,7 @@ export function ScannerDesk() {
       <DesktopImageScanner />
     </div>
     <div className="scanner-source-panel" hidden={sourceMode !== "mobile"}>
-      <div className="scanner-layout"><section className="panel qr-panel"><div className="panel-header"><div><span className="eyebrow">Paso 1</span><h2>Escanee el código QR</h2></div>{session ? <span className={active ? "session-state active" : "session-state"}><span />{active ? "Sesión activa" : session.status === "revocada" ? "Revocada" : "Expirada"}</span> : null}</div>{session ? <><div className={active ? "qr-wrap" : "qr-wrap expired"}><img src={session.qrDataUrl} alt="Código QR temporal para abrir el escáner móvil" />{!active ? <div><XCircle size={32} /><strong>Sesión cerrada</strong></div> : null}</div><div className="timer"><Clock3 size={16} /><span>Válido por <strong>{String(Math.floor(seconds / 60)).padStart(2, "0")}:{String(seconds % 60).padStart(2, "0")}</strong></span></div><div className="qr-actions"><button className="button secondary" onClick={() => void copy()} disabled={!active || pendingAction !== null}>{copied ? <Check size={16} /> : <Clipboard size={16} />}{copied ? "Copiado" : "Copiar enlace"}</button><button className="button secondary danger" onClick={() => void revoke()} disabled={!active || pendingAction !== null}><XCircle size={16} /> {revoking ? "Revocando…" : "Revocar QR"}</button></div></> : <div className="loading-card"><QrCode size={38} /><p>{creating ? "Creando sesión segura…" : "No hay una sesión activa."}</p></div>}{visibleError ? <p className="form-error" role="alert">{visibleError}</p> : null}<button className="text-button centered" onClick={() => void createSession()} disabled={pendingAction !== null}><RefreshCw size={14} className={creating ? "spin" : ""} /> {creating ? "Generando…" : "Generar un QR nuevo"}</button></section>
+      <div className="scanner-layout"><section className="panel qr-panel"><div className="panel-header"><div><span className="eyebrow">Paso 1</span><h2>Escanee el código QR</h2></div>{session ? <span className={active ? "session-state active" : "session-state"}><span />{active ? "Sesión activa" : session.status === "revocada" ? "Revocada" : "Expirada"}</span> : null}</div>{session ? <><div className={active ? "qr-wrap" : "qr-wrap expired"}><img src={session.qrDataUrl} alt="Código QR temporal para abrir el escáner móvil" />{!active ? <div><XCircle size={32} /><strong>Sesión cerrada</strong></div> : null}</div><div className="timer"><Clock3 size={16} /><span>Válido por <strong>{String(Math.floor(seconds / 60)).padStart(2, "0")}:{String(seconds % 60).padStart(2, "0")}</strong></span></div><div className="qr-actions"><button className="button secondary" onClick={() => void copy()} disabled={!active || pendingAction !== null}>{copied ? <Check size={16} /> : <Clipboard size={16} />}{copied ? "Copiado" : "Copiar enlace"}</button><button className="button secondary danger" onClick={() => void revoke()} disabled={!active || pendingAction !== null}><XCircle size={16} /> {revoking ? "Revocando…" : "Revocar QR"}</button></div></> : <div className="loading-card"><QrCode size={38} /><p>{creating ? "Creando sesión segura…" : "No hay una sesión activa."}</p></div>}{visibleError ? <OperationFeedback compact tone="error" title={actionError ? "No se pudo actualizar la sesión" : "No se pudo comprobar la sesión"} message={visibleError.message} supportId={visibleError.supportId} onDismiss={() => { setActionError(null); setPollError(null); }} /> : null}<button className="text-button centered" onClick={() => void createSession()} disabled={pendingAction !== null}><RefreshCw size={14} className={creating ? "spin" : ""} /> {creating ? "Generando…" : "Generar un QR nuevo"}</button></section>
         <section className="panel scanner-guide"><div className="panel-header"><div><span className="eyebrow">Paso 2</span><h2>Capture y envíe</h2></div></div><ol className="step-list"><li><span><Smartphone size={19} /></span><div><strong>Abra el enlace en el celular</strong><p>No incluye nombre, RUT ni datos clínicos.</p></div></li><li><span><ScanLine size={19} /></span><div><strong>Tome una o varias fotos</strong><p>Puede rotar y ordenar las páginas antes de subir.</p></div></li><li><span><FileImage size={19} /></span><div><strong>Elija imágenes o PDF</strong><p>Máximo 15 MB por archivo y 10 minutos de sesión.</p></div></li></ol><div className="received-box"><div><strong>Archivos recibidos en esta sesión</strong><span>{received.length}</span></div>{received.length ? received.map(file => <a href={`/api/files/${file.id}`} target="_blank" rel="noreferrer" key={file.id}><FileImage size={17} /><p><strong>{file.name}</strong><small>{formatBytes(file.size)}</small></p><Check size={16} /></a>) : <p className="waiting-copy"><span className="pulse-dot" />{active ? "Esperando documentos desde el celular…" : "Genere una sesión para recibir documentos."}</p>}</div></section>
       </div>
     </div>
