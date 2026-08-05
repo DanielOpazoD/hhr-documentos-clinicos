@@ -123,3 +123,9 @@ Después de restaurar, vuelva a exportar y compare el historial y los conteos de
 ## Ensayo desechable
 
 `npm run test:database` construye una instalación vacía, actualiza las cuatro versiones históricas y los cortes canónicos `0005`, `0007` y `0008`, conserva sus registros salvo las normalizaciones explícitas, comprueba la limpieza privada de `0009`, provoca divergencias para probar el verificador y restaura exactamente el estado lógico previo —incluida la bitácora retirada— desde una copia desechable. No usa la D1 remota ni datos reales.
+
+`npm run recovery:drill` amplía esa prueba a la unidad completa D1/R2: genera dos propietarios
+sintéticos, respalda las 15 tablas físicas y ocho objetos, destruye únicamente su workspace
+temporal, restaura y compara checksums, relaciones y ownership. El procedimiento, el formato
+del manifiesto, el fallo parcial y la custodia se documentan en [Recuperación verificable de
+D1 y R2](./DATA_RECOVERY.md).
