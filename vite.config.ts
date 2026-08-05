@@ -56,6 +56,11 @@ export default defineConfig(async () => {
     server: isCodexSeatbeltSandbox
       ? { watch: { useFsEvents: false, usePolling: true } }
       : undefined,
+    define: {
+      __HHR_RELEASE_COMMIT__: JSON.stringify(process.env.HHR_RELEASE_SHA ?? "local"),
+      __HHR_RELEASE_MANIFEST_VERSION__: JSON.stringify(Number(process.env.HHR_RELEASE_MANIFEST_VERSION) || 1),
+      __HHR_RELEASE_SCHEMA__: JSON.stringify(process.env.HHR_RELEASE_SCHEMA ?? "local"),
+    },
     plugins: [
       vinext(),
       sites(),

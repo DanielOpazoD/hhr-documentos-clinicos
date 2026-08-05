@@ -57,3 +57,7 @@ declare module "cloudflare:workers" {
     [key: string]: unknown;
   };
 }
+
+declare const __HHR_RELEASE_COMMIT__: string;
+declare const __HHR_RELEASE_MANIFEST_VERSION__: number;
+declare const __HHR_RELEASE_SCHEMA__: string;

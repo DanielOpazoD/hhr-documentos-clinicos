@@ -4,6 +4,7 @@ import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import {
   createReleaseManifest,
+  RELEASE_MANIFEST_VERSION,
   readSchemaVersion,
   releaseIdentityPath,
   releaseManifestPath,
@@ -22,7 +23,13 @@ if (sourceBefore.sourceDirty) {
 await new Promise((resolve, reject) => {
   const child = spawn(process.execPath, [vinextCli, "build"], {
     cwd: projectRoot,
-    env: { ...process.env, WRANGLER_LOG_PATH: ".wrangler/wrangler.log" },
+    env: {
+      ...process.env,
+      HHR_RELEASE_MANIFEST_VERSION: String(RELEASE_MANIFEST_VERSION),
+      HHR_RELEASE_SCHEMA: schemaBefore,
+      HHR_RELEASE_SHA: sourceBefore.commit,
+      WRANGLER_LOG_PATH: ".wrangler/wrangler.log",
+    },
     stdio: "inherit",
   });
   child.once("error", reject);
@@ -42,7 +49,7 @@ if (
   throw new Error("La fuente o el esquema cambiaron durante el build; descarte el artefacto y vuelva a ejecutar.");
 }
 await writeFile(releaseIdentityPath(artifactRoot), `${JSON.stringify({
-  manifestVersion: 1,
+  manifestVersion: RELEASE_MANIFEST_VERSION,
   commit: sourceAfter.commit,
   sourceDirty: false,
   schema: schemaAfter,
