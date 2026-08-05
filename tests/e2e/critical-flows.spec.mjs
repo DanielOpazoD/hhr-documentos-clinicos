@@ -36,7 +36,11 @@ async function openProfessionalPanel(page) {
 
 for (const viewport of viewports) {
   test.describe(`flujos críticos en ${viewport.label}`, () => {
-    test.use({ viewport: viewport.size });
+    test.use({
+      viewport: viewport.size,
+      hasTouch: viewport.id === "mobile",
+      isMobile: viewport.id === "mobile",
+    });
 
     test("crea, edita, guarda y reabre un documento manual", async ({ page, app }) => {
       await openApp(page, app, "/documentos");
@@ -175,6 +179,8 @@ for (const viewport of viewports) {
       await bottomRight.press("ArrowLeft");
       const movedBottomRight = Number.parseFloat(await bottomRight.evaluate((element) => element.style.left));
       expect(initialBottomRight - movedBottomRight).toBeCloseTo(1, 3);
+      for (let step = 0; step < 10; step += 1) await bottomRight.press("ArrowRight");
+      expect(Number.parseFloat(await bottomRight.evaluate((element) => element.style.left))).toBeLessThanOrEqual(99.5);
 
       await assertNoSeriousAxe(page, `editor de escáner ${viewport.label}`);
       await activate(dialog.getByRole("button", { name: /Original/ }));

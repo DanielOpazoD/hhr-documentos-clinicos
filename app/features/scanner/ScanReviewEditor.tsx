@@ -35,6 +35,7 @@ export const SCAN_FILTER_OPTIONS: Array<{ id: ScanFilter; label: string; descrip
 ];
 
 export const cloneScanCorners = (corners: ScanCorners) => corners.map(point => ({ ...point })) as ScanCorners;
+const clampCorner = (value: number) => Math.min(.995, Math.max(.005, value));
 
 const CORNER_STEP = {
   ArrowLeft: [-.01, 0],
@@ -44,11 +45,11 @@ const CORNER_STEP = {
 } as const;
 
 function constrainCorner(corners: ScanCorners, index: number, requestedX: number, requestedY: number) {
-  let x = Math.min(.995, Math.max(.005, requestedX));
-  let y = Math.min(.995, Math.max(.005, requestedY));
+  let x = requestedX;
+  let y = requestedY;
   const next = cloneScanCorners(corners);
-  x = index > 0 && index < 3 ? Math.max(x, next[index ^ 1].x + .03) : Math.min(x, next[index ^ 1].x - .03);
-  y = index < 2 ? Math.min(y, next[3 - index].y - .03) : Math.max(y, next[3 - index].y + .03);
+  x = clampCorner(index > 0 && index < 3 ? Math.max(x, next[index ^ 1].x + .03) : Math.min(x, next[index ^ 1].x - .03));
+  y = clampCorner(index < 2 ? Math.min(y, next[3 - index].y - .03) : Math.max(y, next[3 - index].y + .03));
   next[index] = { x, y };
   return next;
 }
