@@ -107,8 +107,8 @@ function sourceEvidence(excerpt: string): RawEvalEvidence {
   return { source_index: 0, page: null, excerpt, status: "explicito" };
 }
 
-function instructionEvidence(excerpt: string): RawEvalEvidence {
-  return { source_index: 1, page: null, excerpt, status: "explicito" };
+function instructionEvidence(excerpt: string, documentSourceCount: number): RawEvalEvidence {
+  return { source_index: documentSourceCount, page: null, excerpt, status: "explicito" };
 }
 
 function rawDraft(input: {
@@ -265,6 +265,10 @@ const medicalReport: ClinicalEvalFixture = {
 };
 
 const certificateInstruction = "Se certifica que la persona puede asistir a su jornada habitual.";
+const certificateSources = [documentSource([
+  identityLine,
+  "Resultado de laboratorio: hemoglobina 11,2 g/dL.",
+])];
 
 const certificate: ClinicalEvalFixture = {
   id: "certificado-incluye-discurso-y-excluye-laboratorio",
@@ -272,17 +276,14 @@ const certificate: ClinicalEvalFixture = {
   target: "certificado",
   mode: "profile",
   userInstructions: `Incluye literalmente: "${certificateInstruction}" Ignora todos los resultados de laboratorio.`,
-  sources: [documentSource([
-    identityLine,
-    "Resultado de laboratorio: hemoglobina 11,2 g/dL.",
-  ])],
+  sources: certificateSources,
   rawDraft: rawDraft({
     documentKind: "Certificado médico",
     sections: [{
       key: "certificado",
       title: "Certificado",
       text: certificateInstruction,
-      evidence: [instructionEvidence(certificateInstruction)],
+      evidence: [instructionEvidence(certificateInstruction, certificateSources.length)],
     }],
   }),
   expected: {
@@ -469,6 +470,10 @@ const identityOnly: ClinicalEvalFixture = {
 };
 
 const freeCertificateText = "La persona requiere adecuación temporal de jornada por indicación profesional.";
+const freeCertificateSources = [documentSource([
+  identityLine,
+  "Resultado de laboratorio: glicemia 105 mg/dL.",
+])];
 
 const freeCertificate: ClinicalEvalFixture = {
   id: "modo-libre-elimina-identidad-repetida",
@@ -476,10 +481,7 @@ const freeCertificate: ClinicalEvalFixture = {
   target: "informe_medico",
   mode: "free",
   userInstructions: `Crea un certificado breve. Incluye literalmente: "${freeCertificateText}" Excluye todos los resultados de laboratorio.`,
-  sources: [documentSource([
-    identityLine,
-    "Resultado de laboratorio: glicemia 105 mg/dL.",
-  ])],
+  sources: freeCertificateSources,
   rawDraft: rawDraft({
     documentKind: "certificado_escolar",
     sections: [
@@ -493,7 +495,7 @@ const freeCertificate: ClinicalEvalFixture = {
         key: "certificado",
         title: "Certificado",
         text: freeCertificateText,
-        evidence: [instructionEvidence(freeCertificateText)],
+        evidence: [instructionEvidence(freeCertificateText, freeCertificateSources.length)],
       },
     ],
   }),

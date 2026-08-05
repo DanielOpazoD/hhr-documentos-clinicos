@@ -11,7 +11,7 @@ import { generateClinicalDraft, type OpenAiOutput } from "../../app/features/ai/
 import { systemPrompt } from "../../app/features/ai/server/prompt.ts";
 import { composePromptInstructions } from "../../app/features/ai/server/prompt-composition.ts";
 import { builtInPrompt } from "../../app/features/ai/prompt-catalog.ts";
-import type { AiSection, AiSourceInput } from "../../app/features/ai/types.ts";
+import type { AiSourceInput } from "../../app/features/ai/types.ts";
 import {
   mergeAiSectionsWithTemplate,
   type PreparedAiDocumentSection,
@@ -101,6 +101,7 @@ function syntheticSourceFile(text: string, index: number): AiSourceInput {
   const documentXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:body>${paragraphs}<w:sectPr/></w:body></w:document>`;
   const contentTypesXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/></Types>`;
   const relationshipsXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/></Relationships>`;
+  // fflate writes local DOS date fields; fixed local components keep the bytes equal across TZ values.
   const bytes = zipSync({
     "[Content_Types].xml": strToU8(contentTypesXml),
     "_rels/.rels": strToU8(relationshipsXml),
@@ -237,8 +238,8 @@ export async function runClinicalEval(fixture: ClinicalEvalFixture): Promise<Cli
   };
 }
 
-function assertNoRedundantIdentity(fixture: ClinicalEvalFixture, sections: AiSection[], result: ClinicalEvalResult): void {
-  const redundant = sections
+function assertNoRedundantIdentity(fixture: ClinicalEvalFixture, result: ClinicalEvalResult): void {
+  const redundant = result.output.sections
     .filter((section) => isRedundantIdentitySection(section, result.output.patient))
     .map((section) => section.title);
   invariant(fixture, "identidad estructurada sin sección redundante", [], redundant, redundant.length === 0);
@@ -330,7 +331,7 @@ export function assertClinicalEval(fixture: ClinicalEvalFixture, result: Clinica
       .map((evidence) => ({ section: section.title, sourceIndex: evidence.sourceIndex, page: evidence.page })),
   );
   invariant(fixture, "evidencia local verificable", [], unverifiedEvidence, unverifiedEvidence.length === 0);
-  assertNoRedundantIdentity(fixture, result.output.sections, result);
+  assertNoRedundantIdentity(fixture, result);
 
   if (fixture.expected.sectionTitles) {
     const observed = result.output.sections.map((section) => section.title);

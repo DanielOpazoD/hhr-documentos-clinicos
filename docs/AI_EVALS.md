@@ -12,9 +12,11 @@ Cada caso conserva el camino productivo que interesa verificar:
 2. construye el contrato de sistema real;
 3. ejecuta el grafo clínico con un proveedor simulado y una única generación;
 4. parsea y protege la salida con `parseClinicalOutput`;
-5. aplica `verifyClinicalDraftOutput` mediante el workflow real;
+5. aplica el verificador exportado `verifyClinicalDraftOutput` mediante el workflow real;
 6. ensambla las secciones con la configuración real de la plantilla;
-7. comprueba invariantes pequeñas sobre estructura y contenido permitido.
+7. comprueba en `tests/ai-evals/harness.ts` invariantes pequeñas sobre estructura y contenido
+   permitido, declaradas por cada fixture mediante `EvalExpectedState` en
+   `tests/ai-evals/fixtures.ts`.
 
 Solo se sustituye la llamada de red. El proveedor simulado devuelve un JSON fijo para que un
 fallo señale una regresión del contrato local y no una variación del modelo.
@@ -49,8 +51,9 @@ Cuando aparezca un fallo real:
    regla principal.
 3. Modele la respuesta fija que debería atravesar el parser y el verificador. No cambie el
    prompt para acomodar el test.
-4. Declare invariantes estructurales: términos requeridos o prohibidos, títulos, orden,
-   identidad o asuntos pendientes. Evite snapshots de prosa completa.
+4. Declare el payload en `EvalExpectedState`: términos requeridos o prohibidos, títulos, orden,
+   identidad o asuntos pendientes. Añada una clase de invariante al harness solo cuando esos
+   campos no expresen la regresión. Evite snapshots de prosa completa.
 5. Ejecute `npm run test:ai-evals` y luego `npm run verify`.
 
 Un fixture debe seguir siendo pequeño, legible y determinista. Si necesita red, reloj,
