@@ -93,6 +93,16 @@ test("detects duplicate R2 keys instead of silently overwriting them", async (t)
   assert.equal(checks.has("r2.invalid_storage_id"), true);
 });
 
+test("detects a physical R2 blob that has no metadata", async (t) => {
+  const scenario = await scenarioFor(t);
+  await new LocalR2Store(scenario.workspace.r2Root).putBlobWithoutMetadata(
+    Buffer.from("synthetic-metadata-less-blob"),
+  );
+  const checks = findingChecks(await inspectRecoverySource(scenario.workspace));
+  assert.equal(checks.has("r2.missing_metadata"), true);
+  assert.equal(checks.has("r2.unreferenced_object"), true);
+});
+
 test("detects orphan links and cross-owner document attachments", async (t) => {
   const scenario = await scenarioFor(t);
   let db = new DatabaseSync(scenario.workspace.databasePath);
@@ -149,6 +159,16 @@ test("blocks a tampered owner assignment before destroying the current local dat
       && error.findings.some((finding) => finding.check === "backup.owner_mismatch"),
   );
   assert.equal(await disposableLiveDataExists(scenario.workspace), true);
+});
+
+test("rejects a manifest with duplicate table descriptors", async (t) => {
+  const scenario = await scenarioFor(t);
+  await exportRecoveryBackup(scenario.workspace, { createdAt: syntheticBackupTime });
+  const manifestPath = `${scenario.workspace.backupRoot}/manifest.json`;
+  const manifest = JSON.parse(await readFile(manifestPath, "utf8"));
+  manifest.database.tables.push(structuredClone(manifest.database.tables[0]));
+  await writeFile(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`, { mode: 0o600 });
+  await assert.rejects(verifyRecoveryBackup(scenario.workspace), /manifest\.duplicate_table/);
 });
 
 test("refuses destructive work without the disposable workspace marker", async () => {

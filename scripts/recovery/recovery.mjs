@@ -87,7 +87,8 @@ function objectReferences(db) {
 function objectFindings(references, objects) {
   const findings = [];
   const referenceGroups = Map.groupBy(references, (item) => item.objectKey);
-  const objectGroups = Map.groupBy(objects, (item) => item.key);
+  const describedObjects = objects.filter((item) => typeof item.key === "string");
+  const objectGroups = Map.groupBy(describedObjects, (item) => item.key);
   for (const group of referenceGroups.values()) {
     if (group.length > 1) findings.push({ check: "r2.duplicate_reference", count: group.length });
   }
@@ -95,6 +96,11 @@ function objectFindings(references, objects) {
     if (group.length > 1) findings.push({ check: "r2.duplicate_object", count: group.length });
   }
   for (const object of objects) {
+    if (object.metadataMissing) {
+      findings.push({ check: "r2.missing_metadata", count: 1 });
+      findings.push({ check: "r2.unreferenced_object", count: 1 });
+      continue;
+    }
     if (object.storageId !== sha256(object.key) || object.metadataId !== object.storageId) {
       findings.push({ check: "r2.invalid_storage_id", count: 1 });
     }

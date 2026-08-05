@@ -104,6 +104,10 @@ export function assertRecoveryManifest(manifest) {
     || table.rows < 0
     || !SHA256_PATTERN.test(table?.sha256 ?? "")
   ))) failures.push("manifest.tables");
+  if (Array.isArray(manifest?.database?.tables)) {
+    const tableNames = manifest.database.tables.map((table) => table.name);
+    if (new Set(tableNames).size !== tableNames.length) failures.push("manifest.duplicate_table");
+  }
   if (!Array.isArray(manifest?.objects) || manifest.objects.some((object) => (
     !SHA256_PATTERN.test(object?.keySha256 ?? "")
     || !SHA256_PATTERN.test(object?.contentSha256 ?? "")

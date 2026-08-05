@@ -32,16 +32,23 @@ export class LocalR2Store {
   }
 
   async list() {
-    let names = [];
-    try {
-      names = (await readdir(this.metadataRoot)).filter((name) => name.endsWith(".json")).toSorted();
-    } catch (error) {
-      if (error?.code === "ENOENT") return [];
-      throw error;
+    async function entries(directory, suffix) {
+      try {
+        return (await readdir(directory)).filter((name) => name.endsWith(suffix)).toSorted();
+      } catch (error) {
+        if (error?.code === "ENOENT") return [];
+        throw error;
+      }
     }
-    return Promise.all(names.map(async (name) => {
+    const [metadataNames, blobNames] = await Promise.all([
+      entries(this.metadataRoot, ".json"),
+      entries(this.blobsRoot, ".blob"),
+    ]);
+    const describedBlobIds = new Set();
+    const described = await Promise.all(metadataNames.map(async (name) => {
       const metadata = JSON.parse(await readFile(join(this.metadataRoot, name), "utf8"));
       const metadataId = name.slice(0, -5);
+      describedBlobIds.add(metadata.storageId);
       const blobPath = join(this.blobsRoot, `${metadata.storageId}.blob`);
       try {
         const body = await readFile(blobPath);
@@ -58,6 +65,23 @@ export class LocalR2Store {
         return { ...metadata, metadataId, blobPath, size: null, contentSha256: null, missing: true };
       }
     }));
+    const undescribed = await Promise.all(blobNames.flatMap((name) => {
+      const storageId = name.slice(0, -5);
+      if (describedBlobIds.has(storageId)) return [];
+      return [readFile(join(this.blobsRoot, name)).then((body) => ({
+        storageId,
+        metadataId: null,
+        key: null,
+        owner: null,
+        contentType: null,
+        blobPath: join(this.blobsRoot, name),
+        size: body.byteLength,
+        contentSha256: sha256(body),
+        missing: false,
+        metadataMissing: true,
+      }))];
+    }));
+    return [...described, ...undescribed];
   }
 
   async deleteBlob(key) {
@@ -75,5 +99,11 @@ export class LocalR2Store {
         storageId: duplicateId,
       }), { mode: 0o600 }),
     ]);
+  }
+
+  async putBlobWithoutMetadata(body) {
+    await this.init();
+    const storageId = sha256(`metadata-less:${Buffer.from(body).toString("base64")}`);
+    await writeFile(join(this.blobsRoot, `${storageId}.blob`), body, { mode: 0o600 });
   }
 }
