@@ -17,6 +17,8 @@
     "test:ai-evals": "tsx --test tests/ai-evals/*.test.ts",
     "test:integration": "node --test --test-concurrency=1 tests/integration/*.test.mjs",
     "test:integration:full": "npm run build && npm run test:integration",
+    "test:e2e": "playwright test",
+    "test:e2e:full": "npm run build && npm run test:e2e",
     "typecheck": "tsc --noEmit",
     "lint": "eslint . --ignore-pattern dist --ignore-pattern .next",
     "db:generate": "drizzle-kit generate",
@@ -27,7 +29,7 @@
     "recovery:drill": "node --test --test-concurrency=1 \"tests/recovery/*.test.mjs\"",
     "check:bundle": "node scripts/check-build-budget.mjs",
     "release:verify": "node scripts/verify-release.mjs",
-    "verify": "npm run lint && npm run typecheck && npm run test:ai-evals && npm test && npm run test:database && npm run recovery:drill && npm run check:bundle && npm run db:check"
+    "verify": "npm run lint && npm run typecheck && npm run test:ai-evals && npm test && npm run test:e2e && npm run test:database && npm run recovery:drill && npm run check:bundle && npm run db:check"
   },
   "dependencies": {
     "drizzle-orm": "0.45.2",
@@ -41,12 +43,14 @@
   },
   "devDependencies": {
     "@cloudflare/vite-plugin": "1.37.1",
+    "@playwright/test": "^1.62.1",
     "@tailwindcss/postcss": "4.2.1",
     "@types/node": "22.19.19",
     "@types/react": "19.2.14",
     "@types/react-dom": "19.2.3",
     "@vitejs/plugin-react": "6.0.2",
     "@vitejs/plugin-rsc": "0.5.26",
+    "axe-core": "^4.12.1",
     "drizzle-kit": "0.31.10",
     "eslint": "9.39.4",
     "eslint-config-next": "16.2.6",

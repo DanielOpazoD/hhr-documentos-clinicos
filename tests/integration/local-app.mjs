@@ -105,6 +105,7 @@ export async function startLocalApp({ seedSql = [], vars = {} } = {}) {
   }
 
   return {
+    origin: localOrigin,
     // The non-local origin keeps the authentication boundary active while
     // Wrangler owns the ephemeral port and routes each request to this Worker.
     fetch: fetchExternal,

@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
 import { Clock3, RotateCcw, X } from "@/app/components/Icons";
+import { useDialogFocus } from "@/app/lib/client/use-dialog-focus";
 import { formatUpdated } from "./formatters";
 import type { DocumentWorkspace } from "./use-document-workspace";
 
@@ -11,7 +12,6 @@ type Props = Pick<
   | "closeDocumentHistory"
   | "historyError"
   | "historyLoading"
-  | "historyOpen"
   | "restoringVersion"
   | "restoreVersion"
   | "version"
@@ -22,55 +22,18 @@ export function DocumentHistoryDialog({
   documentVersions,
   historyError,
   historyLoading,
-  historyOpen,
   restoringVersion,
   restoreVersion,
   version,
 }: Props) {
   const [confirmVersion, setConfirmVersion] = useState<number | null>(null);
-  const dialogRef = useRef<HTMLElement>(null);
-  const previouslyFocusedRef = useRef<HTMLElement | null>(null);
-
-  useEffect(() => {
-    previouslyFocusedRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
-    dialogRef.current?.focus();
-    return () => {
-      const previouslyFocused = previouslyFocusedRef.current;
-      if (previouslyFocused?.isConnected) previouslyFocused.focus();
-    };
-  }, []);
-
-  if (!historyOpen) return null;
 
   const close = () => {
     if (restoringVersion !== null) return;
     setConfirmVersion(null);
     closeDocumentHistory();
   };
-
-  const trapFocus = (event: React.KeyboardEvent<HTMLElement>) => {
-    if (event.key !== "Tab") return;
-    const dialog = dialogRef.current;
-    if (!dialog) return;
-    const focusable = [...dialog.querySelectorAll<HTMLElement>(
-      'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
-    )].filter((element) => !element.hidden && element.getAttribute("aria-hidden") !== "true");
-    if (!focusable.length) {
-      event.preventDefault();
-      dialog.focus();
-      return;
-    }
-    const first = focusable[0];
-    const last = focusable[focusable.length - 1];
-    const active = document.activeElement;
-    if (event.shiftKey && (active === first || !dialog.contains(active))) {
-      event.preventDefault();
-      last.focus();
-    } else if (!event.shiftKey && (active === last || !dialog.contains(active))) {
-      event.preventDefault();
-      first.focus();
-    }
-  };
+  const [dialogRef, onDialogKeyDown] = useDialogFocus<HTMLElement>(close);
 
   return (
     <div className="modal-backdrop document-history-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) close(); }}>
@@ -82,7 +45,7 @@ export function DocumentHistoryDialog({
         aria-modal="true"
         aria-labelledby="document-history-title"
         tabIndex={-1}
-        onKeyDown={trapFocus}
+        onKeyDown={onDialogKeyDown}
       >
         <header>
           <div>
