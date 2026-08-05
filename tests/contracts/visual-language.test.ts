@@ -38,13 +38,23 @@ test("defines compact desktop controls and accessible touch targets", () => {
 
   assert.match(globals, /--control-height:\s*40px/);
   assert.match(globals, /--touch-height:\s*44px/);
-  assert.match(globals, /\.mobile-nav a\s*\{[^}]*min-height:\s*44px/s);
+  assert.match(globals, /\.mobile-nav a\s*\{[^}]*min-height:\s*44px/);
 });
 
 test("keeps the document toolbar readable without sacrificing mobile space", () => {
   const documents = readFileSync(cssFiles[1], "utf8");
 
-  assert.match(documents, /\.template-menu button\s*\{[^}]*min-height:\s*40px/s);
-  assert.match(documents, /\.paper-toolbar-actions \.typography-control-icon\s*\{\s*display:\s*none !important;/s);
-  assert.match(documents, /\.paper-toolbar-actions \.document-type-control button\s*\{[^}]*width:\s*36px/s);
+  assert.match(documents, /\.template-menu button\s*\{[^}]*min-height:\s*40px/);
+  assert.match(documents, /\.paper-toolbar-actions \.typography-control-icon\s*\{\s*display:\s*none !important;/);
+  assert.match(documents, /\.paper-toolbar-actions \.document-type-control button\s*\{[^}]*width:\s*36px/);
+});
+
+test("presents AI generation before advanced template management", () => {
+  const form = readFileSync(new URL("../../app/features/ai/AiImportForm.tsx", import.meta.url), "utf8");
+  const composer = form.indexOf('className="ai-composer"');
+  const templateSettings = form.indexOf('className="tpl-prompt ai-template-settings"');
+
+  assert.ok(composer > -1);
+  assert.ok(templateSettings > composer);
+  assert.match(form, /className="ai-composer-frame"[\s\S]*className="ai-composer-context"[\s\S]*className="ai-composer"/);
 });
