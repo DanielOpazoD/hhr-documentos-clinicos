@@ -12,7 +12,6 @@ type Props = Pick<
   | "closeDocumentHistory"
   | "historyError"
   | "historyLoading"
-  | "historyOpen"
   | "restoringVersion"
   | "restoreVersion"
   | "version"
@@ -23,7 +22,6 @@ export function DocumentHistoryDialog({
   documentVersions,
   historyError,
   historyLoading,
-  historyOpen,
   restoringVersion,
   restoreVersion,
   version,
@@ -36,8 +34,6 @@ export function DocumentHistoryDialog({
     closeDocumentHistory();
   };
   const [dialogRef, onDialogKeyDown] = useDialogFocus<HTMLElement>(close);
-
-  if (!historyOpen) return null;
 
   return (
     <div className="modal-backdrop document-history-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) close(); }}>
