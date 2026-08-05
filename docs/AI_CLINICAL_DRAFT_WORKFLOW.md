@@ -77,4 +77,7 @@ Cancelar no borra fuentes, autorización ni indicaciones, por lo que el profesio
 - Sin editor visual de nodos.
 - La revisión y firma final siguen perteneciendo al profesional.
 
-El contrato canónico vive en `app/features/ai/server/clinical-draft-workflow.ts` y sus regresiones en `tests/contracts/clinical-draft-workflow.test.ts`.
+El contrato canónico vive en `app/features/ai/server/clinical-draft-workflow.ts` y sus regresiones
+estructurales en `tests/contracts/clinical-draft-workflow.test.ts`. La batería de
+[obediencia clínica](./AI_EVALS.md) recorre además este grafo con los ocho destinos, datos
+sintéticos y un proveedor simulado.

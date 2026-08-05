@@ -47,6 +47,7 @@ La [generación clínica](./docs/AI_CLINICAL_DRAFT_WORKFLOW.md) se organiza como
 ```bash
 npm run lint
 npm run typecheck
+npm run test:ai-evals
 npm test
 npm run check:bundle
 ```
@@ -55,7 +56,13 @@ El presupuesto de cliente mantiene el límite total de JS/CSS, controla el artef
 
 `npm test` construye el mismo Worker que se despliega y ejecuta pruebas de producto, contratos puros e integración HTTP sobre D1 y R2 locales desechables. Para ejecutar solo la integración desde un checkout sin build previo, use `npm run test:integration:full`.
 
-`npm run verify` ejecuta el gate completo usado por integración continua, incluida la comprobación de migraciones generadas y los recorridos privados de documentos, archivos, firmas, captura móvil y presupuesto de IA por propietario. En el flujo móvil comprueba el contrato de enlace/QR, reemplazo concurrente, revocación, aislamiento por propietario y atribución exacta de archivos. Las pruebas utilizan identidades y contenido sintéticos; nunca llaman a proveedores de IA externos.
+`npm run verify` ejecuta el gate completo usado por integración continua, incluida la batería
+offline de [obediencia clínica de la IA](./docs/AI_EVALS.md), la comprobación de migraciones
+generadas y los recorridos privados de documentos, archivos, firmas, captura móvil y
+presupuesto de IA por propietario. En el flujo móvil comprueba el contrato de enlace/QR,
+reemplazo concurrente, revocación, aislamiento por propietario y atribución exacta de archivos.
+Las pruebas utilizan identidades y contenido sintéticos; nunca llaman a proveedores de IA
+externos.
 
 El esquema D1 se administra mediante migraciones versionadas. Para instalaciones históricas, el único puente excepcional es `npm run db:prepare` antes de `0005_schema_authority.sql`: puede añadir la columna y el índice de compatibilidad fuera del camino HTTP. Después de ese puente, todo cambio de esquema debe realizarse mediante una migración versionada. La guía de [despliegue, verificación y recuperación](./docs/DATABASE_MIGRATIONS.md) describe el respaldo previo, el control privado de integridad y el rollback ensayado en una base desechable.
 
