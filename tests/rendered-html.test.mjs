@@ -422,7 +422,7 @@ test("uses one documented visual grammar across product surfaces", async () => {
   assert.match(dashboard, /!\(loaded & 2\)/);
   assert.equal((dashboard.match(/title="No disponible"/g) ?? []).length, 2);
   assert.match(styles, /--r-compact: 8px/);
-  assert.match(styles, /\.studio-page \.header-actions \.button \{[\s\S]*?min-height: 36px;/);
+  assert.match(styles, /\.studio-page \.header-actions \.button \{[\s\S]*?min-height: var\(--control-height\);/);
   assert.match(styles, /\.page-header-context \{ width: 100%; align-items: flex-start; flex-wrap: wrap; \}/);
   assert.match(styles, /@media \(prefers-reduced-motion: reduce\)/);
   assert.match(language, /## Primitivas compartidas/);
@@ -739,7 +739,8 @@ test("keeps the clinical studios usable from mobile through desktop", async () =
   assert.match(styles, /\.document-workspace-state \{[^}]*display: flex;[^}]*white-space: nowrap;/);
   assert.match(styles, /\.document-workspace-state > span \{[^}]*text-overflow: ellipsis;/);
   assert.match(responsiveStyles, /\.document-workspace-state \{[^}]*min-width: 0;[^}]*flex: 1 1 0;/);
-  assert.match(styles, /\.studio-page \.header-actions \.button \{[\s\S]*?min-height: 36px;[\s\S]*?flex: 0 0 auto;[\s\S]*?white-space: nowrap;/);
+  assert.match(styles, /\.studio-page \.header-actions \.button \{[\s\S]*?min-height: var\(--control-height\);[\s\S]*?flex: 0 0 auto;[\s\S]*?white-space: nowrap;/);
+  assert.match(documentStyles, /\.studio-page \.header-actions \.button \{[^}]*min-height: var\(--touch-height\);/);
   assert.match(styles, /\.studio-page \.header-actions \{[\s\S]*?flex-wrap: nowrap;[\s\S]*?align-items: center;[\s\S]*?gap: 6px;/);
   assert.match(documentStyles, /@media \(max-width: 820px\)[\s\S]*?\.professional-summary \{[\s\S]*?display: grid;/);
   assert.match(documentStyles, /\.paper-toolbar-actions \{[\s\S]*?flex-wrap: nowrap;/);

@@ -44,7 +44,7 @@
 }
 
 .studio-page .header-actions .button {
-  min-height: 36px;
+  min-height: var(--control-height);
   flex: 0 0 auto;
   padding-inline: 12px;
   white-space: nowrap;
@@ -83,9 +83,9 @@
 }
 
 .document-library-mobile-actions > .button {
-  min-height: 36px;
+  min-height: var(--control-height);
   padding-inline: 9px;
-  font-size: 11px;
+  font-size: 12px;
 }
 
 .document-library-toggle > span,
@@ -126,11 +126,12 @@
 }
 
 .template-menu button {
+  min-height: 40px;
   display: grid;
   grid-template-columns: auto minmax(0, 1fr);
   align-items: center;
   gap: 8px;
-  padding: 8px 7px;
+  padding: 8px 9px;
   border: 0;
   border-radius: 8px;
   background: transparent;
@@ -153,7 +154,7 @@
 .recent-document-list strong {
   overflow: hidden;
   color: var(--ink);
-  font-size: 12px;
+  font-size: 13px;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -178,7 +179,7 @@
 .recent-heading strong,
 .recent-heading span,
 .recent-heading .text-button {
-  font-size: 11px;
+  font-size: 12px;
 }
 
 .recent-search {
@@ -194,9 +195,7 @@
 }
 
 .recent-search input {
-  height: 36px;
   padding-left: 31px;
-  font-size: var(--fs-control);
 }
 
 .document-selection-bar {
@@ -213,7 +212,6 @@
   display: flex;
   align-items: center;
   gap: 5px;
-  font-size: 10px;
 }
 
 .document-selection-bar input,
@@ -226,7 +224,7 @@
 
 .document-selection-bar > span {
   color: var(--muted);
-  font-size: 10px;
+  font-size: 12px;
 }
 
 .document-selection-bar button {
@@ -240,7 +238,7 @@
   border-radius: 7px;
   background: #fff;
   color: var(--danger);
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 750;
 }
 
@@ -263,7 +261,7 @@
 }
 
 .document-library-feedback {
-  font-size: 10px;
+  font-size: 12px;
 }
 
 .document-library-feedback.success,
@@ -330,14 +328,10 @@
 .recent-document-list small,
 .recent-document-list em {
   overflow: hidden;
-  font-size: 11px;
+  font-size: 12px;
   font-style: normal;
   text-overflow: ellipsis;
   white-space: nowrap;
-}
-
-.recent-document-list small {
-  color: var(--muted);
 }
 
 .recent-document-delete {
@@ -372,7 +366,7 @@
   padding-inline: 7px;
   background: var(--danger);
   color: #fff;
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 750;
 }
 
@@ -432,18 +426,15 @@
   min-width: 0;
   gap: 3px;
   color: #55565f;
-  font-size: 11px;
 }
 
 .patient-manual-grid input {
   width: 100%;
-  height: 36px;
   margin-top: 0;
   padding-inline: 9px;
   border-color: #dedee3;
   border-radius: 8px;
   background: #fbfbfc;
-  font-size: var(--fs-control);
   transition: border-color .14s ease, background .14s ease, box-shadow .14s ease;
 }
 
@@ -497,8 +488,6 @@
 
 .professional-editor > header small {
   overflow: hidden;
-  color: var(--muted);
-  font-size: 10px;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -511,12 +500,10 @@
 .professional-fields label {
   margin-top: 3px;
   color: var(--muted);
-  font-size: 10px;
   font-weight: 750;
 }
 
 .professional-fields input {
-  height: 34px;
   padding-inline: 9px;
   background: #fff;
   font-size: 12px;
@@ -541,7 +528,7 @@
 }
 
 .professional-editor-sidebar > header strong {
-  font-size: 11px;
+  font-size: 12px;
 }
 
 .professional-editor-sidebar .professional-fields {
@@ -549,7 +536,6 @@
 }
 
 .professional-editor-sidebar .professional-fields input {
-  height: 34px;
   padding-inline: 8px;
   font-size: var(--fs-caption);
 }
@@ -577,7 +563,7 @@
   border-radius: 8px;
   background: #fff;
   color: var(--cyan);
-  font-size: 9px;
+  font-size: 12px;
   font-weight: 750;
 }
 
@@ -664,26 +650,11 @@
   font-size: 15px;
 }
 
-.tpl-editor small {
-  color: var(--muted);
-  font-size: 11px;
-}
-
 .tpl-editor > header small,
 .tpl-prompt summary small {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-}
-
-.tpl-editor label {
-  font-size: 12px;
-}
-
-.tpl-editor input,
-.tpl-editor select {
-  height: 36px;
-  font-size: 13px;
 }
 
 .tpl-sections,
@@ -711,7 +682,6 @@
 }
 
 .tpl-sections article > input {
-  height: 34px;
   padding-inline: 8px;
   background: #fbfbfc;
   font-size: 12px;
@@ -756,7 +726,7 @@
   padding: 9px 10px;
   background: #f5f7f7;
   color: var(--muted);
-  font-size: 11px;
+  font-size: 12px;
 }
 
 .tpl-editor > .form-success {
@@ -816,7 +786,7 @@
   max-width: 650px;
   margin: 3px 0 0;
   color: var(--muted);
-  font-size: 10px;
+  font-size: 12px;
   line-height: 1.45;
 }
 
@@ -839,9 +809,13 @@
 }
 
 .simplified-studio .paper-toolbar {
-  min-height: 34px;
+  min-height: 40px;
   justify-content: flex-end;
-  margin-bottom: 6px;
+  margin-bottom: 8px;
+  padding: 4px 6px;
+  border: 1px solid rgba(126, 145, 149, .18);
+  border-radius: 9px;
+  background: rgba(255, 255, 255, .72);
 }
 
 .simplified-studio .clinical-paper {
@@ -856,16 +830,16 @@
 
 .paper-add-section,
 .paper-template-settings {
-  min-height: 28px;
+  min-height: 32px;
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  padding: 0 7px;
+  padding: 0 9px;
   border: 0;
   border-radius: 7px;
   background: transparent;
   color: var(--cyan);
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 700;
 }
 
@@ -957,11 +931,11 @@
 
   .studio-page .header-actions .button {
     width: auto;
-    min-height: 36px;
+    min-height: var(--touch-height);
   }
 
   .studio-print-button {
-    min-height: 36px;
+    min-height: var(--touch-height);
     padding-inline: 10px;
   }
 
@@ -1008,12 +982,7 @@
   }
 
   .professional-summary-copy strong {
-    font-size: 11px;
-  }
-
-  .professional-summary-copy small {
-    color: var(--muted);
-    font-size: 9px;
+    font-size: 12px;
   }
 
   .professional-summary-trigger {
@@ -1046,10 +1015,6 @@
     grid-column: auto;
   }
 
-  .patient-manual-grid label {
-    font-size: 10px;
-  }
-
   .patient-manual-grid input {
     height: 34px;
     min-height: 34px;
@@ -1074,10 +1039,10 @@
 
   .paper-add-section,
   .paper-template-settings {
-    width: 28px;
-    min-width: 28px;
-    height: 26px;
-    min-height: 26px;
+    width: 36px;
+    min-width: 36px;
+    height: 36px;
+    min-height: 36px;
     justify-content: center;
     overflow: hidden;
     padding: 0;
@@ -1097,23 +1062,28 @@
   }
 
   .paper-toolbar-actions .document-type-control {
-    grid-template-columns: repeat(4, 24px);
+    grid-template-columns: 36px 28px 36px;
   }
 
-  .paper-toolbar-actions .typography-control-icon,
   .paper-toolbar-actions .document-type-control button,
   .paper-toolbar-actions .document-type-control output {
-    width: 24px;
-    height: 26px;
+    height: 36px;
   }
 
-  .paper-toolbar-actions .typography-control-icon svg {
-    width: 12px;
-    height: 12px;
+  .paper-toolbar-actions .typography-control-icon {
+    display: none !important;
+  }
+
+  .paper-toolbar-actions .document-type-control button {
+    width: 36px;
   }
 
   .paper-toolbar-actions .document-type-control output {
-    font-size: 10px;
+    width: 28px;
+  }
+
+  .paper-toolbar-actions .document-type-control output {
+    font-size: 12px;
   }
 
   .document-ai-header {
@@ -1136,8 +1106,8 @@
   }
 
   .studio-page .header-actions .button {
-    width: 38px;
-    min-width: 38px;
+    width: var(--touch-height);
+    min-width: var(--touch-height);
     padding-inline: 0;
   }
 
@@ -1165,11 +1135,11 @@
   }
 
   .document-ai-header p {
-    font-size: 9px;
+    font-size: 12px;
   }
 
   .studio-page .history-button {
-    flex: 0 0 38px;
+    flex: 0 0 var(--touch-height);
   }
 
   .document-history-dialog {

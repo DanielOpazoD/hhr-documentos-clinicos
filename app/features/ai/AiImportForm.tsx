@@ -57,6 +57,7 @@ export function AiImportForm({ controller }: Props) {
           }}
         />
 
+        <div className="ai-composer-frame">
         <div className="ai-composer-context" role="group" aria-label="Contexto de generación">
           <label>
             <span>Documento</span>
@@ -131,16 +132,6 @@ export function AiImportForm({ controller }: Props) {
             </div>
           </details>
         </div>
-
-        {controller.promptMode === "profile" ? (
-          <details className="tpl-prompt ai-template-settings">
-            <summary>
-              <Settings size={15} />
-              <span><strong>Configurar plantillas</strong><small>Crear, editar y elegir la predeterminada</small></span>
-            </summary>
-            <LazyPromptManager key={controller.target} initialTarget={controller.target} />
-          </details>
-        ) : null}
 
         <form
           className="ai-composer"
@@ -217,6 +208,17 @@ export function AiImportForm({ controller }: Props) {
             </button>
           </footer>
         </form>
+        </div>
+
+        {controller.promptMode === "profile" ? (
+          <details className="tpl-prompt ai-template-settings">
+            <summary>
+              <Settings size={15} />
+              <span><strong>Configurar plantillas</strong><small>Crear, editar y elegir la predeterminada</small></span>
+            </summary>
+            <LazyPromptManager key={controller.target} initialTarget={controller.target} />
+          </details>
+        ) : null}
 
         {controller.target === "traslado_salvador" && controller.promptMode === "profile" ? (
           <p className="ai-official-template-note"><FileText size={14} /> La IA completará los 18 campos del Word institucional.</p>
