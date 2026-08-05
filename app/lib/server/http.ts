@@ -1,3 +1,8 @@
+import {
+  emitOperationalEvent,
+  type OperationalOutcome,
+} from "./operational-events.ts";
+
 export type ApiErrorPayload = {
   error: string;
   code: string;
@@ -48,6 +53,26 @@ export function apiTrace(request: Request): Readonly<ApiTrace> | null {
   return requestTraces.get(request) ?? null;
 }
 
+export function reportApiOutcome(input: {
+  requestId: string;
+  route: string;
+  method: string;
+  startedAt: number;
+  status: number;
+  code: string;
+  outcome?: OperationalOutcome;
+}): void {
+  emitOperationalEvent({
+    requestId: input.requestId,
+    route: input.route,
+    method: input.method,
+    status: input.status,
+    code: safeErrorCode(input.code, input.status),
+    durationMs: Math.max(0, Date.now() - input.startedAt),
+    outcome: input.outcome,
+  });
+}
+
 export function reportApiFailure(input: {
   requestId: string;
   route: string;
@@ -56,24 +81,16 @@ export function reportApiFailure(input: {
   status: number;
   code: string;
 }): void {
-  const event = JSON.stringify({
-    level: input.status >= 500 ? "error" : "warn",
-    event: "api_request_failed",
-    requestId: input.requestId,
-    route: input.route,
-    method: input.method,
-    status: input.status,
-    code: safeErrorCode(input.code, input.status),
-    durationMs: Math.max(0, Date.now() - input.startedAt),
-  });
-  if (input.status >= 500) console.error(event);
-  else console.warn(event);
+  reportApiOutcome({ ...input, outcome: "failure" });
 }
 
 async function tracedResponse(response: Response, trace: ApiTrace): Promise<Response> {
   const headers = new Headers(response.headers);
   headers.set("x-request-id", trace.requestId);
   if (response.status < 400) {
+    if (!headers.get("content-type")?.includes("application/x-ndjson")) {
+      reportApiOutcome({ ...trace, status: response.status, code: "OK", outcome: "success" });
+    }
     return new Response(response.body, {
       status: response.status,
       statusText: response.statusText,

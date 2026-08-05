@@ -8,7 +8,7 @@ import { summarizeAiSourcesForAudit } from "@/app/features/ai/server/operational
 import { progressStream } from "@/app/features/ai/server/progress-stream";
 import { auditBestEffort } from "@/app/lib/server/audit";
 import { requestOwner } from "@/app/lib/server/auth";
-import { apiTrace, jsonError, observeApi, reportApiFailure } from "@/app/lib/server/http";
+import { apiTrace, jsonError, observeApi, reportApiOutcome } from "@/app/lib/server/http";
 import { recordAiUsage } from "@/app/features/ai/server/usage";
 import type { AiPromptMode, AiTargetId } from "@/app/features/ai/types";
 import { FREEFORM_SCHEMA_TARGET } from "@/app/features/ai/targets";
@@ -318,8 +318,29 @@ async function importWithAi(request: Request) {
     errorMessage: () => streamMessage,
     requestId: trace?.requestId,
     signal: request.signal,
+    onComplete: () => {
+      if (trace) reportApiOutcome({
+        ...trace,
+        status: 200,
+        code: "AI_GENERATION_SUCCEEDED",
+        outcome: "success",
+      });
+    },
     onError: () => {
-      if (trace) reportApiFailure({ ...trace, status: streamStatus, code: streamCode });
+      if (trace) reportApiOutcome({
+        ...trace,
+        status: streamStatus,
+        code: streamCode,
+        outcome: streamStatus === 499 ? "cancelled" : "failure",
+      });
+    },
+    onCancel: () => {
+      if (trace) reportApiOutcome({
+        ...trace,
+        status: 499,
+        code: "AI_EXECUTION_CANCELLED",
+        outcome: "cancelled",
+      });
     },
   });
 }
