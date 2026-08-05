@@ -85,7 +85,7 @@
 .document-library-mobile-actions > .button {
   min-height: 36px;
   padding-inline: 9px;
-  font-size: 11px;
+  font-size: 12px;
 }
 
 .document-library-toggle > span,
@@ -178,7 +178,7 @@
 .recent-heading strong,
 .recent-heading span,
 .recent-heading .text-button {
-  font-size: 11px;
+  font-size: 12px;
 }
 
 .recent-search {
@@ -213,7 +213,7 @@
   display: flex;
   align-items: center;
   gap: 5px;
-  font-size: 10px;
+  font-size: 12px;
 }
 
 .document-selection-bar input,
@@ -226,7 +226,7 @@
 
 .document-selection-bar > span {
   color: var(--muted);
-  font-size: 10px;
+  font-size: 12px;
 }
 
 .document-selection-bar button {
@@ -240,7 +240,7 @@
   border-radius: 7px;
   background: #fff;
   color: var(--danger);
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 750;
 }
 
@@ -263,7 +263,7 @@
 }
 
 .document-library-feedback {
-  font-size: 10px;
+  font-size: 12px;
 }
 
 .document-library-feedback.success,
@@ -330,14 +330,10 @@
 .recent-document-list small,
 .recent-document-list em {
   overflow: hidden;
-  font-size: 11px;
+  font-size: 12px;
   font-style: normal;
   text-overflow: ellipsis;
   white-space: nowrap;
-}
-
-.recent-document-list small {
-  color: var(--muted);
 }
 
 .recent-document-delete {
@@ -372,7 +368,7 @@
   padding-inline: 7px;
   background: var(--danger);
   color: #fff;
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 750;
 }
 
@@ -432,7 +428,7 @@
   min-width: 0;
   gap: 3px;
   color: #55565f;
-  font-size: 11px;
+  font-size: 12px;
 }
 
 .patient-manual-grid input {
@@ -497,8 +493,6 @@
 
 .professional-editor > header small {
   overflow: hidden;
-  color: var(--muted);
-  font-size: 10px;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -511,7 +505,7 @@
 .professional-fields label {
   margin-top: 3px;
   color: var(--muted);
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 750;
 }
 
@@ -541,7 +535,7 @@
 }
 
 .professional-editor-sidebar > header strong {
-  font-size: 11px;
+  font-size: 12px;
 }
 
 .professional-editor-sidebar .professional-fields {
@@ -577,7 +571,7 @@
   border-radius: 8px;
   background: #fff;
   color: var(--cyan);
-  font-size: 9px;
+  font-size: 12px;
   font-weight: 750;
 }
 
@@ -662,11 +656,6 @@
 .tpl-editor h2 {
   margin: 0;
   font-size: 15px;
-}
-
-.tpl-editor small {
-  color: var(--muted);
-  font-size: 11px;
 }
 
 .tpl-editor > header small,
@@ -756,7 +745,7 @@
   padding: 9px 10px;
   background: #f5f7f7;
   color: var(--muted);
-  font-size: 11px;
+  font-size: 12px;
 }
 
 .tpl-editor > .form-success {
@@ -816,7 +805,7 @@
   max-width: 650px;
   margin: 3px 0 0;
   color: var(--muted);
-  font-size: 10px;
+  font-size: 12px;
   line-height: 1.45;
 }
 
@@ -865,7 +854,7 @@
   border-radius: 7px;
   background: transparent;
   color: var(--cyan);
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 700;
 }
 
@@ -1008,12 +997,7 @@
   }
 
   .professional-summary-copy strong {
-    font-size: 11px;
-  }
-
-  .professional-summary-copy small {
-    color: var(--muted);
-    font-size: 9px;
+    font-size: 12px;
   }
 
   .professional-summary-trigger {
@@ -1047,7 +1031,7 @@
   }
 
   .patient-manual-grid label {
-    font-size: 10px;
+    font-size: 12px;
   }
 
   .patient-manual-grid input {
@@ -1113,7 +1097,7 @@
   }
 
   .paper-toolbar-actions .document-type-control output {
-    font-size: 10px;
+    font-size: 12px;
   }
 
   .document-ai-header {
@@ -1165,7 +1149,7 @@
   }
 
   .document-ai-header p {
-    font-size: 9px;
+    font-size: 12px;
   }
 
   .studio-page .history-button {
