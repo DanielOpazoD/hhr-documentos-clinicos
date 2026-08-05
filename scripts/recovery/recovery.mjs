@@ -134,7 +134,13 @@ async function assertDisposableWorkspace(workspace) {
   if (!basename(root).startsWith(WORKSPACE_PREFIX)) throw new Error("El entorno no tiene el prefijo desechable requerido.");
   const [resolvedRoot, resolvedTmp] = await Promise.all([realpath(root), realpath(tmpdir())]);
   if (dirname(resolvedRoot) !== resolvedTmp) throw new Error("El entorno no fue creado directamente en el directorio temporal.");
-  if (await readFile(join(root, ".hhr-recovery-drill"), "utf8") !== WORKSPACE_MARKER) {
+  let marker;
+  try {
+    marker = await readFile(join(root, ".hhr-recovery-drill"), "utf8");
+  } catch (error) {
+    if (error?.code !== "ENOENT") throw error;
+  }
+  if (marker !== WORKSPACE_MARKER) {
     throw new Error("Falta el marcador de seguridad del ensayo.");
   }
   for (const path of [workspace.liveRoot, workspace.backupRoot, workspace.databasePath, workspace.r2Root]) {
@@ -169,7 +175,7 @@ export async function cleanupDisposableRecoveryWorkspace(workspace) {
 
 export async function inspectRecoverySource(workspace) {
   await assertDisposableWorkspace(workspace);
-  const db = new DatabaseSync(workspace.databasePath);
+  const db = new DatabaseSync(workspace.databasePath, { readOnly: true });
   try {
     const databaseCheck = await verifyDatabase(db);
     const references = objectReferences(db);
@@ -208,7 +214,9 @@ function manifestObjects(snapshot) {
       kind: String(reference.kind),
       contentType: String(reference.contentType),
     };
-  }).toSorted((left, right) => left.keySha256.localeCompare(right.keySha256));
+  }).toSorted((left, right) => (
+    left.keySha256 < right.keySha256 ? -1 : left.keySha256 > right.keySha256 ? 1 : 0
+  ));
 }
 
 export async function exportRecoveryBackup(workspace, { createdAt = new Date().toISOString() } = {}) {
@@ -301,7 +309,7 @@ export async function verifyRecoveryBackup(workspace) {
     findings.push({ check: "backup.database_missing", count: 1 });
     return { manifest, findings };
   }
-  const db = new DatabaseSync(databasePath);
+  const db = new DatabaseSync(databasePath, { readOnly: true });
   try {
     const databaseCheck = await verifyDatabase(db);
     const slots = ownerSlots(db);
@@ -399,7 +407,7 @@ export async function restoreRecoveryBackup(workspace, { failAfterPhase } = {}) 
       throw error;
     }
 
-    const db = new DatabaseSync(workspace.databasePath);
+    const db = new DatabaseSync(workspace.databasePath, { readOnly: true });
     let references;
     try {
       references = objectReferences(db);

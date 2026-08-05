@@ -48,9 +48,11 @@ La [generación clínica](./docs/AI_CLINICAL_DRAFT_WORKFLOW.md) se organiza como
 npm run lint
 npm run typecheck
 npm run test:ai-evals
-npm run recovery:drill
 npm test
+npm run test:database
+npm run recovery:drill
 npm run check:bundle
+npm run db:check
 ```
 
 El presupuesto de cliente mantiene el límite total de JS/CSS, controla el artefacto más grande y comprueba el peso efectivo de las rutas principales incluyendo los estilos globales. También vigila por separado `jsPDF` y el asistente: el primero se carga sólo al crear un PDF del escáner y la IA sólo al abrirla desde Documentos. La representación QR se genera en el servidor, por lo que el codificador vendorizado tampoco forma parte del cliente. El manifiesto y los límites por ruta deben conservar esas fronteras.

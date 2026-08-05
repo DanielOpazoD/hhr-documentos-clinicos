@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { DatabaseSync } from "node:sqlite";
-import { readFile, writeFile } from "node:fs/promises";
+import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { join } from "node:path";
 import { test } from "node:test";
 import { LocalR2Store } from "../../scripts/recovery/local-r2.mjs";
 import {
@@ -169,6 +170,54 @@ test("rejects a manifest with duplicate table descriptors", async (t) => {
   manifest.database.tables.push(structuredClone(manifest.database.tables[0]));
   await writeFile(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`, { mode: 0o600 });
   await assert.rejects(verifyRecoveryBackup(scenario.workspace), /manifest\.duplicate_table/);
+});
+
+test("rejects a backup object whose bytes were modified", async (t) => {
+  const scenario = await scenarioFor(t);
+  const backup = await exportRecoveryBackup(scenario.workspace, { createdAt: syntheticBackupTime });
+  const [object] = backup.manifest.objects;
+  const blobPath = join(scenario.workspace.backupRoot, "objects", `${object.keySha256}.blob`);
+  const original = await readFile(blobPath);
+  await writeFile(blobPath, Buffer.concat([original, Buffer.from("!")]), { mode: 0o600 });
+
+  const checks = findingChecks(await verifyRecoveryBackup(scenario.workspace));
+  assert.equal(checks.has("backup.object_checksum"), true);
+  assert.equal(checks.has("backup.object_size"), true);
+  await assert.rejects(
+    restoreRecoveryBackup(scenario.workspace),
+    (error) => error instanceof RecoveryIntegrityError,
+  );
+  assert.equal(await disposableLiveDataExists(scenario.workspace), true);
+});
+
+test("refuses destructive work when the drill marker is missing", async (t) => {
+  const scenario = await scenarioFor(t);
+  const markerPath = join(scenario.workspace.root, ".hhr-recovery-drill");
+  await rm(markerPath);
+  try {
+    await assert.rejects(destroyDisposableLiveData(scenario.workspace), /marcador de seguridad/);
+    await assert.rejects(disposableLiveDataExists(scenario.workspace), /marcador de seguridad/);
+  } finally {
+    await writeFile(markerPath, "HHR_RECOVERY_DRILL_ONLY\n", { mode: 0o600 });
+  }
+});
+
+test("refuses destructive work outside the direct system temporary directory", async (t) => {
+  const scenario = await scenarioFor(t);
+  const nestedRoot = await mkdtemp(join(scenario.workspace.liveRoot, "hhr-recovery-drill-"));
+  const nested = {
+    root: nestedRoot,
+    liveRoot: join(nestedRoot, "live"),
+    backupRoot: join(nestedRoot, "backup"),
+    databasePath: join(nestedRoot, "live", "database.sqlite"),
+    r2Root: join(nestedRoot, "live", "r2"),
+  };
+  await writeFile(join(nestedRoot, ".hhr-recovery-drill"), "HHR_RECOVERY_DRILL_ONLY\n", { mode: 0o600 });
+  try {
+    await assert.rejects(destroyDisposableLiveData(nested), /directamente en el directorio temporal/);
+  } finally {
+    await rm(nestedRoot, { recursive: true, force: true });
+  }
 });
 
 test("refuses destructive work without the disposable workspace marker", async () => {

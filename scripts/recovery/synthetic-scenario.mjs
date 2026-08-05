@@ -87,7 +87,8 @@ function objectFixtures() {
 }
 
 function seedDatabase(db, objects) {
-  insert(db, "INSERT INTO users VALUES (?, ?, ?, ?)", owners.map((owner) => [owner.email, owner.name, createdAt, updatedAt]));
+  insert(db, `INSERT INTO users (email, display_name, created_at, updated_at)
+    VALUES (?, ?, ?, ?)`, owners.map((owner) => [owner.email, owner.name, createdAt, updatedAt]));
   insert(db, `INSERT INTO patients_demo
     (id, owner_email, name, rut_masked, birth_date, sex, insurance, created_at, updated_at)
     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`, owners.map((owner) => [
@@ -145,8 +146,9 @@ function seedDatabase(db, objects) {
   ]));
   insert(db, `INSERT INTO document_files (id, document_id, file_id, created_at)
     VALUES (?, ?, ?, ?)`, files.map((file) => {
-    const ownerId = file.owner === owners[0].email ? "a" : "b";
-    return [`link-${file.id}`, `document-${ownerId}`, file.id, createdAt];
+    const owner = owners.find((candidate) => candidate.email === file.owner);
+    if (!owner) throw new Error("El archivo sintético no tiene propietario conocido.");
+    return [`link-${file.id}`, `document-${owner.id}`, file.id, createdAt];
   }));
   const signingAssets = objects.filter((object) => object.kind !== "file");
   insert(db, `INSERT INTO signatures

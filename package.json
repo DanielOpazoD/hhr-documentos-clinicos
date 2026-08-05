@@ -24,7 +24,7 @@
     "db:prepare": "node scripts/prepare-legacy-schema.mjs",
     "db:verify": "node scripts/verify-database-integrity.mjs",
     "test:database": "node --test \"tests/database/*.test.mjs\"",
-    "recovery:drill": "node --test --test-concurrency=1 tests/recovery/*.test.mjs",
+    "recovery:drill": "node --test --test-concurrency=1 \"tests/recovery/*.test.mjs\"",
     "check:bundle": "node scripts/check-build-budget.mjs",
     "release:verify": "node scripts/verify-release.mjs",
     "verify": "npm run lint && npm run typecheck && npm run test:ai-evals && npm test && npm run test:database && npm run recovery:drill && npm run check:bundle && npm run db:check"
