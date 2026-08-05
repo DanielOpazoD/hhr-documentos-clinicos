@@ -2,6 +2,8 @@
 
 /* eslint-disable @next/next/no-img-element -- The QR image is generated as an ephemeral data URL and should not be optimized remotely. */
 
+import "@/app/features/scanner/scanner.css";
+
 import { Check, Clipboard, Clock3, FileImage, QrCode, RefreshCw, ScanLine, Smartphone, XCircle } from "@/app/components/Icons";
 import { PageHeader } from "@/app/components/VisualPrimitives";
 import { OperationFeedback } from "@/app/components/OperationFeedback";
