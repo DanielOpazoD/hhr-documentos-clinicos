@@ -18,7 +18,9 @@ Los tokens viven en `app/globals.css` y cubren solo decisiones repetidas:
 - escala tipográfica funcional: `--fs-caption`, `--fs-control`, `--fs-body`;
 - colores semánticos existentes: tinta, cian funcional, verde, amarillo y peligro.
 
-La densidad predeterminada usa controles de 40 px. Las barras o herramientas de alta frecuencia pueden bajar a 36 px mediante su selector contextual; no se agregan densidades intermedias.
+La densidad predeterminada usa controles de 40 px y objetivos táctiles principales de 44 px. Las barras o herramientas de alta frecuencia pueden bajar a 36 px mediante su selector contextual; no se agregan densidades intermedias.
+
+La interfaz de producto nunca baja de 12 px. Las únicas excepciones pertenecen al papel clínico impreso: marca institucional y advertencias legales cuya escala forma parte de su composición documental.
 
 ## Primitivas compartidas
 
@@ -36,6 +38,8 @@ Estas primitivas no contienen lógica de dominio ni deciden qué acción es prim
 - La acción primaria utiliza `button primary`; acciones reversibles o de apoyo usan `button secondary` o `text-button`.
 - Los botones de icono deben tener nombre accesible y no sustituyen una etiqueta cuando la acción no es obvia.
 - Los grupos de selección exponen su relación mediante `role="group"`, `aria-label` y `aria-pressed` cuando corresponde.
+- En Documentos el papel es la superficie dominante; su barra reúne solo acciones contextuales y conserva una versión táctil compacta en móvil.
+- En IA, tipo, plantilla, modelo, indicaciones y fuentes forman un único compositor. La administración avanzada de plantillas aparece después mediante divulgación progresiva.
 
 ## Superficies y estados
 
@@ -43,6 +47,7 @@ Estas primitivas no contienen lógica de dominio ni deciden qué acción es prim
 - Los estados vacíos se presentan con `EmptyState`; no se reemplazan con datos de demostración.
 - Un error operativo se muestra cerca de su tarea. No se usa rojo para orientación normal.
 - El foco visible, el movimiento reducido y objetivos táctiles suficientes son parte de la gramática, no adornos opcionales.
+- Las acciones secundarias de tarjetas pueden bajar su contraste en dispositivos con puntero, pero reaparecen con `hover`, `focus-within` y permanecen visibles en interacción táctil.
 
 ## Comportamiento responsive
 

@@ -38,7 +38,15 @@ test("defines compact desktop controls and accessible touch targets", () => {
 
   assert.match(globals, /--control-height:\s*40px/);
   assert.match(globals, /--touch-height:\s*44px/);
+  assert.match(globals, /input, select\s*\{[^}]*font-size:\s*var\(--fs-control\)/);
   assert.match(globals, /\.mobile-nav a\s*\{[^}]*min-height:\s*44px/);
+});
+
+test("keeps secondary file actions quiet without hiding them on touch", () => {
+  const globals = readFileSync(cssFiles[0], "utf8");
+
+  assert.match(globals, /\.files-grid \.file-actions\s*\{[^}]*opacity:\s*\.45/);
+  assert.match(globals, /\(pointer:\s*coarse\)[^{]*\{[^}]*\.files-grid \.file-actions\s*\{\s*opacity:\s*1/);
 });
 
 test("keeps the document toolbar readable without sacrificing mobile space", () => {

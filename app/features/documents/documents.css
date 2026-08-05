@@ -195,9 +195,7 @@
 }
 
 .recent-search input {
-  height: 36px;
   padding-left: 31px;
-  font-size: var(--fs-control);
 }
 
 .document-selection-bar {
@@ -214,7 +212,6 @@
   display: flex;
   align-items: center;
   gap: 5px;
-  font-size: 12px;
 }
 
 .document-selection-bar input,
@@ -429,18 +426,15 @@
   min-width: 0;
   gap: 3px;
   color: #55565f;
-  font-size: 12px;
 }
 
 .patient-manual-grid input {
   width: 100%;
-  height: 36px;
   margin-top: 0;
   padding-inline: 9px;
   border-color: #dedee3;
   border-radius: 8px;
   background: #fbfbfc;
-  font-size: var(--fs-control);
   transition: border-color .14s ease, background .14s ease, box-shadow .14s ease;
 }
 
@@ -506,12 +500,10 @@
 .professional-fields label {
   margin-top: 3px;
   color: var(--muted);
-  font-size: 12px;
   font-weight: 750;
 }
 
 .professional-fields input {
-  height: 34px;
   padding-inline: 9px;
   background: #fff;
   font-size: 12px;
@@ -544,7 +536,6 @@
 }
 
 .professional-editor-sidebar .professional-fields input {
-  height: 34px;
   padding-inline: 8px;
   font-size: var(--fs-caption);
 }
@@ -666,16 +657,6 @@
   white-space: nowrap;
 }
 
-.tpl-editor label {
-  font-size: 12px;
-}
-
-.tpl-editor input,
-.tpl-editor select {
-  height: 36px;
-  font-size: 13px;
-}
-
 .tpl-sections,
 .tpl-prompt {
   border: 1px solid #e2e6e6;
@@ -701,7 +682,6 @@
 }
 
 .tpl-sections article > input {
-  height: 34px;
   padding-inline: 8px;
   background: #fbfbfc;
   font-size: 12px;
@@ -1033,10 +1013,6 @@
 
   .patient-manual-grid label:last-child {
     grid-column: auto;
-  }
-
-  .patient-manual-grid label {
-    font-size: 12px;
   }
 
   .patient-manual-grid input {
