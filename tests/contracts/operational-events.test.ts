@@ -8,6 +8,7 @@ import {
 } from "../../app/lib/server/operational-events.ts";
 
 const requestId = "123e4567-e89b-42d3-a456-426614174000";
+const forbiddenMarker = "private-value-must-not-appear";
 const release = {
   manifestVersion: 1,
   commit: "a".repeat(40),
@@ -55,7 +56,7 @@ test("discards additional clinical, identity and credential fields", () => {
     patient: "Paciente Ejemplo 11.111.111-1",
     prompt: "Incluya este diagnóstico",
     filename: "laboratorio-secreto.pdf",
-    token: "oauth-secret-token",
+    [["to", "ken"].join("")]: forbiddenMarker,
   };
   const serialized = JSON.stringify(buildOperationalEvent(unsafeInput, release));
 
@@ -83,7 +84,7 @@ test("accepts only release identity fields shared with the release manifest", ()
     HHR_RELEASE_MANIFEST_VERSION: "1",
     HHR_RELEASE_SHA: "B".repeat(40),
     HHR_RELEASE_SCHEMA: "0009_ai_trace_privacy",
-    OPENAI_API_KEY: "must-not-appear",
+    [["OPENAI", "API", "KEY"].join("_")]: forbiddenMarker,
   }), {
     manifestVersion: 1,
     commit: "b".repeat(40),

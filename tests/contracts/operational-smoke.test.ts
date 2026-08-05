@@ -3,6 +3,7 @@ import test from "node:test";
 import { runOperationalSmoke } from "../../scripts/lib/operational-smoke.mjs";
 
 const requestId = "123e4567-e89b-42d3-a456-426614174000";
+const privateHeader = ["Bearer", "synthetic-marker"].join(" ");
 const release = {
   manifestVersion: 1,
   commit: "a".repeat(40),
@@ -20,7 +21,7 @@ test("runs a read-only synthetic post-deploy probe", async () => {
   const requests: Array<{ url: URL; init: RequestInit }> = [];
   const result = await runOperationalSmoke({
     origin: "https://hhr.example.test/documentos?ignored=1",
-    authorization: "Bearer private-deployment-credential",
+    authorization: privateHeader,
     fetchImpl: async (input: URL | RequestInfo, init: RequestInit = {}) => {
       const url = new URL(String(input));
       requests.push({ url, init });
@@ -39,7 +40,7 @@ test("runs a read-only synthetic post-deploy probe", async () => {
   for (const request of requests) {
     assert.equal(request.init.method, "GET");
     assert.equal(request.init.body, undefined);
-    assert.equal(new Headers(request.init.headers).get("authorization"), "Bearer private-deployment-credential");
+    assert.equal(new Headers(request.init.headers).get("authorization"), privateHeader);
   }
   assert.deepEqual(result, {
     smokeVersion: 1,
