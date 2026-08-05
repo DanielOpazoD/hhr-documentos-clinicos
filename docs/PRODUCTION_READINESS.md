@@ -52,3 +52,5 @@ La aplicación está preparada como un entorno privado funcional, pero no se dec
 ## Regla de promoción
 
 Una versión solo puede promoverse cuando el código validado coincide con el artefacto desplegado, no contiene datos de muestra, los controles pendientes aplicables tienen responsable y evidencia, y existe un procedimiento de reversión probado.
+
+El procedimiento operativo y el manifiesto verificable están definidos en [Integridad de publicación](./RELEASE_INTEGRITY.md). La promoción debe usar el mismo artefacto que superó `npm run verify`, declarar el SHA esperado y conservar acceso privado.
