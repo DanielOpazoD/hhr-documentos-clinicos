@@ -26,6 +26,12 @@ test("runs a read-only synthetic post-deploy probe", async () => {
     fetchImpl: async (input: URL | RequestInfo, init: RequestInit = {}) => {
       const url = new URL(String(input));
       requests.push({ url, init });
+      if (new Headers(init.headers).get("authorization") !== privateHeader) {
+        return Response.json({ code: "AUTH_REQUIRED", requestId }, {
+          status: 401,
+          headers: { "x-request-id": requestId },
+        });
+      }
       if (url.pathname === "/release.json") return Response.json(release);
       return Response.json({
         error: "Archivo sintético no encontrado.",
@@ -35,11 +41,13 @@ test("runs a read-only synthetic post-deploy probe", async () => {
     },
   });
 
-  assert.equal(requests.length, 3);
-  assert.equal(requests[0].url.pathname, "/release.json");
-  assert.match(requests[1].url.pathname, /^\/api\/files\/[0-9a-f-]{36}$/);
-  assert.equal(requests[2].url.pathname, "/release.json");
-  for (const request of requests) {
+  assert.equal(requests.length, 4);
+  assert.match(requests[0].url.pathname, /^\/api\/files\/[0-9a-f-]{36}$/);
+  assert.notEqual(new Headers(requests[0].init.headers).get("authorization"), privateHeader);
+  assert.equal(requests[1].url.pathname, "/release.json");
+  assert.match(requests[2].url.pathname, /^\/api\/files\/[0-9a-f-]{36}$/);
+  assert.equal(requests[3].url.pathname, "/release.json");
+  for (const request of requests.slice(1)) {
     assert.equal(request.init.method, "GET");
     assert.equal(request.init.body, undefined);
     assert.ok(request.init.signal instanceof AbortSignal);
@@ -94,8 +102,18 @@ test("requires exact authentication and not-found probe outcomes", async () => {
       origin: "https://hhr.example.test",
       authorization,
       expectedRelease: release,
-      fetchImpl: async (input: URL | RequestInfo) => {
-        if (new URL(String(input)).pathname === "/release.json") return Response.json(release);
+      fetchImpl: async (input: URL | RequestInfo, init: RequestInit = {}) => {
+        const url = new URL(String(input));
+        if (url.pathname === "/release.json") return Response.json(release);
+        if (
+          authorization
+          && new Headers(init.headers).get("authorization") !== authorization
+        ) {
+          return Response.json({ code: "AUTH_REQUIRED", requestId }, {
+            status: 401,
+            headers: { "x-request-id": requestId },
+          });
+        }
         return Response.json({ code, requestId }, {
           status,
           headers: { "x-request-id": requestId },
@@ -105,6 +123,7 @@ test("requires exact authentication and not-found probe outcomes", async () => {
   }
 
   assert.equal((await probeResponse("", 401, "AUTH_REQUIRED")).ok, true);
+  assert.equal((await probeResponse(privateHeader, 404, "NOT_FOUND")).ok, true);
   await assert.rejects(
     () => probeResponse(privateHeader, 401, "AUTH_REQUIRED"),
     /código de soporte operacional válido/,
@@ -117,6 +136,38 @@ test("requires exact authentication and not-found probe outcomes", async () => {
     () => probeResponse("", 404, "AUTH_REQUIRED"),
     /código de soporte operacional válido/,
   );
+
+  await assert.rejects(() => runOperationalSmoke({
+    origin: "https://hhr.example.test",
+    authorization: privateHeader,
+    expectedRelease: release,
+    fetchImpl: async (input: URL | RequestInfo) => {
+      const url = new URL(String(input));
+      if (url.pathname === "/release.json") return Response.json(release);
+      return Response.json({ code: "NOT_FOUND", requestId }, {
+        status: 404,
+        headers: { "x-request-id": requestId },
+      });
+    },
+  }), /credencial sintética inválida/);
+
+  const markerCollision = ["Bearer", "hhr-operational-smoke-invalid-v1"].join(" ");
+  const collisionResult = await runOperationalSmoke({
+    origin: "https://hhr.example.test",
+    authorization: markerCollision,
+    expectedRelease: release,
+    fetchImpl: async (input: URL | RequestInfo, init: RequestInit = {}) => {
+      const url = new URL(String(input));
+      const receivedAuthorization = new Headers(init.headers).get("authorization");
+      if (receivedAuthorization !== markerCollision) return new Response(null, { status: 401 });
+      if (url.pathname === "/release.json") return Response.json(release);
+      return Response.json({ code: "NOT_FOUND", requestId }, {
+        status: 404,
+        headers: { "x-request-id": requestId },
+      });
+    },
+  });
+  assert.equal(collisionResult.ok, true);
 });
 
 test("bounds fetch and response parsing with a cancellable deadline", async () => {

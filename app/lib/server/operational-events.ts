@@ -50,7 +50,8 @@ export type OperationalEventInput = {
 export function isOperationalIndicatorEligible(
   event: Pick<OperationalEvent, "outcome" | "status">,
 ): boolean {
-  return event.outcome !== "cancelled" && (event.status < 400 || event.status >= 500);
+  const status = normalizedStatus(event.status);
+  return event.outcome !== "cancelled" && (status < 400 || status >= 500);
 }
 
 function compiledCommit(): string | undefined {

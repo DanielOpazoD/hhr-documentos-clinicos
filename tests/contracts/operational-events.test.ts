@@ -118,11 +118,25 @@ test("never lets logging failure alter application control flow", () => {
 
 test("uses one versioned eligibility predicate for operational indicators", () => {
   assert.equal(OPERATIONAL_ELIGIBILITY_VERSION, 1);
-  for (const status of [200, 201, 204, 302, 500, 502, 503]) {
-    assert.equal(isOperationalIndicatorEligible({ outcome: status >= 500 ? "failure" : "success", status }), true);
+  const cases = [
+    { outcome: "success", status: 200, expected: true },
+    { outcome: "failure", status: 200, expected: true },
+    { outcome: "success", status: 399, expected: true },
+    { outcome: "success", status: 400, expected: false },
+    { outcome: "failure", status: 404, expected: false },
+    { outcome: "failure", status: 429, expected: false },
+    { outcome: "success", status: 500, expected: true },
+    { outcome: "failure", status: 503, expected: true },
+    { outcome: "cancelled", status: 200, expected: false },
+    { outcome: "cancelled", status: 500, expected: false },
+    { outcome: "success", status: -1, expected: true },
+    { outcome: "success", status: 600, expected: true },
+  ] as const;
+  for (const event of cases) {
+    assert.equal(
+      isOperationalIndicatorEligible(event),
+      event.expected,
+      `${event.outcome}/${event.status}`,
+    );
   }
-  for (const status of [400, 401, 403, 404, 409, 413, 429, 499]) {
-    assert.equal(isOperationalIndicatorEligible({ outcome: "failure", status }), false);
-  }
-  assert.equal(isOperationalIndicatorEligible({ outcome: "cancelled", status: 200 }), false);
 });

@@ -2,6 +2,8 @@ import { validateReleaseManifest } from "./release-manifest.mjs";
 
 const REQUEST_ID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 export const OPERATIONAL_SMOKE_TIMEOUT_MS = 10_000;
+const INVALID_AUTHORIZATION = ["Bearer", "hhr-operational-smoke-invalid-v1"].join(" ");
+const ALTERNATE_INVALID_AUTHORIZATION = ["Bearer", "hhr-operational-smoke-invalid-v2"].join(" ");
 const LOOPBACK_HOSTS = new Set(["localhost", "127.0.0.1", "[::1]"]);
 
 async function withDeadline(label, timeoutMs, operation) {
@@ -69,6 +71,29 @@ async function readPublishedRelease({ base, headers, fetchImpl, timeoutMs }) {
   });
 }
 
+async function assertInvalidAuthorizationRejected({ authorization, base, fetchImpl, timeoutMs }) {
+  const invalidAuthorization = authorization === INVALID_AUTHORIZATION
+    ? ALTERNATE_INVALID_AUTHORIZATION
+    : INVALID_AUTHORIZATION;
+  await withDeadline("La sonda de autenticación negativa", timeoutMs, async (signal) => {
+    const response = await fetchImpl(
+      new URL(`/api/files/${crypto.randomUUID()}`, base),
+      {
+        method: "GET",
+        headers: new Headers({
+          accept: "application/json",
+          authorization: invalidAuthorization,
+        }),
+        cache: "no-store",
+        signal,
+      },
+    );
+    if (response.status !== 401) {
+      throw new Error("La credencial sintética inválida no fue rechazada de forma inequívoca.");
+    }
+  });
+}
+
 export async function runOperationalSmoke({
   origin,
   authorization = "",
@@ -81,6 +106,10 @@ export async function runOperationalSmoke({
   if (expected.sourceDirty) throw new Error("El release esperado declara una fuente no confirmada.");
   const headers = new Headers({ accept: "application/json" });
   if (authorization) headers.set("authorization", authorization);
+
+  if (authorization) {
+    await assertInvalidAuthorizationRejected({ authorization, base, fetchImpl, timeoutMs });
+  }
 
   const release = await readPublishedRelease({ base, headers, fetchImpl, timeoutMs });
   if (release.sourceDirty) throw new Error("El release publicado declara una fuente no confirmada.");

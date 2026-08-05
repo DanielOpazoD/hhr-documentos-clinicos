@@ -44,12 +44,15 @@ el stream.
 
 ### Información expresamente prohibida
 
-- cuerpos o parámetros de URL;
+- cuerpos, URLs completas, segmentos de ruta crudos, query strings o parámetros de URL;
 - nombre, RUT, correo o cualquier identidad de paciente o propietario;
 - texto clínico, evidencia, prompts o instrucciones libres;
 - nombres, claves o contenido de archivos;
 - tokens OAuth, cookies, credenciales, claves API o hashes derivados del usuario;
 - mensajes de excepciones y respuestas de proveedores.
+
+El identificador lógico normalizado, como `files.id.GET`, es el único metadato de ubicación
+permitido.
 
 No se debe copiar el log completo a una ficha, documento clínico o ticket. Para soporte basta
 el `requestId`, el momento aproximado y la acción que el usuario intentaba realizar.
@@ -126,11 +129,13 @@ existente hasta que la operación real justifique una integración institucional
 
 ## Smoke posterior a publicación
 
-El smoke lee `/release.json` antes y después de consultar por `GET` un UUID aleatorio en
-`/api/files/:id`. Compara en ambas lecturas commit, esquema y huella con el manifiesto local
-del artefacto promovido. No envía cuerpo, no crea registros ni enumera archivos. Sin autorización
-acepta los pares exactos `401/AUTH_REQUIRED` o `404/NOT_FOUND`; cuando se proporciona el
-encabezado privado exige `404/NOT_FOUND`, de modo que una credencial inválida no pueda pasar.
+Cuando se proporciona el encabezado privado, el smoke comienza con una sonda independiente
+que envía una credencial sintética fija y exige exactamente `401`; nunca deriva ese valor de la
+credencial real. Después lee `/release.json` antes y después de consultar por `GET` un UUID
+aleatorio en `/api/files/:id`. Compara en ambas lecturas commit, esquema y huella con el
+manifiesto local del artefacto promovido. No envía cuerpo, no crea registros ni enumera archivos.
+Sin autorización acepta los pares exactos `401/AUTH_REQUIRED` o `404/NOT_FOUND`; con la
+credencial privada válida exige `404/NOT_FOUND`.
 
 ```bash
 HHR_SMOKE_URL=http://127.0.0.1:8787 npm run smoke:operational
