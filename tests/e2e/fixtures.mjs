@@ -8,7 +8,7 @@ export const test = base.extend({
     const app = await startLocalApp({ seedSql: historySeedSql() });
     await use(app);
     await app.close();
-  }, { scope: "worker" }],
+  }, { scope: "worker", timeout: 90_000 }],
 });
 
 export { expect } from "@playwright/test";

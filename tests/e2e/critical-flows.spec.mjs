@@ -10,6 +10,7 @@ import {
 
 async function openApp(page, app, path) {
   await page.goto(new URL(path, app.origin).href);
+  await page.waitForLoadState("networkidle");
   await expect(page.locator("body")).toBeVisible();
 }
 
