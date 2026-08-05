@@ -87,6 +87,7 @@ export async function generateClinicalDraft(input: {
   professionalInstructions?: string;
   onProgress?: AiProgressReporter;
   signal?: AbortSignal;
+  fetcher?: typeof fetch;
 }): Promise<{ output: OpenAiOutput; usage: AiTokenUsage }> {
   const schema = outputSchema(input.target);
   const professionalInstructions = input.professionalInstructions?.trim() ?? "";
@@ -120,7 +121,7 @@ export async function generateClinicalDraft(input: {
     type: "input_text",
     text: `${PROFESSIONAL_INSTRUCTION_SOURCE.toUpperCase()} · source_index ${instructionSourceIndex} · page null:\n${professionalInstructions}\n\nEsta fuente define el alcance solicitado. Usa sus exclusiones como reglas y sus declaraciones textuales como contenido respaldado. Cita únicamente fragmentos literales de esta fuente; no cites como contenido las órdenes de edición.`,
   }] : [];
-  const response = await fetch("https://api.openai.com/v1/responses", {
+  const response = await (input.fetcher ?? fetch)("https://api.openai.com/v1/responses", {
     method: "POST",
     signal: input.signal,
     headers: {
