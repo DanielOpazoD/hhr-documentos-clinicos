@@ -1114,8 +1114,8 @@ test("organizes, archives and deletes stored files through owned server routes",
   assert.equal(modules.filter((module) => module.split("\n").length > 220).length, 0);
 });
 
-test("keeps operational failures traceable without exposing clinical context", async () => {
-  const [errorPage, clientHttp, serverHttp, operationalEvents, aiClient, aiRoute, operationalMetadata, progressStream, filesClient, diagnostics, styles] = await Promise.all([
+test("keeps operational outcomes traceable without exposing clinical context", async () => {
+  const [errorPage, clientHttp, serverHttp, operationalEvents, aiClient, aiRoute, operationalMetadata, progressStream, filesClient, diagnostics, observability, packageJson, styles] = await Promise.all([
     readFile(new URL("../app/error.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/lib/client/http.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/lib/server/http.ts", import.meta.url), "utf8"),
@@ -1126,6 +1126,8 @@ test("keeps operational failures traceable without exposing clinical context", a
     readFile(new URL("../app/features/ai/server/progress-stream.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/features/files/client.ts", import.meta.url), "utf8"),
     readFile(new URL("../docs/ERROR_DIAGNOSTICS.md", import.meta.url), "utf8"),
+    readFile(new URL("../docs/OPERATIONAL_OBSERVABILITY.md", import.meta.url), "utf8"),
+    readFile(new URL("../package.json", import.meta.url), "utf8"),
     readFile(new URL("../app/globals.css", import.meta.url), "utf8"),
   ]);
 
@@ -1166,6 +1168,11 @@ test("keeps operational failures traceable without exposing clinical context", a
   assert.doesNotMatch(progressStream, /error instanceof Error \? error\.message/);
   assert.equal((filesClient.match(/validate: has/g) ?? []).length, 4);
   assert.match(diagnostics, /No se registran cuerpos/);
+  assert.match(observability, /objetivos iniciales en evaluación/i);
+  assert.match(observability, /No se debe copiar el log completo/i);
+  assert.match(observability, /HHR_SMOKE_AUTHORIZATION/);
+  assert.match(observability, /no envía cuerpo, no crea registros/i);
+  assert.match(packageJson, /"smoke:operational"/);
   assert.match(styles, /\.unexpected-error-page/);
 });
 
