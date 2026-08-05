@@ -40,3 +40,11 @@ test("defines compact desktop controls and accessible touch targets", () => {
   assert.match(globals, /--touch-height:\s*44px/);
   assert.match(globals, /\.mobile-nav a\s*\{[^}]*min-height:\s*44px/s);
 });
+
+test("keeps the document toolbar readable without sacrificing mobile space", () => {
+  const documents = readFileSync(cssFiles[1], "utf8");
+
+  assert.match(documents, /\.template-menu button\s*\{[^}]*min-height:\s*40px/s);
+  assert.match(documents, /\.paper-toolbar-actions \.typography-control-icon\s*\{\s*display:\s*none !important;/s);
+  assert.match(documents, /\.paper-toolbar-actions \.document-type-control button\s*\{[^}]*width:\s*36px/s);
+});

@@ -44,7 +44,7 @@
 }
 
 .studio-page .header-actions .button {
-  min-height: 36px;
+  min-height: var(--control-height);
   flex: 0 0 auto;
   padding-inline: 12px;
   white-space: nowrap;
@@ -83,7 +83,7 @@
 }
 
 .document-library-mobile-actions > .button {
-  min-height: 36px;
+  min-height: var(--control-height);
   padding-inline: 9px;
   font-size: 12px;
 }
@@ -126,11 +126,12 @@
 }
 
 .template-menu button {
+  min-height: 40px;
   display: grid;
   grid-template-columns: auto minmax(0, 1fr);
   align-items: center;
   gap: 8px;
-  padding: 8px 7px;
+  padding: 8px 9px;
   border: 0;
   border-radius: 8px;
   background: transparent;
@@ -153,7 +154,7 @@
 .recent-document-list strong {
   overflow: hidden;
   color: var(--ink);
-  font-size: 12px;
+  font-size: 13px;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -828,9 +829,13 @@
 }
 
 .simplified-studio .paper-toolbar {
-  min-height: 34px;
+  min-height: 40px;
   justify-content: flex-end;
-  margin-bottom: 6px;
+  margin-bottom: 8px;
+  padding: 4px 6px;
+  border: 1px solid rgba(126, 145, 149, .18);
+  border-radius: 9px;
+  background: rgba(255, 255, 255, .72);
 }
 
 .simplified-studio .clinical-paper {
@@ -845,11 +850,11 @@
 
 .paper-add-section,
 .paper-template-settings {
-  min-height: 28px;
+  min-height: 32px;
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  padding: 0 7px;
+  padding: 0 9px;
   border: 0;
   border-radius: 7px;
   background: transparent;
@@ -946,11 +951,11 @@
 
   .studio-page .header-actions .button {
     width: auto;
-    min-height: 36px;
+    min-height: var(--touch-height);
   }
 
   .studio-print-button {
-    min-height: 36px;
+    min-height: var(--touch-height);
     padding-inline: 10px;
   }
 
@@ -1058,10 +1063,10 @@
 
   .paper-add-section,
   .paper-template-settings {
-    width: 28px;
-    min-width: 28px;
-    height: 26px;
-    min-height: 26px;
+    width: 36px;
+    min-width: 36px;
+    height: 36px;
+    min-height: 36px;
     justify-content: center;
     overflow: hidden;
     padding: 0;
@@ -1081,19 +1086,24 @@
   }
 
   .paper-toolbar-actions .document-type-control {
-    grid-template-columns: repeat(4, 24px);
+    grid-template-columns: 36px 28px 36px;
   }
 
-  .paper-toolbar-actions .typography-control-icon,
   .paper-toolbar-actions .document-type-control button,
   .paper-toolbar-actions .document-type-control output {
-    width: 24px;
-    height: 26px;
+    height: 36px;
   }
 
-  .paper-toolbar-actions .typography-control-icon svg {
-    width: 12px;
-    height: 12px;
+  .paper-toolbar-actions .typography-control-icon {
+    display: none !important;
+  }
+
+  .paper-toolbar-actions .document-type-control button {
+    width: 36px;
+  }
+
+  .paper-toolbar-actions .document-type-control output {
+    width: 28px;
   }
 
   .paper-toolbar-actions .document-type-control output {
@@ -1120,8 +1130,8 @@
   }
 
   .studio-page .header-actions .button {
-    width: 38px;
-    min-width: 38px;
+    width: var(--touch-height);
+    min-width: var(--touch-height);
     padding-inline: 0;
   }
 
@@ -1153,7 +1163,7 @@
   }
 
   .studio-page .history-button {
-    flex: 0 0 38px;
+    flex: 0 0 var(--touch-height);
   }
 
   .document-history-dialog {

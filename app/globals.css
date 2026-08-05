@@ -328,12 +328,12 @@ input:disabled { color: #6b7f84; background: #f5f7f7; }
 .paper-section-actions { opacity: 0; transition: opacity .14s ease; }
 .paper-editable-section:hover .paper-section-actions, .paper-editable-section:focus-within .paper-section-actions, .paper-section-actions[open] { opacity: 1; }
 @media (hover: none), (pointer: coarse) { .paper-section-actions { opacity: 1; } }
-.document-type-control { display: grid; grid-template-columns: 28px 28px 24px 28px; align-items: center; gap: 0; }
-.typography-control-icon { width: 28px; height: 28px; display: grid !important; place-items: center; border: 1px solid var(--line); border-right: 0; border-radius: 7px 0 0 7px; background: #f7f7f8; color: #62626d; }
-.document-type-control button { width: 28px; height: 28px; display: grid; place-items: center; padding: 0; border: 1px solid var(--line); border-right: 0; background: #fff; color: var(--navy); }
+.document-type-control { display: grid; grid-template-columns: 32px 32px 26px 32px; align-items: center; gap: 0; }
+.typography-control-icon { width: 32px; height: 32px; display: grid !important; place-items: center; border: 1px solid var(--line); border-right: 0; border-radius: 7px 0 0 7px; background: #f7f7f8; color: #62626d; }
+.document-type-control button { width: 32px; height: 32px; display: grid; place-items: center; padding: 0; border: 1px solid var(--line); border-right: 0; background: #fff; color: var(--navy); }
 .document-type-control button:last-child { border-right: 1px solid var(--line); border-radius: 0 7px 7px 0; }
 .document-type-control button:disabled { color: #a9b4b6; background: #f5f7f7; }
-.document-type-control output { height: 28px; display: grid; place-items: center; border-block: 1px solid var(--line); color: var(--ink); background: #fff; font-size: 12px; font-weight: 750; }
+.document-type-control output { height: 32px; display: grid; place-items: center; border-block: 1px solid var(--line); color: var(--ink); background: #fff; font-size: 12px; font-weight: 750; }
 .section-actions-menu { position: relative; flex: 0 0 auto; }
 .section-actions-menu summary { width: 30px; height: 30px; display: grid; place-items: center; border: 0; border-radius: 7px; color: #6e6e80; list-style: none; cursor: pointer; }
 .section-actions-menu summary::-webkit-details-marker { display: none; }
