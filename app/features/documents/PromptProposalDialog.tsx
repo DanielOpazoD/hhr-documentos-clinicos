@@ -1,10 +1,11 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
 import { Save, Sparkles, X } from "@/app/components/Icons";
 import type { AiPromptInput, AiPromptProposal } from "@/app/features/ai/prompt-types";
 import { aiTargets } from "@/app/features/ai/targets";
 import type { AiTargetId } from "@/app/features/ai/types";
+import { useDialogFocus } from "@/app/lib/client/use-dialog-focus";
 
 type Props = {
   proposal: AiPromptProposal;
@@ -21,15 +22,11 @@ export function PromptProposalDialog({ proposal, busy, error, onClose, onSave }:
     instructions: proposal.instructions,
     makeDefault: false,
   });
-  const dialogRef = useRef<HTMLElement>(null);
-
-  useEffect(() => {
-    dialogRef.current?.focus();
-  }, []);
 
   const close = () => {
     if (!busy) onClose();
   };
+  const [dialogRef, onDialogKeyDown] = useDialogFocus<HTMLElement>(close);
 
   return (
     <div className="modal-backdrop prompt-proposal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) close(); }}>
@@ -40,7 +37,7 @@ export function PromptProposalDialog({ proposal, busy, error, onClose, onSave }:
         aria-modal="true"
         aria-labelledby="prompt-proposal-title"
         tabIndex={-1}
-        onKeyDown={(event) => { if (event.key === "Escape") close(); }}
+        onKeyDown={onDialogKeyDown}
       >
         <header>
           <div><span><Sparkles size={17} /></span><div><h2 id="prompt-proposal-title">Revisar plantilla propuesta</h2><small>Nada se guarda hasta que usted confirme.</small></div></div>
