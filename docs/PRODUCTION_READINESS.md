@@ -36,12 +36,16 @@ La aplicación está preparada como un entorno privado funcional, pero no se dec
 - Esquema D1 administrado exclusivamente por migraciones versionadas; ninguna solicitud crea tablas, altera columnas o aplica compatibilidades históricas.
 - Pruebas de instalación vacía, actualización desde las versiones históricas `0001` a `0004` mediante `db:prepare` y desde los cortes canónicos `0005`, `0007` y `0008`, con conservación de registros, limpieza privada y rollback sobre una copia desechable.
 - Verificador privado de migraciones, índices, versiones documentales, relaciones huérfanas y firmas predeterminadas que solo emite conteos.
+- Ensayo integral D1/R2 completamente local y sintético, con manifiesto sin payload clínico,
+  checksums por tabla y objeto, aislamiento de propietarios, rollback y reanudación segura de
+  un fallo parcial.
 
 ## Controles pendientes antes de uso clínico institucional
 
 1. Aprobación institucional del tratamiento de datos y del proveedor de IA.
 2. Política documentada de retención, eliminación, exportación y derecho de acceso.
-3. Automatización institucional de respaldos D1/R2 y simulacro remoto periódico; el procedimiento D1 y su ensayo local ya están documentados.
+3. Automatización institucional de respaldos D1/R2 y simulacro remoto periódico; el contrato
+   integral y su ensayo local verificable ya están documentados.
 4. Alertas operativas externas y procedimiento institucional de respuesta a incidentes; la correlación y el diagnóstico local ya están documentados.
 5. Revisión de amenazas, pruebas de penetración y validación de dependencias transitivas.
 6. Matriz de roles y permisos clínicos más granular si se amplía el acceso.

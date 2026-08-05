@@ -49,7 +49,10 @@ npm run lint
 npm run typecheck
 npm run test:ai-evals
 npm test
+npm run test:database
+npm run recovery:drill
 npm run check:bundle
+npm run db:check
 ```
 
 El presupuesto de cliente mantiene el límite total de JS/CSS, controla el artefacto más grande y comprueba el peso efectivo de las rutas principales incluyendo los estilos globales. También vigila por separado `jsPDF` y el asistente: el primero se carga sólo al crear un PDF del escáner y la IA sólo al abrirla desde Documentos. La representación QR se genera en el servidor, por lo que el codificador vendorizado tampoco forma parte del cliente. El manifiesto y los límites por ruta deben conservar esas fronteras.
@@ -63,6 +66,12 @@ presupuesto de IA por propietario. En el flujo móvil comprueba el contrato de e
 reemplazo concurrente, revocación, aislamiento por propietario y atribución exacta de archivos.
 Las pruebas utilizan identidades y contenido sintéticos; nunca llaman a proveedores de IA
 externos.
+
+El ensayo de [recuperación verificable de D1/R2](./docs/DATA_RECOVERY.md) crea un entorno
+local marcado como desechable, respalda sus tablas y objetos sintéticos, lo destruye, lo
+restaura y compara checksums, ownership y relaciones. También demuestra detección de blobs
+faltantes o duplicados, huérfanos y fallos parciales. No acepta rutas externas ni contacta
+recursos remotos.
 
 El esquema D1 se administra mediante migraciones versionadas. Para instalaciones históricas, el único puente excepcional es `npm run db:prepare` antes de `0005_schema_authority.sql`: puede añadir la columna y el índice de compatibilidad fuera del camino HTTP. Después de ese puente, todo cambio de esquema debe realizarse mediante una migración versionada. La guía de [despliegue, verificación y recuperación](./docs/DATABASE_MIGRATIONS.md) describe el respaldo previo, el control privado de integridad y el rollback ensayado en una base desechable.
 
