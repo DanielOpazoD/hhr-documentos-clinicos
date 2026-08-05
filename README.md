@@ -83,6 +83,14 @@ El esquema D1 se administra mediante migraciones versionadas. Para instalaciones
 
 La [integridad de publicación](./docs/RELEASE_INTEGRITY.md) relaciona cada build con su commit, esquema y huella, y define cómo promover o revertir exactamente el mismo artefacto privado.
 
+La [observabilidad operativa privada](./docs/OPERATIONAL_OBSERVABILITY.md) define el evento
+mínimo sin PHI, los objetivos iniciales aún en evaluación, el diagnóstico por código de soporte
+y el smoke de solo lectura que debe ejecutarse después de publicar:
+
+```bash
+HHR_SMOKE_URL=http://127.0.0.1:8787 npm run smoke:operational
+```
+
 ## Arquitectura
 
 - Next.js/React sobre Vinext y Cloudflare Workers.

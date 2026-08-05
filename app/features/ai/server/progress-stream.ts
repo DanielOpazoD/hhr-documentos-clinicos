@@ -7,13 +7,28 @@ export function progressStream(
     errorMessage?: string | (() => string);
     requestId?: string;
     signal?: AbortSignal;
+    onComplete?: () => void;
     onError?: () => void;
+    onCancel?: () => void;
   } = {},
 ): Response {
   const encoder = new TextEncoder();
   const lifetime = new AbortController();
   let open = true;
-  const forwardAbort = () => lifetime.abort();
+  let outcomeReported = false;
+  const report = (callback: (() => void) | undefined) => {
+    if (outcomeReported) return;
+    outcomeReported = true;
+    try {
+      callback?.();
+    } catch {
+      // Operational reporting cannot alter the stream result.
+    }
+  };
+  const forwardAbort = () => {
+    lifetime.abort();
+    report(options.onCancel);
+  };
   if (options.signal?.aborted) forwardAbort();
   else options.signal?.addEventListener("abort", forwardAbort, { once: true });
   const detachSignal = () => options.signal?.removeEventListener("abort", forwardAbort);
@@ -30,9 +45,10 @@ export function progressStream(
       };
       try {
         await produce(emit, lifetime.signal);
+        report(lifetime.signal.aborted ? options.onCancel : options.onComplete);
       } catch {
         if (!lifetime.signal.aborted) {
-          options.onError?.();
+          report(options.onError);
           emit({
             type: "error",
             error: typeof options.errorMessage === "function"
@@ -41,7 +57,7 @@ export function progressStream(
             code: typeof options.code === "function" ? options.code() : options.code,
             requestId: options.requestId,
           });
-        }
+        } else report(options.onCancel);
       } finally {
         detachSignal();
         if (open) {
@@ -53,6 +69,7 @@ export function progressStream(
     cancel() {
       open = false;
       lifetime.abort();
+      report(options.onCancel);
       detachSignal();
     },
   });

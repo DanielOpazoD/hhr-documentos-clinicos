@@ -117,7 +117,7 @@ segunda bitácora de importaciones ni se copian nombres de archivo a la auditor�
 | Edición, impresión e historial | [Ciclo de vida de documentos](./DOCUMENT_LIFECYCLE.md) | Documento persistido, impresión autorizada o corrección enfocada. |
 | Escáner y captura móvil | [Escáner y captura móvil](./SCANNER_CAPTURE_WORKFLOW.md) | Salida local o archivo privado publicado sin residuos parciales. |
 | Migración y recuperación de D1 | [Migraciones de base de datos](./DATABASE_MIGRATIONS.md) | Esquema íntegro o rollback comprobable. |
-| Errores operacionales | [Diagnóstico de errores](./ERROR_DIAGNOSTICS.md) | Respuesta segura con código de soporte. |
+| Salud y errores operacionales | [Observabilidad operativa](./OPERATIONAL_OBSERVABILITY.md) | Evento mínimo correlacionado con release o diagnóstico seguro por `requestId`. |
 | Google Drive | [Integración con Google Drive](./GOOGLE_DRIVE.md) | Archivos elegidos en memoria o cancelación sin persistencia. |
 
 Un flujo se agrega a este registro cuando combina al menos dos de estas condiciones:

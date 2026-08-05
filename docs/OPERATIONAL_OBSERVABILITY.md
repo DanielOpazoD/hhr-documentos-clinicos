@@ -1,0 +1,194 @@
+# Observabilidad operativa privada
+
+## Alcance y estado
+
+HHR-documentos emite un evento estructurado y acotado por cada solicitud API terminada. El
+objetivo es correlacionar un código de soporte con una ruta lógica y una versión exacta, y
+observar la salud básica del producto sin crear otra base de datos ni enviar información a un
+proveedor nuevo.
+
+Los umbrales de este documento son **objetivos iniciales en evaluación**, no SLO cumplidos ni
+evidencia de aptitud clínica institucional. Deben recalibrarse con tráfico real suficiente y
+con la aprobación del responsable operacional.
+
+## Contrato `api_request` v1
+
+Ejemplo sanitizado:
+
+```json
+{
+  "operationalVersion": 1,
+  "event": "api_request",
+  "level": "warn",
+  "outcome": "failure",
+  "requestId": "123e4567-e89b-42d3-a456-426614174000",
+  "route": "files.id.GET",
+  "routeFamily": "files",
+  "method": "GET",
+  "status": 404,
+  "code": "NOT_FOUND",
+  "durationMs": 19,
+  "releaseManifestVersion": 1,
+  "releaseCommit": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "releaseSchema": "0009_ai_trace_privacy"
+}
+```
+
+El evento es una proyección por lista permitida, no un objeto de contexto extensible. Tiene un
+límite de 768 caracteres ASCII y se escribe en los logs estructurados ya disponibles en el
+runtime. Un fallo del logger se ignora y nunca cambia la respuesta al usuario.
+
+La generación de IA por stream emite un único resultado terminal: `AI_GENERATION_SUCCEEDED`,
+el código estable del fallo o `AI_EXECUTION_CANCELLED`. No se registra además un éxito al abrir
+el stream.
+
+### Información expresamente prohibida
+
+- cuerpos, URLs completas, segmentos de ruta crudos, query strings o parámetros de URL;
+- nombre, RUT, correo o cualquier identidad de paciente o propietario;
+- texto clínico, evidencia, prompts o instrucciones libres;
+- nombres, claves o contenido de archivos;
+- tokens OAuth, cookies, credenciales, claves API o hashes derivados del usuario;
+- mensajes de excepciones y respuestas de proveedores.
+
+El identificador lógico normalizado, como `files.id.GET`, es el único metadato de ubicación
+permitido.
+
+No se debe copiar el log completo a una ficha, documento clínico o ticket. Para soporte basta
+el `requestId`, el momento aproximado y la acción que el usuario intentaba realizar.
+
+## Indicadores básicos
+
+Los indicadores se agrupan por `releaseCommit`, `releaseSchema`, `routeFamily`, `route`,
+`method` y ventana temporal. Una publicación nueva no debe mezclarse con la anterior al
+calcular una regresión.
+
+### Predicado de elegibilidad v1
+
+`OPERATIONAL_ELIGIBILITY_VERSION = 1` define una solicitud elegible como todo evento no
+cancelado cuyo estado final sea menor que `400` o mayor o igual que `500`. Por tanto:
+
+- se incluyen todos los códigos estables asociados a respuestas `2xx`, `3xx` y `5xx`;
+- se excluyen todos los `4xx` y sus códigos, incluidos autenticación, validación, conflicto,
+  payload, cuota y rate limit;
+- se excluyen `outcome=cancelled` y `499`, aunque otro campo estuviera mal clasificado;
+- el smoke queda fuera automáticamente porque su resultado esperado es `401` o `404`.
+
+Después se aplica el filtro de superficie: todas las rutas no IA para disponibilidad general;
+`ai.import.POST` para generación/procesamiento; y `files.POST` o `mobile-upload.POST` para
+cargas. La función canónica y su prueba contractual viven junto al evento v1.
+
+| Indicador | Cálculo inicial | Lectura segura |
+| --- | --- | --- |
+| Disponibilidad técnica | elegibles v1 sin estado `5xx` / elegibles v1 | Aplicar después el filtro de rutas no IA e informar también volumen. |
+| Latencia | p50 y p95 de `durationMs` | Separar por ruta y release; no mezclar IA con operaciones D1/R2. |
+| Errores | conteo y porcentaje por `code` | El código estable sirve para tendencia; el `requestId`, para un caso individual. |
+| Generación IA | `AI_GENERATION_SUCCEEDED` / eventos elegibles v1 de `ai.import.POST` | Informar `AI_PROVIDER_TIMEOUT` y otros fallos por separado. No inferir contenido ni tipo clínico. |
+| Persistencia de archivos | éxitos / eventos elegibles v1 de `files.POST` y `mobile-upload.POST` | Un `201` implica que el flujo de persistencia del endpoint terminó. La transformación del escáner ocurre en el cliente y no se telemetriza. |
+| Procesamiento de fuentes | resultado terminal de `ai.import.POST` | No distingue si la fuente fue archivo o texto, para evitar añadir metadatos sensibles. |
+| Release afectado | commit + esquema del evento | Resolver la huella exacta consultando el `release.json` de ese despliegue. |
+
+Los percentiles con pocas muestras inducen a error. Para ventanas sin volumen suficiente se
+publica `sin datos suficientes`, nunca `100 %` por ausencia de tráfico.
+
+## Objetivos iniciales y alertas candidatas
+
+Ventana de evaluación inicial: una ventana completa de retención del plan, revisada al cierre.
+
+| Superficie | Objetivo candidato | Muestra mínima para evaluarlo |
+| --- | --- | --- |
+| Rutas API no IA | disponibilidad técnica >= 99,5 % y p95 <= 1.500 ms | 1.000 eventos elegibles v1 en una ventana completa |
+| Generación clínica IA | éxito terminal >= 97 % y timeout < 2 % | 100 eventos elegibles v1 en una ventana completa |
+| Carga de archivos | éxito >= 99 % y p95 <= 5.000 ms | 200 eventos elegibles v1 en una ventana completa |
+| Smoke posterior a publicación | 100 % por cada release promovido | una ejecución inmediatamente después de promover |
+
+Umbrales candidatos para revisión humana, con volumen mínimo para evitar ruido:
+
+- una falla del smoke o una discordancia de release: revisar de inmediato y detener nuevas
+  promociones;
+- al menos cinco `5xx` en cinco minutos **y** más de 5 % de las solicitudes elegibles: incidente;
+- al menos tres `AI_PROVIDER_TIMEOUT` en quince minutos **y** más de 10 % de las ejecuciones:
+  revisar proveedor, cuota y red antes de reintentar;
+- al menos tres fallos de carga en quince minutos **y** más de 5 % de las cargas: revisar D1,
+  R2 y límites de payload.
+
+No se automatiza una alerta remota en este PR. Los umbrales se aplican a los logs del runtime
+existente hasta que la operación real justifique una integración institucional aprobada.
+
+### Recalibración con evidencia
+
+1. Reunir al menos cuatro ventanas completas y las muestras mínimas sin cambiar el contrato.
+2. Separar incidentes de plataforma, errores de aplicación y rechazos válidos del usuario.
+3. Calcular p50, p95, tasa y volumen por release y ruta; conservar también días sin tráfico.
+4. Comparar al menos dos releases estables y documentar estacionalidad o ventanas de baja
+   conectividad.
+5. Ajustar un objetivo solo con responsable, justificación y fecha. No elevarlo para ocultar
+   una regresión ni reducirlo por una sola muestra atípica.
+6. Declarar un SLO formal únicamente cuando existan medición sostenida, responsable, política
+   de alertas y procedimiento institucional aprobados.
+
+## Smoke posterior a publicación
+
+Cuando se proporciona el encabezado privado, el smoke comienza con una sonda independiente
+que envía una credencial sintética fija y exige exactamente `401`; nunca deriva ese valor de la
+credencial real. Después lee `/release.json` antes y después de consultar por `GET` un UUID
+aleatorio en `/api/files/:id`. Compara en ambas lecturas commit, esquema y huella con el
+manifiesto local del artefacto promovido. No envía cuerpo, no crea registros ni enumera archivos.
+Sin autorización acepta los pares exactos `401/AUTH_REQUIRED` o `404/NOT_FOUND`; con la
+credencial privada válida exige `404/NOT_FOUND`.
+
+```bash
+HHR_SMOKE_URL=http://127.0.0.1:8787 npm run smoke:operational
+```
+
+Por defecto, la identidad esperada se lee de `dist/client/release.json`. En otro entorno se
+indica el mismo manifiesto validado mediante `--expected-release <ruta>` o
+`HHR_SMOKE_EXPECTED_RELEASE`; no se aceptan solo un SHA o etiqueta ingresados manualmente.
+
+Para una publicación privada, `HHR_SMOKE_AUTHORIZATION` puede contener el encabezado
+`Authorization` completo, inyectado desde un almacén protegido. No se pasa como argumento, no
+se confirma en Git y el comando no lo imprime. Los orígenes remotos exigen HTTPS; HTTP se
+acepta únicamente para el loopback del desarrollo local.
+
+Una salida correcta contiene solo el código de soporte, ruta lógica, estado y la identidad
+sanitizada del release. Después del smoke, buscar ese `requestId` en los logs y comprobar que
+el evento posee el mismo commit y esquema.
+
+## Diagnóstico por código de soporte
+
+1. Pedir el `requestId` visible y el momento aproximado; nunca solicitar el documento o prompt.
+2. Buscar coincidencia exacta de `requestId` en los logs del despliegue.
+3. Confirmar `route`, `outcome`, `status`, `code`, `durationMs`, commit y esquema.
+4. Leer `/release.json` del mismo despliegue y vincular commit/esquema con
+   `artifact.fingerprint`. La huella no se incluye dentro del evento porque forma parte de un
+   manifiesto calculado después del build; duplicarla allí produciría una identidad circular.
+5. Comparar el código y la ruta con otros eventos del mismo release para distinguir un caso
+   aislado de una regresión.
+6. Reproducir únicamente con datos sintéticos y registrar la prueba que confirma la causa.
+
+## Procedimiento de incidente
+
+1. **Confirmar:** validar el código de soporte y preservar solo los campos permitidos.
+2. **Acotar:** identificar ventana, ruta, código, volumen, release y primer/último evento.
+3. **Clasificar:** diferenciar indisponibilidad, latencia, proveedor IA, D1/R2 o rechazo válido.
+4. **Contener:** detener promociones y, si corresponde, promover la última versión privada sana
+   ya verificada según [Integridad de publicación](./RELEASE_INTEGRITY.md).
+5. **Proteger datos:** si el esquema cambió, seguir [Migraciones](./DATABASE_MIGRATIONS.md) y
+   [Recuperación D1/R2](./DATA_RECOVERY.md); nunca improvisar una restauración remota.
+6. **Verificar:** ejecutar el smoke, el flujo sintético afectado y la comprobación del release.
+7. **Cerrar:** documentar causa, alcance, tiempos, decisión y prueba de recuperación sin PHI.
+
+Si la emisión del evento falla, la operación del producto sigue su curso. Esa ausencia se trata
+como degradación de observabilidad; no se intenta reconstruir el evento desde cuerpos, D1 o R2.
+
+## Custodia
+
+Los eventos permanecen en los logs privados del runtime existente. Workers Logs conserva como
+máximo 3 días en el plan Free y 7 días en Paid; no puede configurarse una retención nativa de
+28 días. Antes de iniciar una medición se verifica el plan efectivo y se usa su ventana completa.
+No se añade Logpush, Tail Worker ni proveedor en este PR. Tampoco se exportan eventos crudos a
+hojas de cálculo, analítica de producto o servicios personales. Al expirar cada ventana pueden
+conservarse solo agregados operacionales aprobados —volumen, tasa y percentiles por ruta y
+release— que no permitan reidentificar a una persona. Un SLO formal de mayor horizonte requiere
+una política institucional de agregación y custodia aprobada. Referencia:
+[Workers Logs](https://developers.cloudflare.com/workers/observability/logs/workers-logs/).

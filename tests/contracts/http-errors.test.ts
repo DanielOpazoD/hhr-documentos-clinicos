@@ -27,10 +27,41 @@ test("observeApi correlates handled failures without logging their message", asy
     "event",
     "level",
     "method",
+    "operationalVersion",
+    "outcome",
+    "releaseCommit",
+    "releaseManifestVersion",
+    "releaseSchema",
     "requestId",
     "route",
+    "routeFamily",
     "status",
   ]);
+  const event = JSON.parse(logs[0]) as Record<string, unknown>;
+  assert.equal(event.event, "api_request");
+  assert.equal(event.outcome, "failure");
+  assert.equal(event.routeFamily, "contracts");
+  assert.equal(event.releaseCommit, "local");
+  assert.equal(event.releaseSchema, "local");
+});
+
+test("observeApi emits one bounded success without reading its response body", async (context) => {
+  const logs: string[] = [];
+  context.mock.method(console, "log", (line: unknown) => logs.push(String(line)));
+  const GET = observeApi("contracts.GET", async () => Response.json({
+    patient: "Paciente Ejemplo",
+    prompt: "contenido privado",
+  }));
+
+  const response = await GET(new Request("https://hhr.test/api/contracts?email=private@example.test"));
+
+  assert.equal(response.status, 200);
+  assert.equal(logs.length, 1);
+  const event = JSON.parse(logs[0]) as Record<string, unknown>;
+  assert.equal(event.outcome, "success");
+  assert.equal(event.code, "OK");
+  assert.equal(event.status, 200);
+  assert.doesNotMatch(logs[0], /Paciente|prompt|private@example|api\/contracts/i);
 });
 
 test("observeApi replaces unexpected failures with a private generic response", async (context) => {
@@ -170,6 +201,26 @@ test("progressStream correlates failures that occur after streaming starts", asy
   assert.equal(event.error, "No se pudo completar la operación.");
 });
 
+test("progressStream reports exactly one terminal success", async () => {
+  let completions = 0;
+  let failures = 0;
+  let cancellations = 0;
+  const response = progressStream(async (emit) => {
+    emit({ type: "result", ok: true });
+  }, {
+    onComplete: () => { completions += 1; },
+    onError: () => { failures += 1; },
+    onCancel: () => { cancellations += 1; },
+  });
+
+  assert.match(await response.text(), /"ok":true/);
+  assert.deepEqual({ completions, failures, cancellations }, {
+    completions: 1,
+    failures: 0,
+    cancellations: 0,
+  });
+});
+
 test("progressStream exposes only the route-selected safe timeout message", async () => {
   let code = "AI_GENERATION_FAILED";
   let message = "No se pudo completar la operación.";
@@ -191,6 +242,7 @@ test("progressStream exposes only the route-selected safe timeout message", asyn
 test("progressStream aborts disconnected work without reporting an operational failure", async () => {
   let observedAbort = false;
   let failures = 0;
+  let cancellations = 0;
   let notifyStarted: (() => void) | undefined;
   const started = new Promise<void>((resolve) => { notifyStarted = resolve; });
   const response = progressStream(async (_emit, signal) => {
@@ -203,6 +255,7 @@ test("progressStream aborts disconnected work without reporting an operational f
     });
   }, {
     onError: () => { failures += 1; },
+    onCancel: () => { cancellations += 1; },
   });
   const reader = response.body!.getReader();
 
@@ -211,25 +264,32 @@ test("progressStream aborts disconnected work without reporting an operational f
 
   assert.equal(observedAbort, true);
   assert.equal(failures, 0);
+  assert.equal(cancellations, 1);
 });
 
 test("progressStream forwards request cancellation to its producer", async () => {
   const requestController = new AbortController();
   let observedAbort = false;
+  let cancellations = 0;
   let notifyStarted: (() => void) | undefined;
+  let finishProduce: (() => void) | undefined;
   const started = new Promise<void>((resolve) => { notifyStarted = resolve; });
+  const pendingProduce = new Promise<void>((resolve) => { finishProduce = resolve; });
   const response = progressStream(async (_emit, signal) => {
     notifyStarted?.();
-    await new Promise<void>((resolve) => {
-      signal.addEventListener("abort", () => {
-        observedAbort = true;
-        resolve();
-      }, { once: true });
-    });
-  }, { signal: requestController.signal });
+    signal.addEventListener("abort", () => { observedAbort = true; }, { once: true });
+    await pendingProduce;
+  }, {
+    signal: requestController.signal,
+    onCancel: () => { cancellations += 1; },
+  });
 
   await started;
   requestController.abort();
-  assert.equal(await response.text(), "");
   assert.equal(observedAbort, true);
+  assert.equal(cancellations, 1);
+
+  finishProduce?.();
+  assert.equal(await response.text(), "");
+  assert.equal(cancellations, 1);
 });

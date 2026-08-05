@@ -63,12 +63,13 @@ test("builds the clinical document workspace from a production product identity"
 });
 
 test("identifies the built release without exposing clinical or credential data", async () => {
-  const [packageJson, buildRelease, verifyRelease, releaseManifestSource, releaseManifestFile] = await Promise.all([
+  const [packageJson, buildRelease, verifyRelease, releaseManifestSource, releaseManifestFile, serverBundle] = await Promise.all([
     readFile(new URL("../package.json", import.meta.url), "utf8"),
     readFile(new URL("../scripts/build-release.mjs", import.meta.url), "utf8"),
     readFile(new URL("../scripts/verify-release.mjs", import.meta.url), "utf8"),
     readFile(new URL("../scripts/lib/release-manifest.mjs", import.meta.url), "utf8"),
     readFile(new URL("../dist/client/release.json", import.meta.url), "utf8"),
+    readFile(new URL("../dist/server/index.js", import.meta.url), "utf8"),
   ]);
   const release = JSON.parse(releaseManifestFile);
   assert.match(packageJson, /"build": "node scripts\/build-release\.mjs"/);
@@ -88,6 +89,8 @@ test("identifies the built release without exposing clinical or credential data"
   assert.equal(Number.isSafeInteger(release.artifact.fileCount), true);
   assert.equal(Number.isSafeInteger(release.artifact.bytes), true);
   assert.doesNotMatch(releaseManifestFile, /patient|rut|prompt|token|secret|email/i);
+  assert.match(serverBundle, new RegExp(release.commit));
+  assert.match(serverBundle, new RegExp(release.schema));
 });
 
 test("ships the clinical routes, storage bindings and source templates", async () => {
@@ -1111,17 +1114,20 @@ test("organizes, archives and deletes stored files through owned server routes",
   assert.equal(modules.filter((module) => module.split("\n").length > 220).length, 0);
 });
 
-test("keeps operational failures traceable without exposing clinical context", async () => {
-  const [errorPage, clientHttp, serverHttp, aiClient, aiRoute, operationalMetadata, progressStream, filesClient, diagnostics, styles] = await Promise.all([
+test("keeps operational outcomes traceable without exposing clinical context", async () => {
+  const [errorPage, clientHttp, serverHttp, operationalEvents, aiClient, aiRoute, operationalMetadata, progressStream, filesClient, diagnostics, observability, packageJson, styles] = await Promise.all([
     readFile(new URL("../app/error.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/lib/client/http.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/lib/server/http.ts", import.meta.url), "utf8"),
+    readFile(new URL("../app/lib/server/operational-events.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/features/ai/client.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/api/ai/import/route.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/features/ai/server/operational-metadata.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/features/ai/server/progress-stream.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/features/files/client.ts", import.meta.url), "utf8"),
     readFile(new URL("../docs/ERROR_DIAGNOSTICS.md", import.meta.url), "utf8"),
+    readFile(new URL("../docs/OPERATIONAL_OBSERVABILITY.md", import.meta.url), "utf8"),
+    readFile(new URL("../package.json", import.meta.url), "utf8"),
     readFile(new URL("../app/globals.css", import.meta.url), "utf8"),
   ]);
 
@@ -1131,9 +1137,13 @@ test("keeps operational failures traceable without exposing clinical context", a
   assert.match(clientHttp, /class ApiClientError extends Error/);
   assert.match(clientHttp, /Código de soporte/);
   assert.match(clientHttp, /options\.validate/);
-  assert.match(serverHttp, /event: "api_request_failed"/);
+  assert.match(serverHttp, /emitOperationalEvent/);
+  assert.match(operationalEvents, /event: "api_request"/);
+  assert.match(operationalEvents, /releaseCommit/);
+  assert.match(operationalEvents, /OPERATIONAL_EVENT_MAX_BYTES/);
+  assert.doesNotMatch(operationalEvents, /owner_email|patientName|fileName|userInstructions|apiKey|accessToken/);
   assert.match(aiClient, /AI_GENERATION_FAILED|requestId/);
-  assert.match(aiRoute, /reportApiFailure/);
+  assert.match(aiRoute, /reportApiOutcome/);
   const cancellation = sourceSection(
     aiRoute,
     "if (error instanceof AiExecutionCancelledError) {",
@@ -1158,6 +1168,11 @@ test("keeps operational failures traceable without exposing clinical context", a
   assert.doesNotMatch(progressStream, /error instanceof Error \? error\.message/);
   assert.equal((filesClient.match(/validate: has/g) ?? []).length, 4);
   assert.match(diagnostics, /No se registran cuerpos/);
+  assert.match(observability, /objetivos iniciales en evaluación/i);
+  assert.match(observability, /No se debe copiar el log completo/i);
+  assert.match(observability, /HHR_SMOKE_AUTHORIZATION/);
+  assert.match(observability, /no envía cuerpo, no crea registros/i);
+  assert.match(packageJson, /"smoke:operational"/);
   assert.match(styles, /\.unexpected-error-page/);
 });
 

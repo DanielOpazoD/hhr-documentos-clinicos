@@ -16,7 +16,7 @@ La aplicación está preparada como un entorno privado funcional, pero no se dec
 - Auditorías de IA limitadas a identificadores, estados y conteos acotados; los nombres de archivo, prompts, evidencia y contenido clínico permanecen únicamente en el documento privado del propietario.
 - Consumo de tokens registrado para borradores, mejora de prompts y plantillas derivadas; disponibilidad de la ventana de 24 horas visible sin añadir telemetría clínica.
 - Registro de creación, actualización, carga, generación y errores relevantes.
-- Errores API correlacionados mediante un código de soporte, contrato estable y logs estructurados sin cuerpos ni identificadores clínicos.
+- Eventos API de éxito, fallo y cancelación correlacionados mediante código de soporte, contrato versionado, ruta lógica y release exacto, sin cuerpos ni identificadores clínicos.
 - Versionado de documentos al cambiar su estado clínico.
 - Historial visible con restauración no destructiva como borrador y control optimista de concurrencia.
 - Formularios institucionales originales preservados para impresión.
@@ -46,7 +46,7 @@ La aplicación está preparada como un entorno privado funcional, pero no se dec
 2. Política documentada de retención, eliminación, exportación y derecho de acceso.
 3. Automatización institucional de respaldos D1/R2 y simulacro remoto periódico; el contrato
    integral y su ensayo local verificable ya están documentados.
-4. Alertas operativas externas y procedimiento institucional de respuesta a incidentes; la correlación y el diagnóstico local ya están documentados.
+4. Automatización institucional de alertas y aprobación formal de SLO; el evento privado, los objetivos provisionales, el smoke y el procedimiento de incidente ya están documentados sin añadir proveedor.
 5. Revisión de amenazas, pruebas de penetración y validación de dependencias transitivas.
 6. Matriz de roles y permisos clínicos más granular si se amplía el acceso.
 7. Validación legal de firma, receta, consentimiento e integraciones externas.

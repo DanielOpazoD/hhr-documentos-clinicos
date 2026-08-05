@@ -4,12 +4,13 @@ La aplicación asigna un `requestId` nuevo a cada solicitud API. Cuando una oper
 
 ## Datos registrados
 
-Cada evento `api_request_failed` contiene exclusivamente:
+Cada evento versionado `api_request` contiene exclusivamente:
 
-- evento `api_request_failed`;
+- resultado terminal `success`, `failure` o `cancelled`;
 - `requestId`, ruta lógica y método HTTP;
 - estado, código estable y duración;
-- nivel `warn` para errores esperables y `error` para fallos del servidor.
+- nivel `info` para éxitos, `warn` para errores esperables y `error` para fallos del servidor;
+- versión de manifiesto, commit y esquema compilados en el artefacto.
 
 No se registran cuerpos, parámetros de URL, correo, nombres, RUT, contenido clínico, prompts, nombres de archivos ni mensajes de excepciones. Los errores inesperados se muestran como un mensaje genérico.
 
@@ -21,8 +22,8 @@ No se registran cuerpos, parámetros de URL, correo, nombres, RUT, contenido cl�
 4. Reproducir el flujo con datos sintéticos en local.
 5. Registrar la causa, la corrección y la validación utilizada.
 
-Los errores que ocurren después de iniciar una generación con IA usan `AI_GENERATION_FAILED` y conservan el mismo identificador de la solicitud que abrió el stream. Un timeout usa `AI_PROVIDER_TIMEOUT`; los límites previos a la llamada usan `AI_DAILY_LIMIT_REACHED` o `AI_CONCURRENCY_LIMIT_REACHED` y entregan `Retry-After` sin revelar prompts ni datos de la fuente. Una cancelación solicitada por el usuario usa `AI_EXECUTION_CANCELLED`, termina la reserva como `cancelled` y deja una auditoría privada mínima, pero no genera `api_request_failed`.
+Los errores que ocurren después de iniciar una generación con IA usan `AI_GENERATION_FAILED` y conservan el mismo identificador de la solicitud que abrió el stream. Un timeout usa `AI_PROVIDER_TIMEOUT`; los límites previos a la llamada usan `AI_DAILY_LIMIT_REACHED` o `AI_CONCURRENCY_LIMIT_REACHED` y entregan `Retry-After` sin revelar prompts ni datos de la fuente. Una cancelación solicitada por el usuario usa `AI_EXECUTION_CANCELLED`, termina la reserva como `cancelled` y emite un único resultado terminal. Un éxito usa `AI_GENERATION_SUCCEEDED`.
 
 ## Límites actuales
 
-Esta trazabilidad no reemplaza alertas externas, métricas agregadas ni un procedimiento institucional de incidentes. No requiere proveedor adicional, migración ni almacenamiento de información clínica.
+Esta trazabilidad no acredita por sí sola un SLO ni reemplaza la respuesta institucional a incidentes. No requiere proveedor adicional, migración ni almacenamiento de información clínica. El contrato, los indicadores provisionales, el smoke sintético y la recalibración se documentan en [Observabilidad operativa privada](./OPERATIONAL_OBSERVABILITY.md).
