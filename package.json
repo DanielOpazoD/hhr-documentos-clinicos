@@ -14,6 +14,7 @@
     "test": "npm run build && npm run test:product && npm run test:contracts && npm run test:integration",
     "test:product": "node --test tests/rendered-html.test.mjs",
     "test:contracts": "node --experimental-strip-types --test tests/contracts/*.test.ts",
+    "test:ai-evals": "tsx --test tests/ai-evals/*.test.ts",
     "test:integration": "node --test --test-concurrency=1 tests/integration/*.test.mjs",
     "test:integration:full": "npm run build && npm run test:integration",
     "typecheck": "tsc --noEmit",
@@ -25,7 +26,7 @@
     "test:database": "node --test \"tests/database/*.test.mjs\"",
     "check:bundle": "node scripts/check-build-budget.mjs",
     "release:verify": "node scripts/verify-release.mjs",
-    "verify": "npm run lint && npm run typecheck && npm test && npm run test:database && npm run check:bundle && npm run db:check"
+    "verify": "npm run lint && npm run typecheck && npm run test:ai-evals && npm test && npm run test:database && npm run check:bundle && npm run db:check"
   },
   "dependencies": {
     "drizzle-orm": "0.45.2",
@@ -50,6 +51,7 @@
     "eslint-config-next": "16.2.6",
     "react-server-dom-webpack": "19.2.6",
     "tailwindcss": "4.2.1",
+    "tsx": "4.22.1",
     "typescript": "5.9.3",
     "vinext": "0.0.50",
     "vite": "8.0.13",
