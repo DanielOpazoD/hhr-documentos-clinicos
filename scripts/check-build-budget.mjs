@@ -14,6 +14,11 @@ const maxSingleAssetBytes = 220_000;
 const maxDeferredPdfBytes = 425_000;
 const maxDeferredAssistantBytes = 70_000;
 const maxDeferredTemplateSettingsBytes = 7_000;
+const minTotalHeadroomBytes = 20_000;
+const minDocumentsHeadroomBytes = 15_000;
+const idealTotalBytes = 625_000;
+const idealDocumentsBytes = 455_000;
+const topAssetLimit = 8;
 const routeBudgets = [
   { label: "Shell", entry: "virtual:vinext-app-browser-entry", maxBytes: 365_000 },
   { label: "Inicio", entry: "app/components/Dashboard.tsx", maxBytes: 390_000 },
@@ -40,7 +45,8 @@ const measured = await Promise.all(files.map(async (path) => ({
   bytes: (await stat(path)).size,
 })));
 const totalBytes = measured.reduce((total, asset) => total + asset.bytes, 0);
-const largest = measured.toSorted((left, right) => right.bytes - left.bytes)[0];
+const rankedAssets = measured.toSorted((left, right) => right.bytes - left.bytes);
+const largest = rankedAssets[0];
 const displayPath = relative(clientRoot, largest.path);
 const manifest = JSON.parse(await readFile(manifestPath, "utf8"));
 const manifestByFile = new Map(Object.values(manifest).map((entry) => [entry.file, entry]));
@@ -117,19 +123,60 @@ const templateSettingsAssets = entryAssets(templateSettingsEntryKey);
 const deferredTemplateSettingsAssets = new Set([...templateSettingsAssets].filter((file) => !documentsAssets.has(file)));
 const deferredTemplateSettingsBytes = await filesBytes(deferredTemplateSettingsAssets);
 const sharedCssBytes = await filesBytes(sharedCssFiles);
+const totalHeadroomBytes = maxTotalBytes - totalBytes;
+const documentRoute = measuredRoutes.find((route) => route.entry === documentsEntryKey);
+if (!documentRoute) throw new Error("No se pudo medir la ruta Documentos.");
+const topAssets = rankedAssets.slice(0, topAssetLimit).map((asset) => ({
+  file: relative(clientRoot, asset.path),
+  bytes: asset.bytes,
+}));
+const report = {
+  total: {
+    bytes: totalBytes,
+    maxBytes: maxTotalBytes,
+    headroomBytes: totalHeadroomBytes,
+    minHeadroomBytes: minTotalHeadroomBytes,
+    idealBytes: idealTotalBytes,
+  },
+  largestAsset: { file: displayPath, bytes: largest.bytes, maxBytes: maxSingleAssetBytes },
+  sharedCssBytes,
+  routes: measuredRoutes.map((route) => ({
+    label: route.label,
+    bytes: route.bytes,
+    maxBytes: route.maxBytes,
+    headroomBytes: route.maxBytes - route.bytes,
+    idealBytes: route.entry === documentsEntryKey ? idealDocumentsBytes : undefined,
+  })),
+  deferred: {
+    jsPdf: { bytes: deferredPdfBytes, maxBytes: maxDeferredPdfBytes },
+    assistant: { bytes: deferredAssistantBytes, maxBytes: maxDeferredAssistantBytes },
+    templateSettings: { bytes: deferredTemplateSettingsBytes, maxBytes: maxDeferredTemplateSettingsBytes },
+  },
+  topAssets,
+};
 
-console.log(`Client JS/CSS: ${totalBytes} / ${maxTotalBytes} bytes`);
-console.log(`Largest asset: ${displayPath} (${largest.bytes} / ${maxSingleAssetBytes} bytes)`);
-console.log(`Shared CSS: ${sharedCssBytes} bytes`);
-for (const route of measuredRoutes) {
-  console.log(`Route ${route.label}: ${route.bytes} / ${route.maxBytes} bytes`);
+if (process.argv.includes("--json")) {
+  console.log(JSON.stringify(report, null, 2));
+} else {
+  console.log(`Client JS/CSS: ${totalBytes} / ${maxTotalBytes} bytes · margin ${totalHeadroomBytes} bytes · ideal <= ${idealTotalBytes}`);
+  console.log(`Largest asset: ${displayPath} (${largest.bytes} / ${maxSingleAssetBytes} bytes)`);
+  console.log(`Shared CSS: ${sharedCssBytes} bytes`);
+  for (const route of report.routes) {
+    const ideal = route.idealBytes ? ` · ideal <= ${route.idealBytes}` : "";
+    console.log(`Route ${route.label}: ${route.bytes} / ${route.maxBytes} bytes · margin ${route.headroomBytes} bytes${ideal}`);
+  }
+  console.log(`Deferred jsPDF: ${deferredPdfBytes} / ${maxDeferredPdfBytes} bytes`);
+  console.log(`Deferred assistant: ${deferredAssistantBytes} / ${maxDeferredAssistantBytes} bytes`);
+  console.log(`Deferred template settings: ${deferredTemplateSettingsBytes} / ${maxDeferredTemplateSettingsBytes} bytes`);
+  console.log("Top client assets:");
+  for (const asset of topAssets) console.log(`- ${asset.file}: ${asset.bytes} bytes`);
 }
-console.log(`Deferred jsPDF: ${deferredPdfBytes} / ${maxDeferredPdfBytes} bytes`);
-console.log(`Deferred assistant: ${deferredAssistantBytes} / ${maxDeferredAssistantBytes} bytes`);
-console.log(`Deferred template settings: ${deferredTemplateSettingsBytes} / ${maxDeferredTemplateSettingsBytes} bytes`);
 
 if (totalBytes > maxTotalBytes) {
   throw new Error(`El total JS/CSS supera el presupuesto por ${totalBytes - maxTotalBytes} bytes.`);
+}
+if (totalHeadroomBytes < minTotalHeadroomBytes) {
+  throw new Error(`El total JS/CSS deja solo ${totalHeadroomBytes} bytes de margen; se requieren al menos ${minTotalHeadroomBytes}.`);
 }
 if (largest.bytes > maxSingleAssetBytes) {
   throw new Error(`El artefacto ${displayPath} supera el presupuesto por ${largest.bytes - maxSingleAssetBytes} bytes.`);
@@ -138,6 +185,9 @@ for (const route of measuredRoutes) {
   if (route.bytes > route.maxBytes) {
     throw new Error(`La ruta ${route.label} supera el presupuesto por ${route.bytes - route.maxBytes} bytes.`);
   }
+}
+if (documentRoute.maxBytes - documentRoute.bytes < minDocumentsHeadroomBytes) {
+  throw new Error(`La ruta Documentos deja solo ${documentRoute.maxBytes - documentRoute.bytes} bytes de margen; se requieren al menos ${minDocumentsHeadroomBytes}.`);
 }
 if (deferredPdfBytes > maxDeferredPdfBytes) {
   throw new Error(`El generador PDF diferido supera el presupuesto por ${deferredPdfBytes - maxDeferredPdfBytes} bytes.`);

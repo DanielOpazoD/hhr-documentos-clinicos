@@ -2,6 +2,8 @@
 
 /* eslint-disable @next/next/no-img-element -- Camera blob URLs are edited in canvas/WebGL and must remain exact client-side sources. */
 
+import "@/app/features/scanner/scanner.css";
+
 import { ArrowDown, ArrowUp, Camera, Check, FileImage, Loader2, Pencil, RotateCw, Trash2, UploadCloud, X } from "@/app/components/Icons";
 import { OperationFeedback } from "@/app/components/OperationFeedback";
 import { useEffect, useRef, useState } from "react";

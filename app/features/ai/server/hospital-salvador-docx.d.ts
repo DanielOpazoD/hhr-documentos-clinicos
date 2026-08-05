@@ -1,11 +1,11 @@
-export const hospitalSalvadorTemplateUrl: string;
-
 type DocxSection = { key?: string; title: string; text: string };
 type DocxPatient = { firstNames?: string; lastNames?: string; rut?: string };
 type DocxSigner = { name?: string; rut?: string; specialty?: string };
 
-export function downloadHospitalSalvadorDocx(
+export function createHospitalSalvadorDocxBytes(
+  templateBytes: Uint8Array,
   sections: DocxSection[],
   patient: DocxPatient,
   signer: DocxSigner,
-): Promise<void>;
+  issueDate?: Date,
+): Uint8Array;

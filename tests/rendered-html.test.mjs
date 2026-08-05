@@ -2,8 +2,8 @@ import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { access, readFile } from "node:fs/promises";
 import test from "node:test";
-import { strFromU8, unzipSync } from "fflate";
-import { createHospitalSalvadorDocxBytes } from "../app/features/ai/hospital-salvador-docx.js";
+import { strFromU8, unzipSync, zipSync } from "fflate";
+import { createHospitalSalvadorDocxBytes } from "../app/features/ai/server/hospital-salvador-docx.js";
 import { hospitalSalvadorFields } from "../app/features/ai/hospital-salvador-fields.js";
 
 function sourceSection(source, startMarker, endMarker) {
@@ -48,6 +48,10 @@ test("builds the clinical document workspace from a production product identity"
   assert.match(buildBudget, /maxDeferredPdfBytes/);
   assert.match(buildBudget, /maxDeferredAssistantBytes/);
   assert.match(buildBudget, /maxDeferredTemplateSettingsBytes/);
+  assert.match(buildBudget, /minTotalHeadroomBytes = 20_000/);
+  assert.match(buildBudget, /minDocumentsHeadroomBytes = 15_000/);
+  assert.match(buildBudget, /topAssets/);
+  assert.match(buildBudget, /--json/);
   assert.match(buildBudget, /sharedCssFiles/);
   assert.match(buildBudget, /documentCssFiles/);
   assert.match(buildBudget, /dynamicImports/);
@@ -56,6 +60,34 @@ test("builds the clinical document workspace from a production product identity"
   assert.match(databaseCheck, /directorySnapshot/);
   assert.equal(nodeVersion.trim(), "22.13.0");
   assert.doesNotMatch(`${layout}${dashboard}${packageJson}`, /codex-preview|react-loading-skeleton|Your site is taking shape/i);
+});
+
+test("identifies the built release without exposing clinical or credential data", async () => {
+  const [packageJson, buildRelease, verifyRelease, releaseManifestSource, releaseManifestFile] = await Promise.all([
+    readFile(new URL("../package.json", import.meta.url), "utf8"),
+    readFile(new URL("../scripts/build-release.mjs", import.meta.url), "utf8"),
+    readFile(new URL("../scripts/verify-release.mjs", import.meta.url), "utf8"),
+    readFile(new URL("../scripts/lib/release-manifest.mjs", import.meta.url), "utf8"),
+    readFile(new URL("../dist/client/release.json", import.meta.url), "utf8"),
+  ]);
+  const release = JSON.parse(releaseManifestFile);
+  assert.match(packageJson, /"build": "node scripts\/build-release\.mjs"/);
+  assert.match(packageJson, /"release:verify": "node scripts\/verify-release\.mjs"/);
+  assert.match(buildRelease, /createReleaseManifest/);
+  assert.match(verifyRelease, /--expected-sha/);
+  assert.match(verifyRelease, /--sites-content-hash/);
+  assert.match(verifyRelease, /--sites-commit-sha/);
+  assert.match(verifyRelease, /fingerprintArtifact/);
+  assert.match(releaseManifestSource, /HHR_RELEASE_SHA/);
+  assert.match(releaseManifestSource, /HHR_RELEASE_CLEAN/);
+  assert.equal(release.manifestVersion, 1);
+  assert.match(release.commit, /^[0-9a-f]{40}$/);
+  assert.equal(typeof release.sourceDirty, "boolean");
+  assert.equal(release.schema, "0009_ai_trace_privacy");
+  assert.match(release.artifact.fingerprint, /^[0-9a-f]{64}$/);
+  assert.equal(Number.isSafeInteger(release.artifact.fileCount), true);
+  assert.equal(Number.isSafeInteger(release.artifact.bytes), true);
+  assert.doesNotMatch(releaseManifestFile, /patient|rut|prompt|token|secret|email/i);
 });
 
 test("ships the clinical routes, storage bindings and source templates", async () => {
@@ -71,6 +103,7 @@ test("ships the clinical routes, storage bindings and source templates", async (
     "../app/api/ai/prompts/route.ts",
     "../app/api/ai/prompts/[id]/route.ts",
     "../app/api/ai/prompts/improve/route.ts",
+    "../app/api/ai/hospital-salvador-docx/route.ts",
     "../app/api/integrations/google-drive/config/route.ts",
     "../app/api/ai/usage/route.ts",
     "../public/templates/laboratorio.pdf",
@@ -342,7 +375,7 @@ test("uses byte-identical original clinical PDFs", async () => {
 
   const [studio, catalog] = await Promise.all([
     readFile(new URL("../app/components/FormsStudio.tsx", import.meta.url), "utf8"),
-    readFile(new URL("../app/lib/catalog.ts", import.meta.url), "utf8"),
+    readFile(new URL("../app/lib/server/form-catalog.ts", import.meta.url), "utf8"),
   ]);
   assert.match(studio, /className="official-pdf-frame"/);
   assert.match(studio, /forms-navigation/);
@@ -354,13 +387,14 @@ test("uses byte-identical original clinical PDFs", async () => {
 });
 
 test("keeps one clear action hierarchy across the core studios", async () => {
-  const [frame, forms, scanner, library, globalStyles, documentStyles] = await Promise.all([
+  const [frame, forms, scanner, library, globalStyles, documentStyles, scannerStyles] = await Promise.all([
     readFile(new URL("../app/components/AppFrame.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/components/FormsStudio.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/components/ScannerDesk.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/features/documents/DocumentLibrary.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/globals.css", import.meta.url), "utf8"),
     readFile(new URL("../app/features/documents/documents.css", import.meta.url), "utf8"),
+    readFile(new URL("../app/features/scanner/scanner.css", import.meta.url), "utf8"),
   ]);
 
   assert.match(frame, /label: "Escáner", icon: ScanLine/);
@@ -378,8 +412,10 @@ test("keeps one clear action hierarchy across the core studios", async () => {
   assert.match(globalStyles, /--fs-caption: 12px/);
   assert.match(globalStyles, /--fs-control: 13px/);
   assert.match(globalStyles, /:focus-visible \{ outline: 3px solid var\(--cyan\); outline-offset: 2px; \}/);
-  assert.match(globalStyles, /background: currentcolor/);
-  assert.match(globalStyles, /\.scanner-source-panel\[hidden\] \{ display: none; \}/);
+  assert.match(scannerStyles, /background: currentcolor/);
+  assert.match(scannerStyles, /\.scanner-source-panel\[hidden\] \{ display: none; \}/);
+  assert.match(scanner, /features\/scanner\/scanner\.css/);
+  assert.doesNotMatch(globalStyles, /\.scanner-import-copy/);
   assert.match(documentStyles, /\.template-menu button strong,[\s\S]*?font-size: 12px;/);
   assert.match(globalStyles, /\.file-actions button, \.file-actions a \{ width: 40px; height: 40px;/);
   assert.match(globalStyles, /\.files-grid \.file-card-body \{ align-items: stretch; flex-direction: column;/);
@@ -1232,6 +1268,19 @@ test("fills the official Hospital del Salvador Word without changing its institu
   assert.ok(outputPackage["word/media/image1.png"]);
   assert.ok(outputPackage["word/media/image2.png"]);
 
+  const excessiveParagraphs = sections.map((section, index) => index === 0
+    ? { ...section, text: Array.from({ length: 513 }, (_, line) => `Línea ${line + 1}`).join("\n") }
+    : section);
+  assert.throws(
+    () => createHospitalSalvadorDocxBytes(
+      template,
+      excessiveParagraphs,
+      { firstNames: "Paciente", lastNames: "Control", rut: "11.111.111-1" },
+      { name: "Dr. Daniel Opazo", rut: "17.752.753-K", specialty: "Medicina Interna" },
+    ),
+    /demasiados párrafos/,
+  );
+
   const withoutIdentity = createHospitalSalvadorDocxBytes(
     template,
     sections,
@@ -1242,6 +1291,21 @@ test("fills the official Hospital del Salvador Word without changing its institu
   const withoutIdentityXml = strFromU8(unzipSync(withoutIdentity)["word/document.xml"]);
   assert.doesNotMatch(withoutIdentityXml, /Contenido verificado [12]<\/w:t>/);
   assert.ok((withoutIdentityXml.match(/No consignado/g) ?? []).length >= 2);
+
+  const oversizedPackage = zipSync({
+    ...sourcePackage,
+    "word/oversized.bin": new Uint8Array(4_000_001),
+  }, { level: 9 });
+  assert.ok(oversizedPackage.byteLength < 128_000);
+  assert.throws(
+    () => createHospitalSalvadorDocxBytes(
+      oversizedPackage,
+      sections,
+      { firstNames: "Paciente", lastNames: "Control", rut: "11.111.111-1" },
+      { name: "Dr. Daniel Opazo", rut: "17.752.753-K", specialty: "Medicina Interna" },
+    ),
+    /demasiado grande o compleja/,
+  );
 });
 
 test("operation feedback keeps recovery and support details consistent", async () => {

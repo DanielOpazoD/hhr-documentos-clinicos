@@ -3,13 +3,14 @@
 import { Download, Eye, Printer } from "@/app/components/Icons";
 import { PageHeader } from "@/app/components/VisualPrimitives";
 import { useState } from "react";
-import { formCatalog } from "@/app/lib/catalog";
+import type { FormCatalogItem } from "@/app/lib/server/form-catalog";
 
-type FormId = typeof formCatalog[number]["id"];
+type FormId = FormCatalogItem["id"];
 
-export function FormsStudio() {
+export function FormsStudio({ catalog }: { catalog: readonly FormCatalogItem[] }) {
   const [formId, setFormId] = useState<FormId>("laboratorio");
-  const current = formCatalog.find(item => item.id === formId)!;
+  const current = catalog.find(item => item.id === formId) ?? catalog[0];
+  if (!current) return null;
   const viewerUrl = `${current.template}#page=1&view=FitH&toolbar=1&navpanes=0`;
 
   return <div className="page-wrap official-forms-page">
@@ -26,7 +27,7 @@ export function FormsStudio() {
     <div className="forms-workspace">
       <nav className="forms-navigation" aria-label="Formularios disponibles">
         <strong>Formularios</strong>
-        {formCatalog.map(item => <button aria-current={formId === item.id ? "page" : undefined} key={item.id} onClick={() => setFormId(item.id)}>
+        {catalog.map(item => <button aria-current={formId === item.id ? "page" : undefined} key={item.id} onClick={() => setFormId(item.id)}>
           <span className={`catalog-dot ${item.accent}`} />
           <span><strong>{item.title}</strong><small>{item.eyebrow}</small></span>
         </button>)}

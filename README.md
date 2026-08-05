@@ -59,6 +59,8 @@ El presupuesto de cliente mantiene el límite total de JS/CSS, controla el artef
 
 El esquema D1 se administra mediante migraciones versionadas. Para instalaciones históricas, el único puente excepcional es `npm run db:prepare` antes de `0005_schema_authority.sql`: puede añadir la columna y el índice de compatibilidad fuera del camino HTTP. Después de ese puente, todo cambio de esquema debe realizarse mediante una migración versionada. La guía de [despliegue, verificación y recuperación](./docs/DATABASE_MIGRATIONS.md) describe el respaldo previo, el control privado de integridad y el rollback ensayado en una base desechable.
 
+La [integridad de publicación](./docs/RELEASE_INTEGRITY.md) relaciona cada build con su commit, esquema y huella, y define cómo promover o revertir exactamente el mismo artefacto privado.
+
 ## Arquitectura
 
 - Next.js/React sobre Vinext y Cloudflare Workers.

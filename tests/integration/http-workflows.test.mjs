@@ -1,5 +1,7 @@
 import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
 import { after, before, test } from "node:test";
+import { hospitalSalvadorFields } from "../../app/features/ai/hospital-salvador-fields.js";
 import { startLocalApp } from "./local-app.mjs";
 
 let app;
@@ -138,6 +140,7 @@ test("requires an authenticated owner outside the local preview", async () => {
     ["/api/document-templates", "GET"],
     ["/api/ai/prompts", "GET"],
     ["/api/ai/prompts/from-documents", "POST"],
+    ["/api/ai/hospital-salvador-docx", "POST"],
     ["/api/ai/providers", "GET"],
     ["/api/ai/usage", "GET"],
     ["/api/integrations/google-drive/config", "GET"],
@@ -152,6 +155,62 @@ test("requires an authenticated owner outside the local preview", async () => {
     assert.equal(response.headers.get("x-content-type-options"), "nosniff");
     assert.equal(response.headers.get("x-frame-options"), "SAMEORIGIN");
   }
+});
+
+test("generates the official Hospital del Salvador Word only for an authenticated owner", async () => {
+  const template = await readFile(new URL("../../public/templates/formato-informe-traslado-hospital-salvador.docx", import.meta.url));
+  const payload = {
+    sections: hospitalSalvadorFields.map((field, index) => ({
+      key: field.key,
+      title: field.label,
+      text: `Contenido sintético ${index + 1}`,
+    })),
+    patient: { firstNames: "Paciente", lastNames: "Prueba", rut: "11.111.111-1" },
+    signer: { name: "Profesional Prueba", rut: "22.222.222-2", specialty: "Medicina Interna" },
+    issueDate: "2026-07-27T01:30:00.000Z",
+  };
+  const form = new FormData();
+  form.set("template", new File([template], "plantilla.docx", {
+    type: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  }));
+  form.set("payload", JSON.stringify(payload));
+
+  const response = await ownedFetch("docx-owner@hhr.test", "/api/ai/hospital-salvador-docx", {
+    method: "POST",
+    body: form,
+  });
+  assert.equal(response.status, 200);
+  assert.equal(response.headers.get("content-type"), "application/vnd.openxmlformats-officedocument.wordprocessingml.document");
+  assert.equal(response.headers.get("cache-control"), "no-store");
+  assert.equal(response.headers.get("x-content-type-options"), "nosniff");
+  assert.match(response.headers.get("content-disposition") ?? "", /informe-traslado-hospital-salvador\.docx/);
+  assert.ok((await response.arrayBuffer()).byteLength > 1_000);
+
+  const invalidForm = new FormData();
+  invalidForm.set("template", new File(["no es un DOCX"], "plantilla.docx"));
+  invalidForm.set("payload", JSON.stringify(payload));
+  const invalid = await jsonResponse(await ownedFetch("docx-owner@hhr.test", "/api/ai/hospital-salvador-docx", {
+    method: "POST",
+    body: invalidForm,
+  }), 422);
+  assert.equal(invalid.code, "INVALID_TEMPLATE");
+
+  const excessiveParagraphsForm = new FormData();
+  excessiveParagraphsForm.set("template", new File([template], "plantilla.docx", {
+    type: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  }));
+  excessiveParagraphsForm.set("payload", JSON.stringify({
+    ...payload,
+    sections: payload.sections.map((section, index) => index === 0
+      ? { ...section, text: Array.from({ length: 513 }, (_, line) => `Línea ${line + 1}`).join("\n") }
+      : section),
+  }));
+  const excessiveParagraphs = await jsonResponse(await ownedFetch(
+    "docx-owner@hhr.test",
+    "/api/ai/hospital-salvador-docx",
+    { method: "POST", body: excessiveParagraphsForm },
+  ), 400);
+  assert.match(excessiveParagraphs.error, /datos del documento no son válidos/i);
 });
 
 test("preserves document ownership, concurrency and recovery over HTTP", async () => {
