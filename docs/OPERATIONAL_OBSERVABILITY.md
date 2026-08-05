@@ -111,17 +111,24 @@ existente hasta que la operación real justifique una integración institucional
 
 ## Smoke posterior a publicación
 
-El smoke hace dos solicitudes `GET`: lee `/release.json` y consulta un UUID aleatorio en
-`/api/files/:id`. No envía cuerpo, no crea registros, no enumera archivos y acepta únicamente
-el rechazo esperado `AUTH_REQUIRED` o `NOT_FOUND` con `requestId` correlacionado.
+El smoke lee `/release.json` antes y después de consultar por `GET` un UUID aleatorio en
+`/api/files/:id`. Compara en ambas lecturas commit, esquema y huella con el manifiesto local
+del artefacto promovido. No envía cuerpo, no crea registros ni enumera archivos. Sin autorización
+acepta los pares exactos `401/AUTH_REQUIRED` o `404/NOT_FOUND`; cuando se proporciona el
+encabezado privado exige `404/NOT_FOUND`, de modo que una credencial inválida no pueda pasar.
 
 ```bash
 HHR_SMOKE_URL=http://127.0.0.1:8787 npm run smoke:operational
 ```
 
+Por defecto, la identidad esperada se lee de `dist/client/release.json`. En otro entorno se
+indica el mismo manifiesto validado mediante `--expected-release <ruta>` o
+`HHR_SMOKE_EXPECTED_RELEASE`; no se aceptan solo un SHA o etiqueta ingresados manualmente.
+
 Para una publicación privada, `HHR_SMOKE_AUTHORIZATION` puede contener el encabezado
 `Authorization` completo, inyectado desde un almacén protegido. No se pasa como argumento, no
-se confirma en Git y el comando no lo imprime.
+se confirma en Git y el comando no lo imprime. Los orígenes remotos exigen HTTPS; HTTP se
+acepta únicamente para el loopback del desarrollo local.
 
 Una salida correcta contiene solo el código de soporte, ruta lógica, estado y la identidad
 sanitizada del release. Después del smoke, buscar ese `requestId` en los logs y comprobar que
