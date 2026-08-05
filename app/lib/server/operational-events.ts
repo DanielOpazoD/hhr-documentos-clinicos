@@ -1,4 +1,5 @@
 export const OPERATIONAL_EVENT_VERSION = 1;
+export const OPERATIONAL_ELIGIBILITY_VERSION = 1;
 export const OPERATIONAL_EVENT_MAX_BYTES = 768;
 
 const REQUEST_ID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -45,6 +46,12 @@ export type OperationalEventInput = {
   durationMs: number;
   outcome?: OperationalOutcome;
 };
+
+export function isOperationalIndicatorEligible(
+  event: Pick<OperationalEvent, "outcome" | "status">,
+): boolean {
+  return event.outcome !== "cancelled" && (event.status < 400 || event.status >= 500);
+}
 
 function compiledCommit(): string | undefined {
   return typeof __HHR_RELEASE_COMMIT__ === "string"

@@ -60,13 +60,28 @@ Los indicadores se agrupan por `releaseCommit`, `releaseSchema`, `routeFamily`, 
 `method` y ventana temporal. Una publicación nueva no debe mezclarse con la anterior al
 calcular una regresión.
 
+### Predicado de elegibilidad v1
+
+`OPERATIONAL_ELIGIBILITY_VERSION = 1` define una solicitud elegible como todo evento no
+cancelado cuyo estado final sea menor que `400` o mayor o igual que `500`. Por tanto:
+
+- se incluyen todos los códigos estables asociados a respuestas `2xx`, `3xx` y `5xx`;
+- se excluyen todos los `4xx` y sus códigos, incluidos autenticación, validación, conflicto,
+  payload, cuota y rate limit;
+- se excluyen `outcome=cancelled` y `499`, aunque otro campo estuviera mal clasificado;
+- el smoke queda fuera automáticamente porque su resultado esperado es `401` o `404`.
+
+Después se aplica el filtro de superficie: todas las rutas no IA para disponibilidad general;
+`ai.import.POST` para generación/procesamiento; y `files.POST` o `mobile-upload.POST` para
+cargas. La función canónica y su prueba contractual viven junto al evento v1.
+
 | Indicador | Cálculo inicial | Lectura segura |
 | --- | --- | --- |
-| Disponibilidad técnica | solicitudes elegibles sin estado `5xx` / solicitudes elegibles | Excluir `401`, `403`, `404`, `409`, `413`, `429`, cancelaciones y el smoke sintético. Informar también volumen. |
+| Disponibilidad técnica | elegibles v1 sin estado `5xx` / elegibles v1 | Aplicar después el filtro de rutas no IA e informar también volumen. |
 | Latencia | p50 y p95 de `durationMs` | Separar por ruta y release; no mezclar IA con operaciones D1/R2. |
 | Errores | conteo y porcentaje por `code` | El código estable sirve para tendencia; el `requestId`, para un caso individual. |
-| Generación IA | `AI_GENERATION_SUCCEEDED` / ejecuciones terminales no canceladas | Informar `AI_PROVIDER_TIMEOUT` y otros fallos por separado. No inferir contenido ni tipo clínico. |
-| Persistencia de archivos | éxitos de `files.POST` y `mobile-upload.POST` / intentos elegibles | Un `201` implica que el flujo de persistencia del endpoint terminó. La transformación del escáner ocurre en el cliente y no se telemetriza. |
+| Generación IA | `AI_GENERATION_SUCCEEDED` / eventos elegibles v1 de `ai.import.POST` | Informar `AI_PROVIDER_TIMEOUT` y otros fallos por separado. No inferir contenido ni tipo clínico. |
+| Persistencia de archivos | éxitos / eventos elegibles v1 de `files.POST` y `mobile-upload.POST` | Un `201` implica que el flujo de persistencia del endpoint terminó. La transformación del escáner ocurre en el cliente y no se telemetriza. |
 | Procesamiento de fuentes | resultado terminal de `ai.import.POST` | No distingue si la fuente fue archivo o texto, para evitar añadir metadatos sensibles. |
 | Release afectado | commit + esquema del evento | Resolver la huella exacta consultando el `release.json` de ese despliegue. |
 
@@ -75,13 +90,13 @@ publica `sin datos suficientes`, nunca `100 %` por ausencia de tráfico.
 
 ## Objetivos iniciales y alertas candidatas
 
-Ventana de evaluación inicial: 28 días, revisada semanalmente.
+Ventana de evaluación inicial: una ventana completa de retención del plan, revisada al cierre.
 
 | Superficie | Objetivo candidato | Muestra mínima para evaluarlo |
 | --- | --- | --- |
-| Rutas API no IA | disponibilidad técnica >= 99,5 % y p95 <= 1.500 ms | 1.000 solicitudes elegibles en 28 días |
-| Generación clínica IA | éxito terminal >= 97 % y timeout < 2 % | 100 ejecuciones no canceladas en 28 días |
-| Carga de archivos | éxito >= 99 % y p95 <= 5.000 ms | 200 cargas elegibles en 28 días |
+| Rutas API no IA | disponibilidad técnica >= 99,5 % y p95 <= 1.500 ms | 1.000 eventos elegibles v1 en una ventana completa |
+| Generación clínica IA | éxito terminal >= 97 % y timeout < 2 % | 100 eventos elegibles v1 en una ventana completa |
+| Carga de archivos | éxito >= 99 % y p95 <= 5.000 ms | 200 eventos elegibles v1 en una ventana completa |
 | Smoke posterior a publicación | 100 % por cada release promovido | una ejecución inmediatamente después de promover |
 
 Umbrales candidatos para revisión humana, con volumen mínimo para evitar ruido:
@@ -99,7 +114,7 @@ existente hasta que la operación real justifique una integración institucional
 
 ### Recalibración con evidencia
 
-1. Reunir 28 días y las muestras mínimas sin cambiar el contrato durante la ventana.
+1. Reunir al menos cuatro ventanas completas y las muestras mínimas sin cambiar el contrato.
 2. Separar incidentes de plataforma, errores de aplicación y rechazos válidos del usuario.
 3. Calcular p50, p95, tasa y volumen por release y ruta; conservar también días sin tráfico.
 4. Comparar al menos dos releases estables y documentar estacionalidad o ventanas de baja
@@ -163,8 +178,12 @@ como degradación de observabilidad; no se intenta reconstruir el evento desde c
 
 ## Custodia
 
-Los eventos permanecen en los logs privados del runtime existente. Su acceso y retención deben
-ser mínimos y acordes a la política institucional y a la retención disponible en la plataforma.
-No se exportan a hojas de cálculo, analítica de producto ni servicios personales. Al expirar la
-retención, se conservan solo agregados operacionales aprobados que no permitan reidentificar a
-una persona.
+Los eventos permanecen en los logs privados del runtime existente. Workers Logs conserva como
+máximo 3 días en el plan Free y 7 días en Paid; no puede configurarse una retención nativa de
+28 días. Antes de iniciar una medición se verifica el plan efectivo y se usa su ventana completa.
+No se añade Logpush, Tail Worker ni proveedor en este PR. Tampoco se exportan eventos crudos a
+hojas de cálculo, analítica de producto o servicios personales. Al expirar cada ventana pueden
+conservarse solo agregados operacionales aprobados —volumen, tasa y percentiles por ruta y
+release— que no permitan reidentificar a una persona. Un SLO formal de mayor horizonte requiere
+una política institucional de agregación y custodia aprobada. Referencia:
+[Workers Logs](https://developers.cloudflare.com/workers/observability/logs/workers-logs/).

@@ -270,20 +270,26 @@ test("progressStream aborts disconnected work without reporting an operational f
 test("progressStream forwards request cancellation to its producer", async () => {
   const requestController = new AbortController();
   let observedAbort = false;
+  let cancellations = 0;
   let notifyStarted: (() => void) | undefined;
+  let finishProduce: (() => void) | undefined;
   const started = new Promise<void>((resolve) => { notifyStarted = resolve; });
+  const pendingProduce = new Promise<void>((resolve) => { finishProduce = resolve; });
   const response = progressStream(async (_emit, signal) => {
     notifyStarted?.();
-    await new Promise<void>((resolve) => {
-      signal.addEventListener("abort", () => {
-        observedAbort = true;
-        resolve();
-      }, { once: true });
-    });
-  }, { signal: requestController.signal });
+    signal.addEventListener("abort", () => { observedAbort = true; }, { once: true });
+    await pendingProduce;
+  }, {
+    signal: requestController.signal,
+    onCancel: () => { cancellations += 1; },
+  });
 
   await started;
   requestController.abort();
-  assert.equal(await response.text(), "");
   assert.equal(observedAbort, true);
+  assert.equal(cancellations, 1);
+
+  finishProduce?.();
+  assert.equal(await response.text(), "");
+  assert.equal(cancellations, 1);
 });

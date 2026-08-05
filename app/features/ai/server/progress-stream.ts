@@ -25,7 +25,10 @@ export function progressStream(
       // Operational reporting cannot alter the stream result.
     }
   };
-  const forwardAbort = () => lifetime.abort();
+  const forwardAbort = () => {
+    lifetime.abort();
+    report(options.onCancel);
+  };
   if (options.signal?.aborted) forwardAbort();
   else options.signal?.addEventListener("abort", forwardAbort, { once: true });
   const detachSignal = () => options.signal?.removeEventListener("abort", forwardAbort);

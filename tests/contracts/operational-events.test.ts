@@ -3,6 +3,8 @@ import test from "node:test";
 import {
   buildOperationalEvent,
   emitOperationalEvent,
+  isOperationalIndicatorEligible,
+  OPERATIONAL_ELIGIBILITY_VERSION,
   OPERATIONAL_EVENT_MAX_BYTES,
   operationalReleaseIdentity,
 } from "../../app/lib/server/operational-events.ts";
@@ -112,4 +114,15 @@ test("never lets logging failure alter application control flow", () => {
   } finally {
     console.log = originalLog;
   }
+});
+
+test("uses one versioned eligibility predicate for operational indicators", () => {
+  assert.equal(OPERATIONAL_ELIGIBILITY_VERSION, 1);
+  for (const status of [200, 201, 204, 302, 500, 502, 503]) {
+    assert.equal(isOperationalIndicatorEligible({ outcome: status >= 500 ? "failure" : "success", status }), true);
+  }
+  for (const status of [400, 401, 403, 404, 409, 413, 429, 499]) {
+    assert.equal(isOperationalIndicatorEligible({ outcome: "failure", status }), false);
+  }
+  assert.equal(isOperationalIndicatorEligible({ outcome: "cancelled", status: 200 }), false);
 });
