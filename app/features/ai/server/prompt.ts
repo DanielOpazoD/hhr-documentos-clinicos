@@ -34,11 +34,11 @@ function sectionSchema(target: AiTargetId) {
         : { type: "string" },
       text: {
         type: "string",
-        description: `Contenido clínico respaldado por evidence. Si no existe respaldo, usa exactamente '${missingValue}'.`,
+        description: `Contenido clínico respaldado por evidence. Si no existe respaldo, usa exactamente "${missingValue}".`,
       },
       evidence: {
         ...evidenceSchema,
-        description: `Incluye al menos una cita literal para toda sección con contenido clínico. Solo puede estar vacío cuando text es exactamente '${missingValue}'.`,
+        description: `Incluye al menos una cita literal para toda sección con contenido clínico. Solo puede estar vacío cuando text es exactamente "${missingValue}".`,
       },
     },
     required: hospitalSalvador ? ["key", "title", "text", "evidence"] : ["title", "text", "evidence"],
