@@ -46,6 +46,7 @@ test("keeps the Hospital del Salvador profile bounded by professional review", (
   assert.match(prompt, /No resuelvas silenciosamente discrepancias de lateralidad/);
   assert.match(prompt, /No infieras la especialidad ni el tipo de cama/);
   assert.match(prompt, /No repitas nombre, RUT, edad ni otros datos administrativos/);
+  assert.match(prompt, /Permite el solapamiento\s+exigido por los campos oficiales y la síntesis clínica de B\.8/);
   assert.match(prompt, /Toda\s+discrepancia queda bloqueada para revisión/);
   assert.match(prompt, /escribe exactamente "-"/);
   assert.doesNotMatch(prompt, /No consignado/);

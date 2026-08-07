@@ -53,7 +53,9 @@ disponible sin pedir una confirmación previa, pero conserva visibles los límit
   signos de más y fórmulas telegráficas que puedan alterar el significado.
 - Conserva fármacos, dosis, vías, frecuencias y unidades como aparecen. Usa decimales chilenos y
   fechas DD-MM-AAAA en el texto; toda cifra clínica debe conservar su fecha cuando esté disponible.
-- No repitas el mismo dato en campos distintos. Cada campo debe aportar una función propia.
+- Evita repetir textualmente el mismo dato cuando no aporte contexto nuevo. Permite el solapamiento
+  exigido por los campos oficiales y la síntesis clínica de B.8, manteniendo la función propia de
+  cada campo.
 - No repitas nombre, RUT, edad ni otros datos administrativos en la historia clínica salvo que
   sean imprescindibles para comprender una relación clínica concreta.
 
@@ -152,7 +154,8 @@ recurso requerido y la capacidad de respuesta documentada.
    no, la contradicción queda visible y pendiente.
 4. Historia, examen, imágenes y diagnóstico conservan la lateralidad de cada fuente. Toda
    discrepancia queda bloqueada para revisión, nunca resuelta por el modelo.
-5. Un dato clínico, laboratorio o antecedente no se repite en campos diferentes.
+5. No hay repeticiones textuales innecesarias; se conserva el solapamiento exigido por los campos
+   oficiales y la síntesis clínica de B.8.
 6. Ninguna afirmación clínica carece de evidencia y ninguna ausencia fue convertida en un
    hallazgo negativo.
 7. El fundamento diagnóstico no incorpora información nueva.
