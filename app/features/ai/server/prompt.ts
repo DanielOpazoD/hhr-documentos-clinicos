@@ -1,6 +1,10 @@
 import type { AiPromptMode, AiTargetId } from "../types";
 import { builtInPrompt } from "../prompt-catalog";
-import { hospitalSalvadorFields, hospitalSalvadorTemplateUrl } from "../hospital-salvador-fields";
+import {
+  hospitalSalvadorFields,
+  hospitalSalvadorMissingValue,
+  hospitalSalvadorTemplateUrl,
+} from "../hospital-salvador-fields";
 
 const evidenceSchema = {
   type: "array",
@@ -20,6 +24,7 @@ const evidenceSchema = {
 
 function sectionSchema(target: AiTargetId) {
   const hospitalSalvador = target === "traslado_salvador";
+  const missingValue = hospitalSalvador ? hospitalSalvadorMissingValue : "No consignado";
   return {
     type: "object",
     properties: {
@@ -29,11 +34,11 @@ function sectionSchema(target: AiTargetId) {
         : { type: "string" },
       text: {
         type: "string",
-        description: "Contenido clínico respaldado por evidence. Si no existe respaldo, usa exactamente 'No consignado'.",
+        description: `Contenido clínico respaldado por evidence. Si no existe respaldo, usa exactamente '${missingValue}'.`,
       },
       evidence: {
         ...evidenceSchema,
-        description: "Incluye al menos una cita literal para toda sección con contenido clínico. Solo puede estar vacío cuando text es exactamente 'No consignado'.",
+        description: `Incluye al menos una cita literal para toda sección con contenido clínico. Solo puede estar vacío cuando text es exactamente '${missingValue}'.`,
       },
     },
     required: hospitalSalvador ? ["key", "title", "text", "evidence"] : ["title", "text", "evidence"],
@@ -91,8 +96,9 @@ export function systemPrompt(
   profileInstructions = builtInPrompt(target).instructions,
   promptMode: AiPromptMode = "profile",
 ): string {
+  const missingValue = target === "traslado_salvador" ? hospitalSalvadorMissingValue : "No consignado";
   const outputContract = target === "traslado_salvador"
-    ? `Devuelve exactamente los 18 campos de la plantilla oficial en el orden indicado. Usa estas claves estables, una vez cada una: ${hospitalSalvadorFields.map((field) => `${field.key} = ${field.label}`).join("; ")}. Si un campo no aparece, escribe exactamente "No consignado" y deja evidence vacío. No infieras AUGE: solo usa SI o NO cuando la fuente lo consigne explícitamente. La plantilla canónica está resuelta por la aplicación en ${hospitalSalvadorTemplateUrl}; cualquier ruta mencionada en el perfil es solo una referencia de origen. La aplicación rellenará una copia del Word oficial; no intentes crear ni rediseñar el archivo.`
+    ? `Devuelve exactamente los 18 campos de la plantilla oficial en el orden indicado. Usa estas claves estables, una vez cada una: ${hospitalSalvadorFields.map((field) => `${field.key} = ${field.label}`).join("; ")}. Si un campo no aparece, escribe exactamente "${missingValue}" y deja evidence vacío. No infieras AUGE: solo usa SI o NO cuando la fuente lo consigne explícitamente. La plantilla canónica está resuelta por la aplicación en ${hospitalSalvadorTemplateUrl}; cualquier ruta mencionada en el perfil es solo una referencia de origen. La aplicación rellenará una copia del Word oficial; no intentes crear ni rediseñar el archivo.`
     : "Devuelve entre 1 y 12 secciones. Sigue la estructura del perfil salvo que la indicación profesional limite o cambie expresamente el alcance; en ese caso devuelve solo lo solicitado y omite por completo las secciones, resultados y pendientes excluidos. Si el alcance activo exige declarar una sección ausente, escribe una declaración explícita de ausencia y deja evidence vacío.";
   const requestedDocument = promptMode === "free"
     ? "el documento descrito por la solicitud libre del profesional"
@@ -122,7 +128,7 @@ Reglas obligatorias:
 - No calcules valores clínicos ausentes. En función renal, conserva la fórmula declarada por la fuente y no construyas una tendencia entre fórmulas distintas.
 - Interpreta un resultado de laboratorio solamente con el intervalo de referencia, unidad y método consignados en esa misma fuente; no apliques cortes universales incluidos en el perfil.
 - No agregues controles, tamizajes, plazos ni planes de seguimiento que no estén documentados en las fuentes.
-- Cada sección con contenido clínico debe incluir al menos una cita literal no vacía en evidence. Si no puedes citar la fuente, escribe exactamente "No consignado", deja evidence vacío e incorpora el dato en missing_information.
+- Cada sección con contenido clínico debe incluir al menos una cita literal no vacía en evidence. Si no puedes citar la fuente, escribe exactamente "${missingValue}", deja evidence vacío e incorpora el dato en missing_information.
 - Todo dato exigido por el alcance activo y ausente pertenece también a missing_information. No incluyas como pendiente nada que la indicación profesional haya excluido.
 - El resultado siempre es un borrador editable que requiere revisión profesional.
 - Aunque el perfil describa un formato Word o del sistema clínico, responde primero con el JSON estructurado solicitado. La aplicación se ocupa del documento final.

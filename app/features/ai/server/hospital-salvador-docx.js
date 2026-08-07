@@ -1,7 +1,7 @@
 // @ts-check
 
 import { strFromU8, strToU8, unzipSync, zipSync } from "fflate";
-import { hospitalSalvadorFields } from "../hospital-salvador-fields.js";
+import { hospitalSalvadorFields, hospitalSalvadorMissingValue } from "../hospital-salvador-fields.js";
 
 const immutableParts = [
   "word/header1.xml",
@@ -60,7 +60,7 @@ function paragraphText(paragraph) {
 
 /** @param {string} value @param {boolean} [leadingSpace] */
 function valueRun(value, leadingSpace = false) {
-  const safeValue = value.trim() || "No consignado";
+  const safeValue = value.trim() || hospitalSalvadorMissingValue;
   const content = `${leadingSpace ? " " : ""}${safeValue}`
     .split(/\r?\n/)
     .map(escapeXml)
@@ -70,7 +70,7 @@ function valueRun(value, leadingSpace = false) {
 
 /** @param {string} value */
 function clinicalValueParagraphs(value) {
-  const lines = (value.trim() || "No consignado").split(/\r?\n+/).map((line) => line.trim()).filter(Boolean);
+  const lines = (value.trim() || hospitalSalvadorMissingValue).split(/\r?\n+/).map((line) => line.trim()).filter(Boolean);
   return lines.map((line) => `<w:p><w:pPr><w:spacing w:before="0" w:after="100"/><w:ind w:left="360"/></w:pPr>${valueRun(line)}</w:p>`).join("");
 }
 
@@ -123,7 +123,7 @@ function fillOfficialFields(documentXml, valuesByKey) {
     if (!field) return paragraph;
     if (matched.has(field.key)) throw new Error(`El campo ${field.label} está repetido en la plantilla.`);
     matched.add(field.key);
-    const value = valuesByKey.get(field.key) ?? "No consignado";
+    const value = valuesByKey.get(field.key) ?? hospitalSalvadorMissingValue;
     return field.compact
       ? paragraph.replace("</w:p>", `${valueRun(value, true)}</w:p>`)
       : `${paragraph}${clinicalValueParagraphs(value)}`;
@@ -187,8 +187,8 @@ export function createHospitalSalvadorDocxBytes(templateBytes, sections, patient
 
   const valuesByKey = new Map(sections.map((section) => [section.key ?? "", section.text]));
   const patientName = [patient.firstNames, patient.lastNames].map((value) => value?.trim()).filter(Boolean).join(" ");
-  valuesByKey.set("full_name", patientName || "No consignado");
-  valuesByKey.set("rut", patient.rut?.trim() || "No consignado");
+  valuesByKey.set("full_name", patientName || hospitalSalvadorMissingValue);
+  valuesByKey.set("rut", patient.rut?.trim() || hospitalSalvadorMissingValue);
 
   const originalXml = strFromU8(packageParts["word/document.xml"]);
   const filledXml = fillOfficialFields(originalXml, valuesByKey);

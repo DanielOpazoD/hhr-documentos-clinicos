@@ -62,7 +62,7 @@ const builtInDefinitions: BuiltInPromptDefinition[] = [
     name: "Traslado Hospital del Salvador · oficial",
     target: "traslado_salvador",
     instructions: hospitalSalvadorTransferPrompt,
-    revision: 2,
+    revision: 3,
   },
 ];
 

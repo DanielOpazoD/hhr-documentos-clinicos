@@ -408,11 +408,11 @@ function hospitalSalvadorDraft(): RawEvalDraft {
         evidence: [sourceEvidence("Historia clínica actual: dolor articular de una semana.")],
       };
     }
-    return { key: field.key, title: field.label, text: "No consignado", evidence: [] };
+    return { key: field.key, title: field.label, text: "-", evidence: [] };
   });
   const missingInformation = expectedHospitalSalvadorFields
     .filter((field) => !["full_name", "rut", "current_history"].includes(field.key))
-    .map((field) => `${field.label}: no consignado.`);
+    .map((field) => `${field.label}: pendiente.`);
   return rawDraft({
     documentKind: "Informe de traslado al Hospital del Salvador",
     sections,

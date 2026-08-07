@@ -25,7 +25,7 @@
 
 ## Campos editables
 
-Los valores se incorporan en `word/document.xml` junto al rótulo existente. Ningún campo se elimina; cuando no existe respaldo se usa `No consignado`.
+Los valores se incorporan en `word/document.xml` junto al rótulo existente. Ningún campo se elimina; cuando no existe respaldo se usa `-`.
 
 ### Antecedentes personales
 

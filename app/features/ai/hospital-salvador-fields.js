@@ -1,6 +1,7 @@
 // @ts-check
 
 export const hospitalSalvadorTemplateUrl = "/templates/formato-informe-traslado-hospital-salvador.docx";
+export const hospitalSalvadorMissingValue = "-";
 
 export const hospitalSalvadorFields = Object.freeze([
   { key: "full_name", label: "Nombre Completo", group: "personal", compact: true },

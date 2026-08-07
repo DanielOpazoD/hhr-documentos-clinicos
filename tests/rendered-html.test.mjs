@@ -1314,7 +1314,8 @@ test("fills the official Hospital del Salvador Word without changing its institu
   );
   const withoutIdentityXml = strFromU8(unzipSync(withoutIdentity)["word/document.xml"]);
   assert.doesNotMatch(withoutIdentityXml, /Contenido verificado [12]<\/w:t>/);
-  assert.ok((withoutIdentityXml.match(/No consignado/g) ?? []).length >= 2);
+  assert.doesNotMatch(withoutIdentityXml, /No consignado/);
+  assert.ok((withoutIdentityXml.match(/xml:space="preserve"> -<\/w:t>/g) ?? []).length >= 2);
 
   const oversizedPackage = zipSync({
     ...sourcePackage,

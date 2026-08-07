@@ -41,12 +41,14 @@ test("keeps the Hospital del Salvador profile bounded by professional review", (
   const prompt = profile.instructions;
 
   assert.equal(PROMPT_ENGINE_VERSION, "clinical-draft-v7");
-  assert.equal(profile.revision, 2);
+  assert.equal(profile.revision, 3);
   assert.match(prompt, /El profesional\s+responsable revisa el borrador y toma la decisión final/);
   assert.match(prompt, /No resuelvas silenciosamente discrepancias de lateralidad/);
   assert.match(prompt, /No infieras la especialidad ni el tipo de cama/);
   assert.match(prompt, /No repitas nombre, RUT, edad ni otros datos administrativos/);
   assert.match(prompt, /Toda\s+discrepancia queda bloqueada para revisión/);
+  assert.match(prompt, /escribe exactamente "-"/);
+  assert.doesNotMatch(prompt, /No consignado/);
   assert.doesNotMatch(prompt, /Dr\. Daniel Opazo|17\.752\.753-K/);
   assert.doesNotMatch(prompt, /No hay límite de extensión|enumeración exhaustiva de capacidades ausentes/i);
   assert.ok(prompt.length > 6_000 && prompt.length < 12_000);

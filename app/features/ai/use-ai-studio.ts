@@ -8,6 +8,7 @@ import type { AiImportResult, AiPatient, AiProgress, AiPromptMode, AiProviderId,
 import type { AiPromptProfile } from "./prompt-types";
 import type { DocumentTemplateSectionSetting } from "@/app/features/documents/types";
 import { AI_WORKFLOW_MEMORY_KEY, parseAiWorkflowMemory, serializeAiWorkflowMemory } from "./workflow-memory";
+import { hospitalSalvadorMissingValue } from "./hospital-salvador-fields";
 import {
   operationFailure,
   toOperationFailure,
@@ -395,8 +396,8 @@ export function useAiStudio({ initialPromptId, initialTarget, initialTemplateId,
         ...current,
         patient,
         sections: draftContext?.target === "traslado_salvador" ? current.sections.map((section) => {
-          if (section.key === "full_name") return { ...section, text: fullName || "No consignado", evidenceStale: true };
-          if (section.key === "rut") return { ...section, text: patient.rut.trim() || "No consignado", evidenceStale: true };
+          if (section.key === "full_name") return { ...section, text: fullName || hospitalSalvadorMissingValue, evidenceStale: true };
+          if (section.key === "rut") return { ...section, text: patient.rut.trim() || hospitalSalvadorMissingValue, evidenceStale: true };
           return section;
         }) : current.sections,
       };

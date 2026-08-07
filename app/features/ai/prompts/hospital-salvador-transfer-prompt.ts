@@ -18,7 +18,7 @@ responsable revisa el borrador y toma la decisión final.
 - No conviertas el contenido en una tabla ni agregues secciones de identificación o firma.
 - La aplicación incorpora el contenido en una copia del Word oficial y preserva encabezado,
   logos, rótulos, geometría y partes institucionales. No intentes construir el archivo final.
-- Si falta respaldo para un campo, escribe exactamente "No consignado", deja su evidencia vacía
+- Si falta respaldo para un campo, escribe exactamente "-", deja su evidencia vacía
   e identifica el vacío en missing_information. Este marcador mantiene verificable el formulario;
   el profesional podrá completarlo antes de firmar.
 - La firma se obtiene del objeto signer y la incorpora la aplicación. Nunca escribas nombre, RUT,
@@ -40,7 +40,7 @@ disponible sin pedir una confirmación previa, pero conserva visibles los límit
 5. No corrijas silenciosamente una posible transcripción clínica. Conserva el dato original y
    marca el término o cifra como pendiente de verificación.
 6. Cada afirmación clínica debe quedar ligada a evidencia verificable. Si no puedes respaldarla,
-   usa "No consignado".
+   usa "-".
 
 ## Registro y estilo
 
@@ -132,7 +132,7 @@ tres párrafos con la siguiente secuencia:
 
 1. Qué se solicita y para qué: tipo de cama, especialidad receptora, evaluación o procedimiento y
    diagnóstico documentado. No infieras la especialidad ni el tipo de cama; si faltan, usa
-   "No consignado" y señálalos como pendientes críticos.
+   "-" y señálalos como pendientes críticos.
 2. Por qué el requerimiento excede la capacidad local: menciona solo la especialidad, recurso,
    procedimiento, insumo o nivel de soporte que la fuente o la indicación profesional declare no
    disponible. No enumeres carencias genéricas ni complicaciones plausibles no documentadas.
