@@ -825,6 +825,15 @@ test("contains no production sample workflow or fictitious record creation", asy
   assert.match(settings, /id: "uso"/);
   assert.match(headersConfig, /X-Content-Type-Options/);
   assert.match(headersConfig, /Permissions-Policy/);
+  const captureRuleStart = headersConfig.indexOf('source: "/captura"');
+  const catchAllRuleStart = headersConfig.indexOf('source: "/:path*"');
+  assert.ok(captureRuleStart >= 0 && captureRuleStart < catchAllRuleStart);
+  const captureRule = headersConfig.slice(captureRuleStart, catchAllRuleStart);
+  const catchAllRule = headersConfig.slice(catchAllRuleStart, headersConfig.indexOf("    ];", catchAllRuleStart));
+  assert.match(captureRule, /Referrer-Policy", value: "no-referrer"/);
+  assert.doesNotMatch(captureRule, /strict-origin-when-cross-origin/);
+  assert.match(catchAllRule, /Referrer-Policy", value: "strict-origin-when-cross-origin"/);
+  assert.doesNotMatch(catchAllRule, /Referrer-Policy", value: "no-referrer"/);
 });
 
 test("integrates connections and guarded AI usage into tabbed settings", async () => {
