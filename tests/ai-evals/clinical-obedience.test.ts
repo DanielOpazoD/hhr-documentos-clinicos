@@ -1,7 +1,9 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { hospitalSalvadorFields } from "../../app/features/ai/hospital-salvador-fields.js";
+import { builtInPrompt, PROMPT_ENGINE_VERSION } from "../../app/features/ai/prompt-catalog.ts";
 import { aiTargets } from "../../app/features/ai/targets.ts";
+import { outputSchema, systemPrompt } from "../../app/features/ai/server/prompt.ts";
 import {
   assertClinicalEval,
   ClinicalEvalAssertionError,
@@ -33,6 +35,38 @@ test("pins the 18-field Hospital del Salvador contract independently", () => {
     hospitalSalvadorFields.map((field) => field.label),
     expectedHospitalSalvadorFields.map((field) => field.label),
   );
+});
+
+test("keeps the Hospital del Salvador profile bounded by professional review", () => {
+  const profile = builtInPrompt("traslado_salvador");
+  const prompt = profile.instructions;
+
+  assert.equal(PROMPT_ENGINE_VERSION, "clinical-draft-v7");
+  assert.equal(profile.revision, 3);
+  assert.match(prompt, /El profesional\s+responsable revisa el borrador y toma la decisión final/);
+  assert.match(prompt, /No resuelvas silenciosamente discrepancias de lateralidad/);
+  assert.match(prompt, /No infieras la especialidad ni el tipo de cama/);
+  assert.match(prompt, /No repitas nombre, RUT, edad ni otros datos administrativos/);
+  assert.match(prompt, /Permite el solapamiento\s+exigido por los campos oficiales y la síntesis clínica de B\.8/);
+  assert.match(prompt, /Toda\s+discrepancia queda bloqueada para revisión/);
+  assert.match(prompt, /escribe exactamente "-"/);
+  assert.doesNotMatch(prompt, /No consignado/);
+  assert.doesNotMatch(prompt, /Dr\. Daniel Opazo|17\.752\.753-K/);
+  assert.doesNotMatch(prompt, /No hay límite de extensión|enumeración exhaustiva de capacidades ausentes/i);
+  assert.ok(prompt.length > 6_000 && prompt.length < 12_000);
+});
+
+test("uses one exact delimiter for the Salvador missing-value marker", () => {
+  const schema = outputSchema("traslado_salvador");
+  const sectionProperties = schema.properties.sections.items.properties;
+  const instructions = [
+    sectionProperties.text.description,
+    sectionProperties.evidence.description,
+    systemPrompt("traslado_salvador"),
+  ].join("\n");
+
+  assert.doesNotMatch(instructions, /exactamente '-'/);
+  assert.ok((instructions.match(/exactamente "-"/g)?.length ?? 0) >= 4);
 });
 
 for (const fixture of clinicalEvalFixtures) {

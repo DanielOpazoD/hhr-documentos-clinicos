@@ -408,11 +408,11 @@ function hospitalSalvadorDraft(): RawEvalDraft {
         evidence: [sourceEvidence("Historia clínica actual: dolor articular de una semana.")],
       };
     }
-    return { key: field.key, title: field.label, text: "No consignado", evidence: [] };
+    return { key: field.key, title: field.label, text: "-", evidence: [] };
   });
   const missingInformation = expectedHospitalSalvadorFields
     .filter((field) => !["full_name", "rut", "current_history"].includes(field.key))
-    .map((field) => `${field.label}: no consignado.`);
+    .map((field) => `${field.label}: pendiente.`);
   return rawDraft({
     documentKind: "Informe de traslado al Hospital del Salvador",
     sections,
@@ -432,7 +432,12 @@ const hospitalSalvador: ClinicalEvalFixture = {
   rawDraft: hospitalSalvadorDraft(),
   expected: {
     outcome: "warning",
-    requiredPromptTerms: ["Devuelve exactamente los 18 campos de la plantilla oficial"],
+    requiredPromptTerms: [
+      "Devuelve exactamente los 18 campos de la plantilla oficial",
+      "No resuelvas silenciosamente discrepancias de lateralidad",
+      "No repitas nombre, RUT, edad ni otros datos administrativos",
+      "No infieras la especialidad ni el tipo de cama",
+    ],
     sectionTitles: expectedHospitalSalvadorFields.map((field) => field.label),
     sectionKeys: expectedHospitalSalvadorFields.map((field) => field.key),
     requiredOutputTerms: ["Historia clínica actual: dolor articular de una semana"],

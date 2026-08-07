@@ -11,7 +11,10 @@ import { telerheumatologyPrompt } from "./prompts/telerheumatology-prompt";
 
 export const PROMPT_ENGINE_VERSION = "clinical-draft-v7";
 
-const builtInDefinitions: Array<Pick<AiPromptProfile, "id" | "name" | "target" | "instructions">> = [
+type BuiltInPromptDefinition = Pick<AiPromptProfile, "id" | "name" | "target" | "instructions">
+  & Partial<Pick<AiPromptProfile, "revision">>;
+
+const builtInDefinitions: BuiltInPromptDefinition[] = [
   {
     id: "builtin-01-epicrisis",
     name: "Epicrisis médica · HHR",
@@ -59,12 +62,13 @@ const builtInDefinitions: Array<Pick<AiPromptProfile, "id" | "name" | "target" |
     name: "Traslado Hospital del Salvador · oficial",
     target: "traslado_salvador",
     instructions: hospitalSalvadorTransferPrompt,
+    revision: 3,
   },
 ];
 
 export const builtInPromptProfiles: AiPromptProfile[] = builtInDefinitions.map((profile) => ({
   ...profile,
-  revision: 1,
+  revision: profile.revision ?? 1,
   isDefault: true,
   builtIn: true,
   createdAt: "",

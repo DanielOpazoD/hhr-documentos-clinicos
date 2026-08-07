@@ -1,5 +1,9 @@
 import type { OpenAiOutput } from "./openai-responses";
-import { hospitalSalvadorFields, isHospitalSalvadorFieldKey } from "../hospital-salvador-fields";
+import {
+  hospitalSalvadorFields,
+  hospitalSalvadorMissingValue,
+  isHospitalSalvadorFieldKey,
+} from "../hospital-salvador-fields";
 import type { AiPromptMode, AiTargetId } from "../types";
 import { isDeclaredClinicalAbsence, protectUnsupportedSection, sanitizeEvidenceCandidates } from "./clinical-evidence";
 import { normalizedDocumentKind, withoutRedundantIdentitySections } from "./document-hygiene";
@@ -67,6 +71,7 @@ export function parseClinicalOutput(
   if (!value || typeof value !== "object") throw new Error("El borrador recibido no es válido.");
   const candidate = value as RawClinicalOutput;
   const sectionLimit = options.target === "traslado_salvador" ? 24 : 12;
+  const missingValue = options.target === "traslado_salvador" ? hospitalSalvadorMissingValue : "No consignado";
   if (!Array.isArray(candidate.sections) || candidate.sections.length === 0 || candidate.sections.length > sectionLimit) {
     throw new Error("El borrador no contiene secciones revisables.");
   }
@@ -98,7 +103,11 @@ export function parseClinicalOutput(
       title: section.title,
       text: section.text,
       evidence: section.evidence,
-      declaresAbsence: isDeclaredClinicalAbsence(section.text),
+      declaresAbsence: isDeclaredClinicalAbsence(
+        section.text,
+        options.target === "traslado_salvador" ? missingValue : undefined,
+      ),
+      ...(options.target === "traslado_salvador" ? { missingValue } : {}),
     });
     if (protectedSection.unsupportedTitle) unsupportedSections.push(protectedSection.unsupportedTitle);
     section.text = protectedSection.text;
@@ -131,7 +140,7 @@ export function parseClinicalOutput(
     ? hospitalSalvadorFields.map((field) => candidateSections.find((section) => section.key === field.key) ?? {
         key: field.key,
         title: field.label,
-        text: "No consignado",
+        text: missingValue,
         evidence: [],
       })
     : candidateSections;
@@ -141,7 +150,7 @@ export function parseClinicalOutput(
     if (!missingInformation.includes(notice)) missingInformation.push(notice);
   }
   const processingSummary = unsupportedSections.length
-    ? `${candidate.processing_summary.trim()} ${unsupportedSections.length === 1 ? "Una sección sin evidencia se dejó como «No consignado» para revisión." : `${unsupportedSections.length} secciones sin evidencia se dejaron como «No consignado» para revisión.`}`.trim()
+    ? `${candidate.processing_summary.trim()} ${unsupportedSections.length === 1 ? `Una sección sin evidencia se dejó como «${missingValue}» para revisión.` : `${unsupportedSections.length} secciones sin evidencia se dejaron como «${missingValue}» para revisión.`}`.trim()
     : candidate.processing_summary.trim();
   return {
     documentKind: normalizedDocumentKind(candidate.document_kind, options.promptMode),

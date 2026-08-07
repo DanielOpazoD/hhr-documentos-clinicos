@@ -26,6 +26,7 @@ export type HospitalSalvadorField = {
 };
 
 export const hospitalSalvadorTemplateUrl: string;
+export const hospitalSalvadorMissingValue: "-";
 export const hospitalSalvadorFields: readonly HospitalSalvadorField[];
 export const hospitalSalvadorFieldKeys: readonly HospitalSalvadorFieldKey[];
 export function isHospitalSalvadorFieldKey(value: string): value is HospitalSalvadorFieldKey;

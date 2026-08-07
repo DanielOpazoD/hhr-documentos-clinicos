@@ -157,7 +157,10 @@ function includesNormalizedPhrase(value: string, phrase: string): boolean {
   return Boolean(phrase) && ` ${value} `.includes(` ${phrase} `);
 }
 
-export function verifyClinicalDraftOutput(output: OpenAiOutput): ClinicalDraftVerification {
+export function verifyClinicalDraftOutput(
+  output: OpenAiOutput,
+  options: { additionalAbsenceMarker?: string } = {},
+): ClinicalDraftVerification {
   const findings = new Map<ClinicalDraftVerificationCode, ClinicalDraftVerificationFinding>();
   const addFinding = (
     code: ClinicalDraftVerificationCode,
@@ -199,7 +202,7 @@ export function verifyClinicalDraftOutput(output: OpenAiOutput): ClinicalDraftVe
     if (sectionTitles.has(normalizedTitle)) addFinding("duplicate_section_title", "warning");
     sectionTitles.add(normalizedTitle);
 
-    const declaresAbsence = isDeclaredClinicalAbsence(section.text);
+    const declaresAbsence = isDeclaredClinicalAbsence(section.text, options.additionalAbsenceMarker);
     if (declaresAbsence) {
       const matchingMissingInformation = unmatchedMissingInformation.findIndex((item) =>
         includesNormalizedPhrase(item, normalizedTitle),
@@ -261,9 +264,15 @@ export async function runClinicalDraftWorkflow<T extends ClinicalDraftGeneration
   trace: ClinicalDraftWorkflowTrace;
   execute: ClinicalDraftExecutor;
   generate: (signal: AbortSignal) => Promise<T>;
+  additionalAbsenceMarker?: string;
 }): Promise<T & { verification: ClinicalDraftVerification }> {
   const generated = await input.trace.run("generate", () => input.execute(input.generate));
-  const verification = await input.trace.run("verify", async () => verifyClinicalDraftOutput(generated.output));
+  const verification = await input.trace.run(
+    "verify",
+    async () => verifyClinicalDraftOutput(generated.output, {
+      additionalAbsenceMarker: input.additionalAbsenceMarker,
+    }),
+  );
   if (verification.outcome === "blocked") {
     throw new ClinicalDraftVerificationError(verification.findings, generated);
   }

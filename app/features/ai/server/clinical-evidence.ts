@@ -5,8 +5,9 @@ export type EvidenceCandidate = {
   status?: unknown;
 };
 
-export function isDeclaredClinicalAbsence(value: string): boolean {
+export function isDeclaredClinicalAbsence(value: string, targetMissingValue?: string): boolean {
   const normalized = value.trim().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+  if (targetMissingValue && normalized === targetMissingValue.trim()) return true;
   return /^(?:no consignad[oa]|no se dispone|no disponible|sin informacion|no aparece|no consta)\s*[.!]?$/i.test(normalized);
 }
 
@@ -46,14 +47,22 @@ export function protectUnsupportedSection(input: {
   text: string;
   evidence: EvidenceCandidate[];
   declaresAbsence: boolean;
+  missingValue?: string;
 }): { text: string; evidence: EvidenceCandidate[]; unsupportedTitle: string | null } {
   const hasExcerpt = input.evidence.some((item) =>
     (item?.status === "explicito" || item?.status === "ambiguo")
     && typeof item.excerpt === "string"
     && item.excerpt.trim(),
   );
-  if (hasExcerpt || input.declaresAbsence) {
+  if (input.declaresAbsence) {
+    return {
+      text: input.missingValue ?? input.text,
+      evidence: input.evidence,
+      unsupportedTitle: null,
+    };
+  }
+  if (hasExcerpt) {
     return { text: input.text, evidence: input.evidence, unsupportedTitle: null };
   }
-  return { text: "No consignado", evidence: [], unsupportedTitle: input.title.trim() };
+  return { text: input.missingValue ?? "No consignado", evidence: [], unsupportedTitle: input.title.trim() };
 }

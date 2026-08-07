@@ -12,6 +12,7 @@ import { apiTrace, jsonError, observeApi, reportApiOutcome } from "@/app/lib/ser
 import { recordAiUsage } from "@/app/features/ai/server/usage";
 import type { AiPromptMode, AiTargetId } from "@/app/features/ai/types";
 import { FREEFORM_SCHEMA_TARGET } from "@/app/features/ai/targets";
+import { hospitalSalvadorMissingValue } from "@/app/features/ai/hospital-salvador-fields";
 import {
   CLINICAL_DRAFT_WORKFLOW_VERSION,
   ClinicalDraftVerificationError,
@@ -142,6 +143,7 @@ async function importWithAi(request: Request) {
     try {
       const { output: result, provider, usage, verification } = await runClinicalDraftWorkflow({
         trace: workflow,
+        additionalAbsenceMarker: target === "traslado_salvador" ? hospitalSalvadorMissingValue : undefined,
         execute: (action) => runAiExecution(reservation.lease, action, { signal }),
         generate: (signal) => generateDraftWithProvider({
           providerId,

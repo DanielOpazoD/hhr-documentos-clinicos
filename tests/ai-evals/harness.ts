@@ -11,6 +11,7 @@ import { generateClinicalDraft, type OpenAiOutput } from "../../app/features/ai/
 import { systemPrompt } from "../../app/features/ai/server/prompt.ts";
 import { composePromptInstructions } from "../../app/features/ai/server/prompt-composition.ts";
 import { builtInPrompt } from "../../app/features/ai/prompt-catalog.ts";
+import { hospitalSalvadorMissingValue } from "../../app/features/ai/hospital-salvador-fields.js";
 import type { AiSourceInput } from "../../app/features/ai/types.ts";
 import {
   mergeAiSectionsWithTemplate,
@@ -193,6 +194,7 @@ export async function runClinicalEval(fixture: ClinicalEvalFixture): Promise<Cli
 
   const generated = await runClinicalDraftWorkflow({
     trace,
+    additionalAbsenceMarker: fixture.target === "traslado_salvador" ? hospitalSalvadorMissingValue : undefined,
     execute: async (action) => action(new AbortController().signal),
     generate: async (signal) => {
       if (signal.aborted) throw signal.reason;

@@ -5,6 +5,7 @@ import type { OpenAiOutput } from "./openai-responses";
 import type { AiProgressReporter, AiPromptMode, AiSourceInput, AiTargetId } from "../types";
 import type { AiTokenUsage } from "../usage-types";
 import { PROFESSIONAL_INSTRUCTION_SOURCE } from "./prompt-composition";
+import { hospitalSalvadorMissingValue } from "../hospital-salvador-fields";
 
 const LOCAL_CONTEXT_TOKENS = 16_384;
 const LOCAL_OUTPUT_TOKENS = 3_800;
@@ -23,7 +24,7 @@ function requestInstructions(
   promptMode: AiPromptMode = "profile",
 ) {
   const absentFields = target === "traslado_salvador"
-    ? 'Incluye exactamente los 18 campos; cuando falte un dato, usa "No consignado" y evidence vacío.'
+    ? `Incluye exactamente los 18 campos; cuando falte un dato, usa "${hospitalSalvadorMissingValue}" y evidence vacío.`
     : "No crees secciones para datos ausentes.";
   const requestedDocument = promptMode === "free"
     ? "Prepara exclusivamente el documento descrito en la indicación profesional"

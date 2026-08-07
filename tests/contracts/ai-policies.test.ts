@@ -14,7 +14,11 @@ import {
   validateSourceContents,
   type SourceDescriptor,
 } from "../../app/features/ai/server/source-policy.ts";
-import { protectUnsupportedSection, sanitizeEvidenceCandidates } from "../../app/features/ai/server/clinical-evidence.ts";
+import {
+  isDeclaredClinicalAbsence,
+  protectUnsupportedSection,
+  sanitizeEvidenceCandidates,
+} from "../../app/features/ai/server/clinical-evidence.ts";
 import { composePromptInstructions } from "../../app/features/ai/server/prompt-composition.ts";
 import { normalizedDocumentKind, withoutRedundantIdentitySections } from "../../app/features/ai/server/document-hygiene.ts";
 import { parseAiWorkflowMemory, serializeAiWorkflowMemory } from "../../app/features/ai/workflow-memory.ts";
@@ -123,6 +127,40 @@ test("replaces unsupported clinical text instead of rejecting the entire draft",
     evidence: [{ excerpt: "Diagnóstico: neumonía", status: "explicito" }],
     declaresAbsence: false,
   }).unsupportedTitle, null);
+
+  assert.deepEqual(protectUnsupportedSection({
+    title: "Examen físico completo",
+    text: "Sin respaldo",
+    evidence: [],
+    declaresAbsence: false,
+    missingValue: "-",
+  }), {
+    text: "-",
+    evidence: [],
+    unsupportedTitle: "Examen físico completo",
+  });
+
+  assert.equal(isDeclaredClinicalAbsence("-", "-"), true);
+  assert.equal(isDeclaredClinicalAbsence("-"), false);
+
+  assert.deepEqual(protectUnsupportedSection({
+    title: "Examen físico completo",
+    text: "No consignado",
+    evidence: [],
+    declaresAbsence: true,
+    missingValue: "-",
+  }), {
+    text: "-",
+    evidence: [],
+    unsupportedTitle: null,
+  });
+
+  assert.equal(protectUnsupportedSection({
+    title: "Diagnóstico",
+    text: "No disponible",
+    evidence: [],
+    declaresAbsence: true,
+  }).text, "No disponible");
 });
 
 test("discards malformed evidence instead of rejecting the complete draft", () => {
