@@ -432,7 +432,12 @@ const hospitalSalvador: ClinicalEvalFixture = {
   rawDraft: hospitalSalvadorDraft(),
   expected: {
     outcome: "warning",
-    requiredPromptTerms: ["Devuelve exactamente los 18 campos de la plantilla oficial"],
+    requiredPromptTerms: [
+      "Devuelve exactamente los 18 campos de la plantilla oficial",
+      "No resuelvas silenciosamente discrepancias de lateralidad",
+      "No repitas nombre, RUT, edad ni otros datos administrativos",
+      "No infieras la especialidad ni el tipo de cama",
+    ],
     sectionTitles: expectedHospitalSalvadorFields.map((field) => field.label),
     sectionKeys: expectedHospitalSalvadorFields.map((field) => field.key),
     requiredOutputTerms: ["Historia clínica actual: dolor articular de una semana"],
