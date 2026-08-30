@@ -15,7 +15,7 @@ function sourceLine(source: string, index: number) {
 }
 
 test("keeps product UI text at 12 px or larger", () => {
-  const exceptions = [".paper-brand", ".prescription-warning"];
+  const exceptions = [".paper-brand", ".rx-frame"];
 
   for (const file of cssFiles) {
     const source = readFileSync(file, "utf8");

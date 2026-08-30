@@ -28,6 +28,7 @@ export type DocumentPersistenceSnapshot = {
   patient: PatientData;
   placedSignature: PlacedSignature | null;
   placedStamp: PlacedSignature | null;
+  frameHidden: boolean;
   sections: DocumentSection[];
   signer: SignerData;
   status: DocumentStatus;
@@ -91,6 +92,9 @@ export function useDocumentPersistence(options: {
             patient: { ...snapshot.patient, ...(snapshot.legacyInsurance ? { insurance: snapshot.legacyInsurance } : {}) },
             signer: snapshot.signer,
             issueDate: snapshot.issueDate,
+            ...(snapshot.templateId === "receta_externa" && snapshot.frameHidden
+              ? { frameHidden: true }
+              : {}),
             signature,
             stamp,
             ...(snapshot.aiMetadata ? { ai: snapshot.aiMetadata } : {}),
@@ -144,6 +148,7 @@ function storedPlacement(asset: PlacedSignature | null) {
     x: asset.x,
     y: asset.y,
     width: asset.width,
+    ...(asset.hidden ? { hidden: true } : {}),
   } : undefined;
 }
 

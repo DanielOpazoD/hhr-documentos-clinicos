@@ -50,6 +50,7 @@ export type PlacedSignature = SignatureRecord & {
   x: number;
   y: number;
   width: number;
+  hidden?: boolean;
 };
 
 export type StoredAiMetadata = {
@@ -78,6 +79,7 @@ export type StoredContent = {
   patient?: Partial<PatientData> & { name?: string; insurance?: string };
   signer?: Partial<SignerData>;
   issueDate?: string;
+  frameHidden?: boolean;
   signature?: Omit<PlacedSignature, "imageUrl" | "isDefault" | "name"> & { imageUrl?: string; name?: string };
   stamp?: Omit<PlacedSignature, "imageUrl" | "isDefault" | "name"> & { imageUrl?: string; name?: string };
   ai?: StoredAiMetadata;

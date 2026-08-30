@@ -497,6 +497,7 @@ test("keeps the clinical studios usable from mobile through desktop", async () =
     "../app/features/documents/ProfessionalEditor.tsx",
     "../app/features/documents/DocumentWorkspaceShell.tsx",
     "../app/features/documents/DocumentPreview.tsx",
+    "../app/features/documents/PlacedDocumentAsset.tsx",
     "../app/features/documents/document-readiness.ts",
     "../app/lib/document-layout.ts",
     "../app/features/documents/SignatureEditor.tsx",
@@ -570,11 +571,10 @@ test("keeps the clinical studios usable from mobile through desktop", async () =
   assert.doesNotMatch(await readFile(new URL("../app/features/documents/ClinicalContextBar.tsx", import.meta.url), "utf8"), /patient-last-names|>Nombres<|>Apellidos</);
   assert.match(documentStudio, /section-title-/);
   assert.match(documentStudio, /<h3>Rp\.<\/h3>/);
-  assert.match(documentStudio, /signature-placement-zone/);
-  assert.match(documentStudio, /signing-assets-canvas/);
-  assert.match(documentStudio, /aria-keyshortcuts="ArrowUp ArrowDown ArrowLeft ArrowRight"/);
+  assert.match(documentStudio, /signoff-zone/);
+  assert.match(documentStudio, /asset-canvas/);
   assert.match(documentStudio, /updatePlacedImage\(kind, movement\)/);
-  assert.match(documentStudio, /document-signoff/);
+  assert.match(documentStudio, /signoff/);
   assert.match(documentStudio, /Fondo blanco automático/);
   assert.match(documentStudio, /renderSignatureImage/);
   assert.match(documentStudio, /brightness/);
@@ -767,11 +767,11 @@ test("keeps the clinical studios usable from mobile through desktop", async () =
   assert.match(documentStyles, /\.document-main \{\s*display: grid;\s*gap: 8px;/);
   assert.match(documentStyles, /@media print \{[\s\S]*?\.document-workspace-shell,[\s\S]*?\.paper-panel \{[\s\S]*?display: block !important;/);
   assert.doesNotMatch(documentStyles, /@media print \{[\s\S]*?\.document-workspace-view,/);
-  assert.match(styles, /\.clinical-paper\.prescription-paper \{[^}]*min-height: 250mm !important;[^}]*padding-bottom: 28mm !important;/);
-  assert.match(styles, /@media print \{[\s\S]*?\.signature-placement-zone \{ margin-top: 16px; \}[\s\S]*?\.signing-assets-canvas \{ min-height: 220px; \}/);
+  assert.match(styles, /\.clinical-paper\.rx-paper \{[^}]*min-height: 250mm !important;[^}]*padding-bottom: 28mm !important;/);
+  assert.match(styles, /@media print \{[\s\S]*?\.signoff-zone \{ margin-top: 16px; \}[\s\S]*?\.asset-canvas \{ min-height: 220px; \}/);
   assert.match(styles, /\.clinical-paper \.paper-date/);
   assert.match(styles, /\.preview-edit-target/);
-  assert.match(styles, /\.document-signer\.preview-edit-target/);
+  assert.match(styles, /\.signer-lines\.preview-edit-target/);
   assert.match(styles, /\.professional-editor/);
   assert.match(styles, /\.professional-editor-sidebar/);
   assert.match(styles, /\.document-preflight/);

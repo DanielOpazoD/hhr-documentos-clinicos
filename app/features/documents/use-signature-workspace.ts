@@ -52,7 +52,7 @@ export function useSignatureWorkspace(markDirty: () => void) {
     markDirty();
   }, [markDirty]);
 
-  const updatePlacedImage = useCallback((kind: SignatureAssetKind, patch: Partial<Pick<PlacedSignature, "x" | "y" | "width">>) => {
+  const updatePlacedImage = useCallback((kind: SignatureAssetKind, patch: Partial<Pick<PlacedSignature, "x" | "y" | "width" | "hidden">>) => {
     const setter = kind === "stamp" ? setPlacedStamp : setPlacedSignature;
     setter((current) => {
       if (!current) return current;
@@ -75,7 +75,7 @@ export function useSignatureWorkspace(markDirty: () => void) {
   }, [markDirty]);
 
   const startSignatureMove = useCallback((kind: SignatureAssetKind, event: ReactPointerEvent<HTMLButtonElement>) => {
-    const image = event.currentTarget.closest(".placed-signature")?.getBoundingClientRect();
+    const image = event.currentTarget.closest(".placed-asset")?.getBoundingClientRect();
     if (!image) return;
     dragOffsets.current[kind] = {
       x: event.clientX - (image.left + image.width / 2),
@@ -87,7 +87,7 @@ export function useSignatureWorkspace(markDirty: () => void) {
 
   const moveSignature = useCallback((kind: SignatureAssetKind, event: ReactPointerEvent<HTMLButtonElement>) => {
     if (!event.currentTarget.hasPointerCapture(event.pointerId)) return;
-    const placementZone = event.currentTarget.closest(".signing-assets-canvas")?.getBoundingClientRect();
+    const placementZone = event.currentTarget.closest(".asset-canvas")?.getBoundingClientRect();
     if (!placementZone) return;
     const setter = kind === "stamp" ? setPlacedStamp : setPlacedSignature;
     const offset = dragOffsets.current[kind];

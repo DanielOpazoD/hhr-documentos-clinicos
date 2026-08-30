@@ -1,5 +1,5 @@
 "use client";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { DocumentStatus } from "@/app/lib/catalog";
 import { getDocument, listDocuments, removeStoredDocuments } from "./api";
 import { formatSavedTime } from "./formatters";
@@ -36,6 +36,7 @@ export function useDocumentWorkspace() {
   const [saveError, setSaveError] = useState<DocumentSaveFailure | null>(null);
   const [deletingDocumentIds, setDeletingDocumentIds] = useState<Set<string>>(() => new Set());
   const [aiMetadata, setAiMetadata] = useState<StoredAiMetadata | null>(null);
+  const [frameHidden, setFrameHidden] = useState(false);
   const editRevision = useRef(0);
   const dirtyRef = useRef(false);
   const openedDocumentRef = useRef(false);
@@ -48,14 +49,10 @@ export function useDocumentWorkspace() {
   }, []);
   const template = getTemplate(templateId);
   const visibleTitle = documentTitle.trim() || template.name;
-  const filteredDocuments = useMemo(() => {
-    const query = recentQuery.trim().toLocaleLowerCase("es-CL");
-    if (!query) return storedDocuments;
-    return storedDocuments.filter((item) =>
-      `${item.title} ${item.patientName}`.toLocaleLowerCase("es-CL").includes(query),
-    );
-  }, [recentQuery, storedDocuments]);
-
+  const recentSearch = recentQuery.trim().toLocaleLowerCase("es-CL");
+  const filteredDocuments = recentSearch ? storedDocuments.filter((item) =>
+      `${item.title} ${item.patientName}`.toLocaleLowerCase("es-CL").includes(recentSearch),
+    ) : storedDocuments;
   const markDirty = useCallback(() => {
     editRevision.current += 1;
     dirtyRef.current = true;
@@ -68,11 +65,11 @@ export function useDocumentWorkspace() {
     defaultProfileApplied.current = true;
     markDirty();
   }, [markDirty]);
+  const toggleFrame = () => { setFrameHidden((current) => !current); markDirty(); };
   const templateWorkspace = useTemplateSettings({
     documentId, markDirty, openedDocumentRef, setDocumentTitle, setSections, templateId, workspaceEpoch,
   });
   const { templateSettings } = templateWorkspace;
-
   const identityWorkspace = useDocumentIdentity(markDirty);
   const { issueDate, legacyInsurance, loadIdentity, loadSignerProfile, patient, resetIdentity, signer, updateSigner: updateIdentitySigner } = identityWorkspace;
   const signatureWorkspace = useSignatureWorkspace(markSignatureDirty);
@@ -95,21 +92,18 @@ export function useDocumentWorkspace() {
     }
   }, [setLoadError, setStoredDocuments]);
 
-  const persistenceSnapshot = useMemo(() => ({
+  const persistenceSnapshot = {
     aiMetadata,
     documentId,
     documentUpdatedAt,
     issueDate,
     legacyInsurance,
     patient,
-    placedSignature,
-    placedStamp,
-    sections,
-    signer,
+    placedSignature, placedStamp, frameHidden, sections, signer,
     status,
     templateId,
     visibleTitle,
-  }), [aiMetadata, documentId, documentUpdatedAt, issueDate, legacyInsurance, patient, placedSignature, placedStamp, sections, signer, status, templateId, visibleTitle]);
+  };
   const { flushPendingSave, persist, saving } = useDocumentPersistence({
     dirty,
     snapshot: persistenceSnapshot,
@@ -153,6 +147,7 @@ export function useDocumentWorkspace() {
       setSections(nextSections.length ? nextSections : createSections(nextTemplateId));
       loadIdentity(stored.content, stored.patientName, stored.patientRutMasked);
       setAiMetadata(normalizeAiMetadata(stored.content?.ai, nextSections));
+      setFrameHidden(stored.content?.frameHidden === true);
       setPlacedSignature(storedSignature
         ? { ...storedSignature, name: storedSignature.name ?? `Firma de ${storedSignature.professionalName}`, kind: "signature", y: signatureY, width: clampSigningImageWidth(storedSignature.width), isDefault: false, imageUrl: `/api/signatures/${storedSignature.id}` }
         : null);
@@ -208,6 +203,7 @@ export function useDocumentWorkspace() {
     setSections(sectionsFromTemplateSetting(nextSetting));
     resetIdentity();
     setAiMetadata(null);
+    setFrameHidden(false);
     defaultProfileApplied.current = false;
     const defaultProfile = signatures.find((asset) => asset.kind === "signature" && asset.isDefault);
     const defaultStamp = signatures.find((asset) => asset.kind === "stamp" && asset.isDefault);
@@ -340,7 +336,7 @@ export function useDocumentWorkspace() {
     ...historyWorkspace,
     ...signatureWorkspace,
     ...typographyWorkspace,
-    markDirty, markSignatureDirty, hasUnsavedChanges, persist, openDocument, reloadDocument, createDocument, deleteDocument,
+    markDirty, markSignatureDirty, toggleFrame, frameHidden, hasUnsavedChanges, persist, openDocument, reloadDocument, createDocument, deleteDocument,
     deleteDocuments, addSection, removeSection, updateSection, moveSection,
   };
 }
