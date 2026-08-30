@@ -362,7 +362,7 @@ test("serializes terminal mobile snapshots and keeps scanner polling server-auth
   );
 });
 
-test("uses byte-identical original clinical PDFs", async () => {
+test("uses byte-identical original clinical form artifacts", async () => {
   const expected = new Map([
     ["laboratorio.pdf", "0fabdedcf24914f00af09a99b30b7f4d4f7a66509671996dc771ff1c31219921"],
     ["serologia-hepatitis-chagas.pdf", "2c1253bd29397b98a3d465827b05032ba0e40f2c6949e993d56fe73e4e918e88"],
@@ -370,6 +370,8 @@ test("uses byte-identical original clinical PDFs", async () => {
     ["imagenologia.pdf", "8561373bdbf0160dd0afb8e129148976513be83e403907a057ae3ef2a929c0c9"],
     ["encuesta-imagenologia.pdf", "dc59fb93bff9a2e3d9cd460e4767fa9aa07f31bd4c2186c3c5aa925bbe87cc0d"],
     ["consentimiento.pdf", "aa4f2679a437020e82f10f794ad9b74c812cd76c0e22f5a2ae1c7df875509cb2"],
+    ["formato-informe-traslado-hospital-salvador.docx", "c23e3517eb0626c2702c5404b4f5315d1adc4a260a3955a410395211d94f57b2"],
+    ["medif-latam.pdf", "b8f88ffd1c2e4ca96050457f7109bd360eaf9100305cd7b3eafaf7efd610e1e2"],
   ]);
   for (const [fileName, digest] of expected) {
     const bytes = await readFile(new URL(`../public/templates/${fileName}`, import.meta.url));
@@ -385,6 +387,10 @@ test("uses byte-identical original clinical PDFs", async () => {
   assert.match(studio, /Descargar/);
   assert.match(catalog, /serologia-hepatitis-chagas\.pdf/);
   assert.match(catalog, /serologia-vdrl-mha-tp\.pdf/);
+  assert.match(catalog, /formato-informe-traslado-hospital-salvador\.docx/);
+  assert.match(catalog, /medif-latam\.pdf/);
+  assert.match(studio, /current\.template\.endsWith\("\.pdf"\)/);
+  assert.match(studio, /Documento Word oficial/);
   assert.doesNotMatch(studio, /GitHub|origin\/main|SHA-256|Sin campos inventados|Cómo utilizarlo/);
   assert.doesNotMatch(studio, /clinical-paper|downloadClinicalPdf|Prestaciones solicitadas/);
 });

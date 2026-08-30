@@ -225,6 +225,17 @@ for (const viewport of viewports) {
       await activate(open);
       const popup = await popupPromise;
       await popup.close();
+
+      const medif = page.getByRole("button", { name: /MEDIF para viaje aéreo/ });
+      await activate(medif);
+      await expect(page.getByTitle("Vista del formulario: MEDIF para viaje aéreo")).toHaveAttribute("src", /medif-latam\.pdf/);
+
+      const transfer = page.getByRole("button", { name: /Traslado al Hospital del Salvador/ });
+      await activate(transfer);
+      await expect(page.getByText("Documento Word oficial")).toBeVisible();
+      const downloadWord = page.getByRole("link", { name: "Descargar Word" });
+      await expect(downloadWord).toHaveAttribute("href", /formato-informe-traslado-hospital-salvador\.docx/);
+      await expect(downloadWord).toHaveAttribute("download", "Formato informe traslado Hospital del Salvador.docx");
     });
 
     test("gestiona firma y timbre mediante teclado y devuelve el foco al disparador", async ({ page, app }) => {
