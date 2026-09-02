@@ -241,8 +241,14 @@ for (const viewport of viewports) {
       await expect(page.getByTitle("Vista del formulario: Hepatitis B, C y Chagas")).toHaveAttribute("src", /serologia-hepatitis-chagas\.pdf/);
       await assertNoSeriousAxe(page, `formularios ${viewport.label}`);
 
+      const tuberculosis = page.getByRole("button", { name: /Investigación de tuberculosis/ });
+      await activate(tuberculosis);
+      await expect(tuberculosis).toHaveAttribute("aria-current", "page");
+      await expect(page.getByTitle("Vista del formulario: Investigación de tuberculosis")).toHaveAttribute("src", /solicitud-laboratorio-tuberculosis-norma-2022\.pdf/);
+      await expect(page.getByRole("link", { name: "Descargar" })).toHaveAttribute("download", "SOLICITUD-LABORATORIO-TUBERCULOSIS NORMA 2022.pdf");
+
       const open = page.getByRole("link", { name: "Abrir e imprimir" });
-      await expect(open).toHaveAttribute("href", /serologia-hepatitis-chagas\.pdf/);
+      await expect(open).toHaveAttribute("href", /solicitud-laboratorio-tuberculosis-norma-2022\.pdf/);
       const popupPromise = page.waitForEvent("popup");
       await activate(open);
       const popup = await popupPromise;

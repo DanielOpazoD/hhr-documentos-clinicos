@@ -110,6 +110,7 @@ test("ships the clinical routes, storage bindings and source templates", async (
     "../app/api/integrations/google-drive/config/route.ts",
     "../app/api/ai/usage/route.ts",
     "../public/templates/laboratorio.pdf",
+    "../public/templates/solicitud-laboratorio-tuberculosis-norma-2022.pdf",
     "../public/templates/serologia-hepatitis-chagas.pdf",
     "../public/templates/serologia-vdrl-mha-tp.pdf",
     "../public/templates/imagenologia.pdf",
@@ -366,6 +367,7 @@ test("uses byte-identical original clinical form artifacts", async () => {
   const expected = new Map([
     ["laboratorio.pdf", "0fabdedcf24914f00af09a99b30b7f4d4f7a66509671996dc771ff1c31219921"],
     ["serologia-hepatitis-chagas.pdf", "2c1253bd29397b98a3d465827b05032ba0e40f2c6949e993d56fe73e4e918e88"],
+    ["solicitud-laboratorio-tuberculosis-norma-2022.pdf", "89c833d8cb61a6260e3f9d4b0a9d0277d1f0e82fb7842c5ccd95b439577ca6c7"],
     ["serologia-vdrl-mha-tp.pdf", "4f19c383b9e8d448860cf852782ca2da6c89e5ef965a8023d47c71a3d331bc5b"],
     ["imagenologia.pdf", "8561373bdbf0160dd0afb8e129148976513be83e403907a057ae3ef2a929c0c9"],
     ["encuesta-imagenologia.pdf", "dc59fb93bff9a2e3d9cd460e4767fa9aa07f31bd4c2186c3c5aa925bbe87cc0d"],
@@ -386,6 +388,7 @@ test("uses byte-identical original clinical form artifacts", async () => {
   assert.match(studio, /forms-navigation/);
   assert.match(studio, /Descargar/);
   assert.match(catalog, /serologia-hepatitis-chagas\.pdf/);
+  assert.match(catalog, /solicitud-laboratorio-tuberculosis-norma-2022\.pdf/);
   assert.match(catalog, /serologia-vdrl-mha-tp\.pdf/);
   assert.match(catalog, /formato-informe-traslado-hospital-salvador\.docx/);
   assert.match(catalog, /medif-latam\.pdf/);
