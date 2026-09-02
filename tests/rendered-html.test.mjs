@@ -399,11 +399,12 @@ test("uses byte-identical original clinical form artifacts", async () => {
 });
 
 test("keeps one clear action hierarchy across the core studios", async () => {
-  const [frame, forms, scanner, library, globalStyles, documentStyles, scannerStyles] = await Promise.all([
+  const [frame, forms, scanner, library, fileCard, globalStyles, documentStyles, scannerStyles] = await Promise.all([
     readFile(new URL("../app/components/AppFrame.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/components/FormsStudio.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/components/ScannerDesk.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/features/documents/DocumentLibrary.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/features/files/FileCard.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/globals.css", import.meta.url), "utf8"),
     readFile(new URL("../app/features/documents/documents.css", import.meta.url), "utf8"),
     readFile(new URL("../app/features/scanner/scanner.css", import.meta.url), "utf8"),
@@ -413,6 +414,8 @@ test("keeps one clear action hierarchy across the core studios", async () => {
   assert.match(frame, /const returnTo = nav\.find\(item => item\.label === active\)\?\.href \?\? "\/"/);
   assert.match(forms, /className="button primary"[^>]*><Printer[^>]*\/> Abrir e imprimir/);
   assert.match(forms, /className="button secondary"[^>]*><Download[^>]*\/> Descargar/);
+  assert.match(forms, /className="paper-toolbar official-form-toolbar"/);
+  assert.doesNotMatch(forms, /PageHeader[\s\S]{0,300}actions=/);
   assert.match(library, /className="button secondary full document-new-button"/);
   assert.match(library, /const recentMenuOpen = mobileLibraryOpen && !newMenuOpen/);
   assert.match(library, /\{!newMenuOpen \? <>[\s\S]*className="recent-heading"/);
@@ -429,8 +432,11 @@ test("keeps one clear action hierarchy across the core studios", async () => {
   assert.match(scanner, /features\/scanner\/scanner\.css/);
   assert.doesNotMatch(globalStyles, /\.scanner-import-copy/);
   assert.match(documentStyles, /\.template-menu button strong,[\s\S]*?font-size: 12px;/);
-  assert.match(globalStyles, /\.file-actions button, \.file-actions a \{ width: 40px; height: 40px;/);
+  assert.match(globalStyles, /\.file-open-action \{ min-height: 36px;/);
   assert.match(globalStyles, /\.files-grid \.file-card-body \{ align-items: stretch; flex-direction: column;/);
+  assert.match(fileCard, /className="text-button file-open-action"/);
+  assert.match(fileCard, /aria-label=\{`Más acciones para \$\{file\.name\}`\}/);
+  assert.doesNotMatch(fileCard, /title="Cambiar nombre"/);
   assert.match(globalStyles, /@media \(min-width: 821px\) and \(max-width: 960px\)/);
 });
 
@@ -555,11 +561,11 @@ test("keeps the clinical studios usable from mobile through desktop", async () =
   assert.match(documentStudio, /Eliminar esta imagen/);
   assert.doesNotMatch(documentStudio, /Las imágenes se administran y posicionan por separado/);
   assert.match(documentStudio, /professional-editor/);
-  assert.match(documentStudio, /document-professional-slot/);
-  assert.match(documentStudio, /createPortal/);
-  assert.match(documentStudio, /variant="sidebar"/);
-  assert.match(documentStudio, /variant="panel"/);
+  assert.doesNotMatch(documentStudio, /document-professional-slot|createPortal|variant="sidebar"/);
+  assert.match(documentStudio, /professional-editor-panel/);
   assert.match(documentStudio, /professional-summary-trigger/);
+  assert.match(documentStudio, /clinical-context-toggle/);
+  assert.match(documentStudio, /aria-expanded=\{expanded\}/);
   assert.match(documentStudio, /DocumentWorkspaceShell/);
   assert.match(documentStudio, /assistantOpen=\{assistantOpen\}/);
   assert.match(documentStudio, /hidden=\{!assistantOpen\}/);
@@ -586,7 +592,7 @@ test("keeps the clinical studios usable from mobile through desktop", async () =
   assert.match(documentStudio, /removeSection/);
   assert.match(documentStudio, /paper-section-title-input/);
   assert.match(documentStudio, /paper-section-body/);
-  assert.match(documentStudio, /paper-add-section/);
+  assert.match(documentStudio, /> Agregar sección<\/button>/);
   assert.match(documentStudio, /section-actions-menu/);
   assert.doesNotMatch(documentStudio, /role="menuitem"|role="menu"/);
   assert.match(documentStudio, /Mover arriba/);
@@ -621,7 +627,7 @@ test("keeps the clinical studios usable from mobile through desktop", async () =
   assert.match(documentStudio, /current === previous\.title \? saved\.title : current/);
   assert.match(documentStudio, /saved\.templateId === templateId && definitionChanged/);
   assert.match(documentStudio, /trigger\.focus\(\)/);
-  assert.match(documentStudio, /professionalSlot && !assistantOpen/);
+  assert.match(documentStudio, /id="document-clinical-context"/);
   assert.match(documentStudio, /signaturePanelOpen && !assistantOpen/);
   assert.doesNotMatch(await readFile(new URL("../app/components/DocumentStudio.tsx", import.meta.url), "utf8"), /Descargar PDF|studio-download-button/);
   assert.match(documentStudio, /Redacte manualmente o genere un borrador con IA/);
@@ -646,7 +652,7 @@ test("keeps the clinical studios usable from mobile through desktop", async () =
   assert.match(documentStudio, /Los cambios pendientes se guardan antes de imprimir/);
   assert.match(documentStudio, /onNavigate=\{editFromPreview\}/);
   assert.match(documentStudio, /fieldId === "signature-settings-trigger"/);
-  assert.match(documentStudio, /compactViewport[\s\S]*?professional-summary-trigger/);
+  assert.match(documentStudio, /querySelector<HTMLButtonElement>\("\.professional-summary-trigger"\)/);
   assert.match(documentStudio, /`panel-\$\{fieldId\}`/);
   assert.match(documentStudio, /if \(preflightOpen\) closePreflight\(\)/);
   assert.doesNotMatch(documentStudio, /identity-collapse-trigger|patientDetailsOpen|professionalDetailsOpen/);
@@ -776,7 +782,7 @@ test("keeps the clinical studios usable from mobile through desktop", async () =
   assert.match(styles, /\.preview-edit-target/);
   assert.match(styles, /\.signer-lines\.preview-edit-target/);
   assert.match(styles, /\.professional-editor/);
-  assert.match(styles, /\.professional-editor-sidebar/);
+  assert.doesNotMatch(styles, /\.professional-editor-sidebar/);
   assert.match(styles, /\.document-preflight/);
   assert.match(styles, /\.document-preflight-issues/);
   assert.match(styles, /\.document-preflight-issue/);
@@ -790,7 +796,7 @@ test("keeps the clinical studios usable from mobile through desktop", async () =
   assert.match(styles, /\.studio-page \.header-actions \.button \{[\s\S]*?min-height: var\(--control-height\);[\s\S]*?flex: 0 0 auto;[\s\S]*?white-space: nowrap;/);
   assert.match(documentStyles, /\.studio-page \.header-actions \.button \{[^}]*min-height: var\(--touch-height\);/);
   assert.match(styles, /\.studio-page \.header-actions \{[\s\S]*?flex-wrap: nowrap;[\s\S]*?align-items: center;[\s\S]*?gap: 6px;/);
-  assert.match(documentStyles, /@media \(max-width: 820px\)[\s\S]*?\.professional-summary \{[\s\S]*?display: grid;/);
+  assert.match(documentStyles, /\.professional-summary \{[\s\S]*?display: grid;/);
   assert.match(documentStyles, /\.paper-toolbar-actions \{[\s\S]*?flex-wrap: nowrap;/);
   assert.doesNotMatch(globalStyles, /\.professional-editor-mobile|\.document-clinical-context/);
   assert.doesNotMatch(responsiveStyles, /\.patient-editor|\.document-workspace-shell/);
@@ -808,7 +814,7 @@ test("keeps the clinical studios usable from mobile through desktop", async () =
   assert.match(dashboard, /\/documentos\?assistant=1/);
   assert.match(responsiveStyles, /\.dashboard-page \.action-card/);
   assert.match(documentStyles, /\.document-library-content\[hidden\]/);
-  assert.match(responsiveStyles, /padding-bottom: calc\(78px \+ env\(safe-area-inset-bottom\)\)/);
+  assert.match(responsiveStyles, /padding-bottom: calc\(64px \+ env\(safe-area-inset-bottom\)\)/);
 });
 
 test("contains no production sample workflow or fictitious record creation", async () => {
@@ -1065,7 +1071,8 @@ test("offers isolated OpenAI and local Gemma providers", async () => {
   assert.match(source, /Actualizar borrador/);
   assert.match(source, /Configuración local inválida/);
   assert.match(source, /source_index/);
-  assert.match(source, /const original = await sourceContent/);
+  assert.match(source, /source\.mimeType === "application\/json"/);
+  assert.match(source, /\.pdf,\.docx,\.json,\.jpg/);
   assert.match(source, /sourceIndex >= sources\.length/);
   assert.match(source, /pagesWithoutText/);
   assert.match(source, /getPdfPageCount/);

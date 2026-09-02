@@ -1,5 +1,6 @@
 import { strFromU8, Unzip, UnzipInflate } from "fflate";
 import { getResolvedPDFJS } from "unpdf";
+import { readJsonSource } from "./source-policy.ts";
 
 const MAX_SOURCE_CHARACTERS = 48_000;
 const MAX_PDF_PAGES = 80;
@@ -245,6 +246,11 @@ async function extractDocx(file: File): Promise<string> {
   return enforceContextLimit(text);
 }
 
+async function extractJson(file: File): Promise<string> {
+  const text = readJsonSource(new Uint8Array(await file.arrayBuffer()));
+  return enforceContextLimit(text);
+}
+
 function readJpegDimensions(bytes: Uint8Array): { width: number; height: number } {
   if (bytes.length < 4 || bytes[0] !== 0xff || bytes[1] !== 0xd8) {
     throw new Error("La imagen JPG no es válida.");
@@ -311,5 +317,6 @@ export async function extractLocalSource(file: File, mimeType: string): Promise<
   }
   if (mimeType === "application/pdf") return extractPdf(file);
   if (mimeType === "application/vnd.openxmlformats-officedocument.wordprocessingml.document") return extractDocx(file);
+  if (mimeType === "application/json") return extractJson(file);
   throw new Error("Gemma local no admite este formato.");
 }

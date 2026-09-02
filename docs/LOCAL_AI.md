@@ -2,7 +2,7 @@
 
 La aplicación admite dos proveedores intercambiables:
 
-- **OpenAI:** procesa PDF, DOCX e imágenes mediante la API configurada.
+- **OpenAI:** procesa PDF, DOCX, JSON e imágenes mediante la API configurada.
 - **Gemma local:** ejecuta `google/gemma-3-4b` cuantizado a 4 bits mediante LM Studio en el mismo Mac.
 
 ## Encender Gemma
@@ -24,6 +24,7 @@ npm run ai:local:status
 - JPG y PNG se procesan directamente con la capacidad visual de Gemma.
 - Los PDF digitales se convierten a texto localmente conservando marcadores de página.
 - Los DOCX se extraen localmente antes de inferencia.
+- Los JSON válidos se validan y se incorporan como texto sin alterar sus valores; no se ejecuta código.
 - Un PDF escaneado sin capa de texto debe convertirse a JPG o PNG, o procesarse con OpenAI.
 
 ## Publicación

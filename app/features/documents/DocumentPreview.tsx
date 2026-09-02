@@ -39,7 +39,7 @@ type Props = Pick<
   | "markDirty"
   | "setDocumentTitle"
   | "updateSection"
-> & { onConfigureTemplate: (trigger: HTMLButtonElement) => void; onEditRequest: (fieldId: string) => void };
+> & { onConfigureTemplate: (trigger: HTMLElement) => void; onEditRequest: (fieldId: string) => void };
 
 export function DocumentPreview({
   addSection,
@@ -85,25 +85,6 @@ export function DocumentPreview({
     <section id="document-preview" className="paper-panel">
       <div className="paper-toolbar print-hide">
         <div className="paper-toolbar-actions">
-          {templateSettingsError ? (
-            <button type="button" className="paper-template-settings error" aria-label="No se pudo cargar la plantilla. Reintentar" onClick={retryTemplateSettings}>
-              <Settings size={13} /> <span>No se pudo cargar la plantilla</span> <strong>Reintentar</strong>
-            </button>
-          ) : (
-            <button type="button" className="paper-template-settings" disabled={!templateSettingsLoaded} onClick={(event) => onConfigureTemplate(event.currentTarget)}><Settings size={13} /> Plantilla</button>
-          )}
-          {!isPrescription ? (
-            <button type="button" className="paper-add-section" onClick={addSection}><Plus size={13} /> Agregar sección</button>
-          ) : (
-            <button
-              type="button"
-              className="paper-add-section"
-              onClick={toggleFrame}
-            >
-              <Eye size={13} />
-              {frameHidden ? "Mostrar encuadre" : "Ocultar encuadre"}
-            </button>
-          )}
           <div className="typography-tools" aria-label="Tipografía del documento">
             <TypographyControl
               label="Tamaño del contenido"
@@ -124,6 +105,32 @@ export function DocumentPreview({
               onIncrease={increaseSignoffFontSize}
             />
           </div>
+          <details className="section-actions-menu document-tools-menu">
+            <summary aria-label="Más herramientas del documento"><MoreHorizontal size={16} /></summary>
+            <div>
+              {templateSettingsError ? (
+                <button type="button" className="section-delete" aria-label="No se pudo cargar la plantilla. Reintentar" onClick={retryTemplateSettings}>
+                  <Settings size={13} /> <span>Reintentar plantilla</span>
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  disabled={!templateSettingsLoaded}
+                  onClick={(event) => {
+                    const summary = closeToolsMenu(event.currentTarget);
+                    onConfigureTemplate(summary);
+                  }}
+                ><Settings size={13} /> Plantilla</button>
+              )}
+              {!isPrescription ? (
+                <button type="button" onClick={(event) => { addSection(); closeToolsMenu(event.currentTarget).focus(); }}><Plus size={13} /> Agregar sección</button>
+              ) : (
+                <button type="button" onClick={(event) => { toggleFrame(); closeToolsMenu(event.currentTarget).focus(); }}>
+                  <Eye size={13} /> {frameHidden ? "Mostrar encuadre" : "Ocultar encuadre"}
+                </button>
+              )}
+            </div>
+          </details>
         </div>
       </div>
       <article style={paperStyle} className={`clinical-paper document-paper ${isPrescription ? "rx-paper" : ""}`}>
@@ -223,6 +230,13 @@ export function DocumentPreview({
       </article>
     </section>
   );
+}
+
+function closeToolsMenu(target: EventTarget & HTMLButtonElement) {
+  const details = target.closest("details");
+  const summary = details?.querySelector<HTMLElement>("summary") ?? target;
+  details?.removeAttribute("open");
+  return summary;
 }
 
 function SectionActions({

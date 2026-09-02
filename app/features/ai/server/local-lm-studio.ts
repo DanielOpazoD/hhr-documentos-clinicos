@@ -29,7 +29,7 @@ function requestInstructions(
   const requestedDocument = promptMode === "free"
     ? "Prepara exclusivamente el documento descrito en la indicación profesional"
     : `Prepara el borrador de tipo ${target}`;
-  return `${requestedDocument} integrando todas las fuentes. ${professionalInstructions ? `La fuente ${instructionSourceIndex} es la indicación profesional y manda sobre inclusiones y exclusiones; no agregues contenido no solicitado.` : ""} Responde exclusivamente con el JSON solicitado. Los marcadores HHR_PAGE_N delimitan páginas; usa el índice indicado para source_index y no reproduzcas marcadores internos. Usa page null en DOCX, imágenes y la indicación profesional, y un número solamente cuando exista un marcador HHR_PAGE_N. ${absentFields}`;
+  return `${requestedDocument} integrando todas las fuentes. ${professionalInstructions ? `La fuente ${instructionSourceIndex} es la indicación profesional y manda sobre inclusiones y exclusiones; no agregues contenido no solicitado.` : ""} Responde exclusivamente con el JSON solicitado. Los marcadores HHR_PAGE_N delimitan páginas; usa el índice indicado para source_index y no reproduzcas marcadores internos. Usa page null en DOCX, JSON, imágenes y la indicación profesional, y un número solamente cuando exista un marcador HHR_PAGE_N. ${absentFields}`;
 }
 
 function estimatedRequestTokens(

@@ -30,7 +30,6 @@ export async function AppFrame({ active, children }: { active: string; children:
             return <Link key={item.href} href={item.href} className={current ? "nav-link active" : "nav-link"} aria-current={current ? "page" : undefined}><Icon size={18} /><span>{item.label}</span></Link>;
           })}
         </nav>
-        {active === "Documentos" ? <div id="document-professional-slot" className="sidebar-professional-slot" /> : null}
         <div className="user-card"><span>{user.displayName.slice(0, 2).toUpperCase()}</span><div><strong>{user.displayName}</strong><small>Sesión privada</small></div></div>
       </aside>
       <main className="main-area">

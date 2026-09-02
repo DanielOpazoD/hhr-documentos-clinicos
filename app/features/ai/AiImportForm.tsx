@@ -24,9 +24,7 @@ export function AiImportForm({ controller }: Props) {
   const customProfiles = targetProfiles.filter((item) => !item.builtIn);
   const baseProfiles = targetProfiles.filter((item) => item.builtIn);
   const instruction = controller.promptMode === "free" ? controller.freePrompt : controller.additionalInstructions;
-  const instructionsReady = controller.promptMode === "free"
-    ? Boolean(controller.freePrompt.trim())
-    : Boolean(controller.selectedPromptId);
+  const instructionsReady = controller.promptMode === "free" ? Boolean(controller.freePrompt.trim()) : Boolean(controller.selectedPromptId);
 
   function setInstruction(value: string) {
     if (controller.promptMode === "free") controller.setFreePrompt(value);
@@ -50,9 +48,9 @@ export function AiImportForm({ controller }: Props) {
           type="file"
           hidden
           multiple
-          accept=".pdf,.docx,.jpg,.jpeg,.png"
+          accept=".pdf,.docx,.json,.jpg,.jpeg,.png"
           onChange={(event) => {
-            controller.addFiles(Array.from(event.target.files ?? []));
+            controller.addFiles(Array.from(event.target.files ?? []), "Equipo");
             event.currentTarget.value = "";
           }}
         />
@@ -142,7 +140,7 @@ export function AiImportForm({ controller }: Props) {
           onDragOver={(event) => event.preventDefault()}
           onDrop={(event) => {
             event.preventDefault();
-            if (!controller.processing) controller.addFiles(Array.from(event.dataTransfer.files));
+            if (!controller.processing) controller.addFiles(Array.from(event.dataTransfer.files), "Equipo");
           }}
         >
           <label htmlFor="ai-document-instructions">
@@ -160,38 +158,42 @@ export function AiImportForm({ controller }: Props) {
             onChange={(event) => setInstruction(event.target.value)}
           />
 
-          {controller.files.length ? (
-            <div className="ai-composer-files" role="group" aria-label="Fuentes adjuntas">
-              {controller.files.map((file, index) => (
-                <span key={`${file.name}-${file.size}-${file.lastModified}`}>
-                  <FileText size={14} />
-                  <strong title={file.name}>{file.name}</strong>
-                  <button type="button" disabled={controller.processing} aria-label={`Quitar ${file.name}`} onClick={() => controller.removeFile(index)}><Trash2 size={13} /></button>
-                </span>
-              ))}
-              <small>{controller.files.length}/8 fuentes</small>
-            </div>
-          ) : <p className="ai-composer-empty">Arrastre aquí PDF, DOCX o imágenes, o use una fuente desde los controles inferiores.</p>}
-
-          {controller.files.length ? (
-            <label className="authorization-check compact">
-              <input
-                type="checkbox"
-                checked={controller.processingAuthorized}
-                disabled={controller.processing}
-                onChange={(event) => controller.setProcessingAuthorized(event.target.checked)}
-              />
-              <span>Autorizo el procesamiento de estas fuentes.</span>
-            </label>
-          ) : null}
+          <section className="ai-source-tray" aria-labelledby="ai-source-tray-title">
+            <header>
+              <span><strong id="ai-source-tray-title">Fuentes</strong><small>{controller.files.length ? `${controller.files.length} de 8 añadidas` : "PDF, DOCX, JSON o fotos"}</small></span>
+              <div className="ai-composer-sources">
+                <button type="button" className="button secondary" disabled={controller.processing || controller.files.length >= 8} onClick={() => inputRef.current?.click()}>
+                  <FileUp size={15} /> Adjuntar
+                </button>
+                <GoogleDrivePicker compact disabled={controller.processing} fileCount={controller.files.length} onFiles={(files) => controller.addFiles(files, "Drive")} />
+              </div>
+            </header>
+            {controller.files.length ? (
+              <div className="ai-composer-files" role="group" aria-label="Fuentes adjuntas">
+                {controller.files.map((file, index) => (
+                  <span key={`${file.name}-${file.size}-${file.lastModified}`}>
+                    <FileText size={14} />
+                    <strong title={file.name}>{file.name} · {controller.fileOrigin(file)}</strong>
+                    <button type="button" disabled={controller.processing} aria-label={`Quitar ${file.name}`} onClick={() => controller.removeFile(index)}><Trash2 size={13} /></button>
+                  </span>
+                ))}
+              </div>
+            ) : <p className="ai-composer-empty">Arrastre archivos aquí o elija una fuente.</p>}
+            {controller.files.length ? (
+              <label className="authorization-check compact">
+                <input
+                  type="checkbox"
+                  checked={controller.processingAuthorized}
+                  disabled={controller.processing}
+                  onChange={(event) => controller.setProcessingAuthorized(event.target.checked)}
+                />
+                <span>Autorizo el procesamiento de estas fuentes.</span>
+              </label>
+            ) : null}
+          </section>
 
           <footer>
-            <div className="ai-composer-sources">
-              <button type="button" className="button secondary" disabled={controller.processing || controller.files.length >= 8} onClick={() => inputRef.current?.click()}>
-                <FileUp size={15} /> Adjuntar
-              </button>
-              <GoogleDrivePicker compact disabled={controller.processing} fileCount={controller.files.length} onFiles={controller.addFiles} />
-            </div>
+            <small>{controller.files.length ? `${controller.files.length} ${controller.files.length === 1 ? "fuente" : "fuentes"}` : "Añada una fuente"}</small>
             <button
               type={controller.processing ? "button" : "submit"}
               className={controller.processing ? "button secondary ai-generate-action" : "button primary ai-generate-action"}

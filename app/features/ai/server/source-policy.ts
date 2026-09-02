@@ -13,11 +13,12 @@ const JPEG_SIGNATURE = [0xff, 0xd8, 0xff];
 
 const ALLOWED_MIME_TYPES = new Set([
   "application/pdf",
+  "application/json",
   DOCX_MIME_TYPE,
   "image/jpeg",
   "image/png",
 ]);
-const ALLOWED_EXTENSIONS = new Set(["pdf", "docx", "jpg", "jpeg", "png"]);
+const ALLOWED_EXTENSIONS = new Set(["pdf", "docx", "json", "jpg", "jpeg", "png"]);
 
 export type SourceDescriptor = {
   name: string;
@@ -33,6 +34,7 @@ function resolvedMimeType(file: SourceDescriptor, extension: string): string {
   if (ALLOWED_MIME_TYPES.has(file.type)) return file.type;
   if (extension === "pdf") return "application/pdf";
   if (extension === "docx") return DOCX_MIME_TYPE;
+  if (extension === "json") return "application/json";
   return `image/${extension === "jpg" ? "jpeg" : extension}`;
 }
 
@@ -62,17 +64,39 @@ function validateDocx(bytes: Uint8Array): boolean {
   }
 }
 
+export function readJsonSource(bytes: Uint8Array): string {
+  let text: string;
+  try {
+    text = new TextDecoder("utf-8", { fatal: true }).decode(bytes).replace(/^\uFEFF/, "");
+    JSON.parse(text);
+  } catch {
+    throw new Error("El archivo JSON no contiene datos válidos en UTF-8.");
+  }
+  return text;
+}
+
+function validateJson(bytes: Uint8Array): boolean {
+  try {
+    readJsonSource(bytes);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 export async function validateSourceContents(files: readonly File[], mimeTypes: readonly string[]): Promise<void> {
   for (const [index, file] of files.entries()) {
     const mimeType = mimeTypes[index];
     const bytes = new Uint8Array(await file.arrayBuffer());
     const valid = mimeType === "application/pdf"
       ? startsWith(bytes, PDF_SIGNATURE)
-      : mimeType === "image/png"
-        ? startsWith(bytes, PNG_SIGNATURE)
-        : mimeType === "image/jpeg"
-          ? startsWith(bytes, JPEG_SIGNATURE)
-          : mimeType === DOCX_MIME_TYPE && validateDocx(bytes);
+      : mimeType === "application/json"
+        ? validateJson(bytes)
+        : mimeType === "image/png"
+          ? startsWith(bytes, PNG_SIGNATURE)
+          : mimeType === "image/jpeg"
+            ? startsWith(bytes, JPEG_SIGNATURE)
+            : mimeType === DOCX_MIME_TYPE && validateDocx(bytes);
     if (!valid) {
       throw new Error(`El contenido de ${file.name} no coincide con su formato.`);
     }
@@ -91,7 +115,7 @@ export function validateSourceBatch(files: readonly SourceDescriptor[]): string[
   return files.map((file) => {
     const extension = fileExtension(file.name);
     if (!ALLOWED_MIME_TYPES.has(file.type) && !ALLOWED_EXTENSIONS.has(extension)) {
-      throw new Error("Formato no permitido. Use PDF, DOCX, JPG o PNG.");
+      throw new Error("Formato no permitido. Use PDF, DOCX, JSON, JPG o PNG.");
     }
     return resolvedMimeType(file, extension);
   });

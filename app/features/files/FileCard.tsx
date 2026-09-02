@@ -1,5 +1,6 @@
-import { Archive, Download, Eye, File, FileImage, FileText, FolderOpen, Pencil, Trash2 } from "@/app/components/Icons";
+import { Archive, Download, Eye, File, FileImage, FileText, FolderOpen, MoreHorizontal, Pencil, Trash2 } from "@/app/components/Icons";
 import { formatBytes } from "@/app/lib/client/format-bytes";
+import { useRef } from "react";
 import type { SavedFile } from "./types";
 
 type Props = {
@@ -20,6 +21,17 @@ function fileIcon(file: SavedFile) {
 }
 
 export function FileCard({ file, selected, selectionMode, onPreview, onRename, onToggleArchive, onToggleSelected, onDelete }: Props) {
+  const menuRef = useRef<HTMLDetailsElement>(null);
+
+  function runMenuAction(action: () => void, restoreFocus = false) {
+    const summary = menuRef.current?.querySelector("summary");
+    if (menuRef.current) menuRef.current.open = false;
+    action();
+    if (restoreFocus) {
+      requestAnimationFrame(() => (summary as HTMLElement | null)?.focus());
+    }
+  }
+
   return (
     <article className={`file-card${selected ? " selected" : ""}`}>
       {selectionMode ? <input className="file-select" type="checkbox" checked={selected} onChange={onToggleSelected} aria-label={`Seleccionar ${file.name}`} /> : null}
@@ -31,11 +43,16 @@ export function FileCard({ file, selected, selectionMode, onPreview, onRename, o
         <div><strong title={file.name}>{file.name}</strong><small>{formatBytes(file.size)} · {new Date(file.createdAt).toLocaleDateString("es-CL")}</small></div>
         {!selectionMode ? (
           <div className="file-actions">
-            <button onClick={onPreview} aria-label={`Previsualizar ${file.name}`} title="Vista previa"><Eye size={16} /></button>
-            <a href={`/api/files/${file.id}?download=1`} aria-label={`Descargar ${file.name}`} title="Descargar"><Download size={16} /></a>
-            <button onClick={onRename} aria-label={`Cambiar nombre de ${file.name}`} title="Cambiar nombre"><Pencil size={15} /></button>
-            <button onClick={onToggleArchive} aria-label={file.status === "archivado" ? `Restaurar ${file.name}` : `Archivar ${file.name}`} title={file.status === "archivado" ? "Restaurar" : "Archivar"}>{file.status === "archivado" ? <FolderOpen size={15} /> : <Archive size={15} />}</button>
-            <button className="danger" onClick={onDelete} aria-label={`Eliminar ${file.name}`} title="Eliminar"><Trash2 size={15} /></button>
+            <button className="text-button file-open-action" onClick={onPreview}><Eye size={15} /> Abrir</button>
+            <details ref={menuRef} className="section-actions-menu file-actions-menu">
+              <summary aria-label={`Más acciones para ${file.name}`}><MoreHorizontal size={17} /></summary>
+              <div>
+                <a href={`/api/files/${file.id}?download=1`} download><Download size={15} /> Descargar</a>
+                <button onClick={() => runMenuAction(onRename)}><Pencil size={15} /> Cambiar nombre</button>
+                <button onClick={() => runMenuAction(onToggleArchive, true)}>{file.status === "archivado" ? <FolderOpen size={15} /> : <Archive size={15} />}{file.status === "archivado" ? "Restaurar" : "Archivar"}</button>
+                <button className="section-delete" onClick={() => runMenuAction(onDelete)}><Trash2 size={15} /> Eliminar</button>
+              </div>
+            </details>
           </div>
         ) : null}
       </div>

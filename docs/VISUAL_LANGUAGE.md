@@ -40,6 +40,8 @@ Estas primitivas no contienen lógica de dominio ni deciden qué acción es prim
 - Los grupos de selección exponen su relación mediante `role="group"`, `aria-label` y `aria-pressed` cuando corresponde.
 - En Documentos el papel es la superficie dominante; su barra reúne solo acciones contextuales y conserva una versión táctil compacta en móvil.
 - En IA, tipo, plantilla, modelo, indicaciones y fuentes forman un único compositor. La administración avanzada de plantillas aparece después mediante divulgación progresiva.
+- El contexto clínico completo se expande al crear o corregir; una vez identificado, paciente y profesional se resumen en una barra editable.
+- Formularios sitúa imprimir y descargar junto al visor activo. Archivos expone abrir y descargar, mientras renombrar, archivar y eliminar viven en un único menú contextual.
 
 ## Superficies y estados
 
@@ -47,7 +49,7 @@ Estas primitivas no contienen lógica de dominio ni deciden qué acción es prim
 - Los estados vacíos se presentan con `EmptyState`; no se reemplazan con datos de demostración.
 - Un error operativo se muestra cerca de su tarea. No se usa rojo para orientación normal.
 - El foco visible, el movimiento reducido y objetivos táctiles suficientes son parte de la gramática, no adornos opcionales.
-- Las acciones secundarias de tarjetas pueden bajar su contraste en dispositivos con puntero, pero reaparecen con `hover`, `focus-within` y permanecen visibles en interacción táctil.
+- Las tarjetas presentan una acción principal legible. Las tareas infrecuentes se agrupan en menús con nombre accesible y foco visible.
 
 ## Comportamiento responsive
 

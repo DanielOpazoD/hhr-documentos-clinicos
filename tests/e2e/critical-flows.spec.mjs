@@ -14,6 +14,14 @@ async function openApp(page, app, path) {
   await expect(page.locator("body")).toBeVisible();
 }
 
+async function assertNoHorizontalOverflow(page) {
+  const dimensions = await page.evaluate(() => ({
+    clientWidth: document.documentElement.clientWidth,
+    scrollWidth: document.documentElement.scrollWidth,
+  }));
+  expect(dimensions.scrollWidth).toBeLessThanOrEqual(dimensions.clientWidth);
+}
+
 async function openNewDocument(page, templateName) {
   await activate(page.getByRole("button", { name: "Nuevo documento" }));
   const template = page.locator(".template-menu").getByRole("button", { name: new RegExp(templateName, "i") });
@@ -32,6 +40,11 @@ async function openProfessionalPanel(page) {
   await expect(panel).toBeVisible();
   await expect(panel).toBeFocused();
   return { panel, trigger };
+}
+
+async function togglePrescriptionFrame(page, actionName) {
+  await activate(page.getByLabel("Más herramientas del documento"));
+  await activate(page.getByRole("button", { name: actionName }));
 }
 
 for (const viewport of viewports) {
@@ -67,8 +80,15 @@ for (const viewport of viewports) {
       await activate(recent);
 
       await expect(page).toHaveURL(savedUrl);
+      const contextToggle = page.locator(".clinical-context-toggle");
+      if (await contextToggle.getAttribute("aria-expanded") === "true") await activate(contextToggle);
+      await expect(contextToggle).toHaveAttribute("aria-expanded", "false");
+      await expect(page.locator("#patient-editor-fields")).toBeHidden();
+      await activate(contextToggle);
+      await expect(page.getByLabel("Nombre completo")).toBeVisible();
       await expect(page.getByLabel("Nombre completo")).toHaveValue(`Paciente Manual ${viewport.label}`);
       await expect(page.locator("#section-contenido")).toHaveValue(`Contenido manual persistido ${viewport.label}`);
+      await assertNoHorizontalOverflow(page);
       await assertNoSeriousAxe(page, `editor manual ${viewport.label}`);
     });
 
@@ -95,20 +115,19 @@ for (const viewport of viewports) {
       await openNewDocument(page, "Receta externa");
 
       const frame = page.getByText("RECETA MÉDICA EXTERNA", { exact: true });
-      const hideFrame = page.getByRole("button", { name: "Ocultar encuadre" });
       await expect(frame).toBeVisible();
-      await activate(hideFrame);
+      await togglePrescriptionFrame(page, "Ocultar encuadre");
       await expect(frame).toHaveCount(0);
-      await expect(page.getByRole("button", { name: "Mostrar encuadre" })).toBeVisible();
 
       await page.keyboard.press("Control+s");
       await expect(page).toHaveURL(/document=/);
+      await expect(page.getByText(/Guardado/, { exact: false }).first()).toBeVisible();
       await page.reload();
-      await expect(page.getByRole("button", { name: "Mostrar encuadre" })).toBeVisible();
       await expect(frame).toHaveCount(0);
 
-      await activate(page.getByRole("button", { name: "Mostrar encuadre" }));
+      await togglePrescriptionFrame(page, "Mostrar encuadre");
       await expect(frame).toBeVisible();
+      await expect(page.locator(".studio-print-button")).toHaveCSS("color", "rgb(32, 33, 35)");
       await assertNoSeriousAxe(page, `encuadre de receta ${viewport.label}`);
     });
 
@@ -152,13 +171,19 @@ for (const viewport of viewports) {
       await page.getByLabel("Tipo de documento", { exact: true }).selectOption("free");
       await typeWithKeyboard(page.getByLabel("¿Qué documento necesita?"), "Crear un certificado sintético para la prueba E2E.");
       await page.locator('input[type="file"]').setInputFiles({
-        name: "fuente-e2e.png",
-        mimeType: "image/png",
-        buffer: syntheticPng({ width: 360, height: 480 }),
+        name: "fuente-e2e.json",
+        mimeType: "application/json",
+        buffer: Buffer.from(JSON.stringify({ patient: { name: "Paciente Sintético IA" } })),
       });
+      await expect(page.locator(".ai-source-tray")).toContainText("Equipo");
+      await expect(page.locator(".ai-composer > footer")).toContainText("1 fuente");
+      const generate = page.getByRole("button", { name: /^Generar/ });
+      await expect(generate).toBeDisabled();
       const authorization = page.getByRole("checkbox", { name: "Autorizo el procesamiento de estas fuentes." });
       await activate(authorization, "Space");
-      await activate(page.getByRole("button", { name: /^Generar/ }));
+      await expect(generate).toBeEnabled();
+      await assertNoHorizontalOverflow(page);
+      await activate(generate);
 
       await expect(page.getByRole("heading", { name: "Certificado E2E" })).toBeVisible();
       await assertNoSeriousAxe(page, `borrador IA ${viewport.label}`);
@@ -239,6 +264,8 @@ for (const viewport of viewports) {
       await activate(form);
       await expect(form).toHaveAttribute("aria-current", "page");
       await expect(page.getByTitle("Vista del formulario: Hepatitis B, C y Chagas")).toHaveAttribute("src", /serologia-hepatitis-chagas\.pdf/);
+      await expect(page.locator(".official-form-toolbar").getByRole("link", { name: "Abrir e imprimir" })).toBeVisible();
+      await assertNoHorizontalOverflow(page);
       await assertNoSeriousAxe(page, `formularios ${viewport.label}`);
 
       const tuberculosis = page.getByRole("button", { name: /Investigación de tuberculosis/ });
@@ -313,6 +340,7 @@ for (const viewport of viewports) {
 
       await page.keyboard.press("Control+s");
       await expect(page).toHaveURL(/document=/);
+      await expect(page.getByText(/Guardado/, { exact: false }).first()).toBeVisible();
       await page.reload();
       await expect(page.getByRole("button", { name: "Mostrar firma" })).toBeVisible();
       await expect(page.getByRole("button", { name: "Mostrar timbre" })).toBeVisible();
