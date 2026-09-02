@@ -58,6 +58,7 @@ function safeOpenAiField(value: unknown): string | null {
 export function classifyOpenAiFailure(status: number, payload: unknown): OpenAiGenerationError {
   const error = (payload as OpenAiErrorPayload | null)?.error;
   const code = safeOpenAiField(error?.code);
+  const type = safeOpenAiField(error?.type);
   if (status === 401 || code === "invalid_api_key") {
     return new OpenAiGenerationError({
       message: "La credencial de OpenAI no es válida o dejó de estar activa.",
@@ -67,7 +68,7 @@ export function classifyOpenAiFailure(status: number, payload: unknown): OpenAiG
       upstreamCode: code,
     });
   }
-  if (code === "insufficient_quota") {
+  if (code === "insufficient_quota" || code === "credit_balance_exhausted" || type === "insufficient_quota") {
     return new OpenAiGenerationError({
       message: "El proyecto de OpenAI no tiene saldo o alcanzó su límite de gasto.",
       publicCode: "AI_PROVIDER_QUOTA_EXHAUSTED",

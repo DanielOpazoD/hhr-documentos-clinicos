@@ -81,9 +81,9 @@ Devuelve el perfil completo listo para reemplazar el texto actual y un resumen b
       },
     }),
   });
-  const payload = await response.json() as { error?: { code?: string; message?: string } };
+  const payload = await response.json() as { error?: { code?: string; type?: string; message?: string } };
   if (!response.ok) {
-    if (payload.error?.code === "insufficient_quota") throw new Error("El proyecto de OpenAI no tiene saldo disponible.");
+    if (payload.error?.code === "insufficient_quota" || payload.error?.code === "credit_balance_exhausted" || payload.error?.type === "insufficient_quota") throw new Error("El proyecto de OpenAI no tiene saldo disponible.");
     if (response.status === 429) throw new Error("OpenAI está recibiendo demasiadas solicitudes. Intente nuevamente en un momento.");
     throw new Error("OpenAI no pudo mejorar el prompt en este momento.");
   }

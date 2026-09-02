@@ -10,6 +10,7 @@ test("classifies OpenAI failures without exposing upstream messages", () => {
   const cases = [
     [401, { error: { code: "invalid_api_key", message: "secret detail" } }, "AI_PROVIDER_AUTH_FAILED"],
     [429, { error: { code: "insufficient_quota", message: "secret detail" } }, "AI_PROVIDER_QUOTA_EXHAUSTED"],
+    [429, { error: { code: "credit_balance_exhausted", type: "insufficient_quota", message: "secret detail" } }, "AI_PROVIDER_QUOTA_EXHAUSTED"],
     [429, { error: { code: "rate_limit_exceeded", message: "secret detail" } }, "AI_PROVIDER_RATE_LIMITED"],
     [403, { error: { code: "model_not_found", message: "secret detail" } }, "AI_MODEL_UNAVAILABLE"],
     [503, { error: { code: "server_error", message: "secret detail" } }, "AI_PROVIDER_UNAVAILABLE"],

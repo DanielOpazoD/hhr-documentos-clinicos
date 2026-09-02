@@ -88,9 +88,9 @@ Elige el target que mejor represente la plantilla y devuelve instrucciones compl
       },
     }),
   });
-  const payload = await response.json() as { error?: { code?: string } };
+  const payload = await response.json() as { error?: { code?: string; type?: string } };
   if (!response.ok) {
-    if (payload.error?.code === "insufficient_quota") throw new Error("El proyecto de OpenAI no tiene saldo disponible.");
+    if (payload.error?.code === "insufficient_quota" || payload.error?.code === "credit_balance_exhausted" || payload.error?.type === "insufficient_quota") throw new Error("El proyecto de OpenAI no tiene saldo disponible.");
     if (response.status === 429) throw new Error("OpenAI está recibiendo demasiadas solicitudes. Intente nuevamente en un momento.");
     throw new Error("OpenAI no pudo crear la plantilla en este momento.");
   }
