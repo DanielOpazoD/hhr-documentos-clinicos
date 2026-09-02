@@ -24,9 +24,7 @@ export function AiImportForm({ controller }: Props) {
   const customProfiles = targetProfiles.filter((item) => !item.builtIn);
   const baseProfiles = targetProfiles.filter((item) => item.builtIn);
   const instruction = controller.promptMode === "free" ? controller.freePrompt : controller.additionalInstructions;
-  const instructionsReady = controller.promptMode === "free"
-    ? Boolean(controller.freePrompt.trim())
-    : Boolean(controller.selectedPromptId);
+  const instructionsReady = controller.promptMode === "free" ? Boolean(controller.freePrompt.trim()) : Boolean(controller.selectedPromptId);
 
   function setInstruction(value: string) {
     if (controller.promptMode === "free") controller.setFreePrompt(value);
@@ -160,7 +158,7 @@ export function AiImportForm({ controller }: Props) {
             onChange={(event) => setInstruction(event.target.value)}
           />
 
-          <section className={controller.files.length ? "ai-source-tray has-files" : "ai-source-tray"} aria-labelledby="ai-source-tray-title">
+          <section className="ai-source-tray" aria-labelledby="ai-source-tray-title">
             <header>
               <span><strong id="ai-source-tray-title">Fuentes</strong><small>{controller.files.length ? `${controller.files.length} de 8 añadidas` : "PDF, DOCX o imágenes"}</small></span>
               <div className="ai-composer-sources">
@@ -175,7 +173,7 @@ export function AiImportForm({ controller }: Props) {
                 {controller.files.map((file, index) => (
                   <span key={`${file.name}-${file.size}-${file.lastModified}`}>
                     <FileText size={14} />
-                    <span><strong title={file.name}>{file.name}</strong><small>{controller.fileOrigin(file)}</small></span>
+                    <strong title={file.name}>{file.name} · {controller.fileOrigin(file)}</strong>
                     <button type="button" disabled={controller.processing} aria-label={`Quitar ${file.name}`} onClick={() => controller.removeFile(index)}><Trash2 size={13} /></button>
                   </span>
                 ))}
@@ -195,7 +193,7 @@ export function AiImportForm({ controller }: Props) {
           </section>
 
           <footer>
-            <small className="ai-generation-readiness" role="status">{generationReadiness(controller, instructionsReady)}</small>
+            <small>{controller.files.length ? `${controller.files.length} ${controller.files.length === 1 ? "fuente" : "fuentes"}` : "Añada una fuente"}</small>
             <button
               type={controller.processing ? "button" : "submit"}
               className={controller.processing ? "button secondary ai-generate-action" : "button primary ai-generate-action"}
@@ -242,12 +240,4 @@ export function AiImportForm({ controller }: Props) {
       </section>
     </div>
   );
-}
-
-function generationReadiness(controller: AiStudioController, instructionsReady: boolean) {
-  if (!controller.files.length) return "Añada al menos una fuente.";
-  if (!controller.processingAuthorized) return "Confirme el procesamiento de las fuentes.";
-  if (!controller.selectedProvider?.available) return "Seleccione una IA disponible.";
-  if (!instructionsReady) return controller.promptMode === "free" ? "Describa el documento que necesita." : "Seleccione una plantilla.";
-  return `Listo para generar con ${controller.files.length} ${controller.files.length === 1 ? "fuente" : "fuentes"}.`;
 }

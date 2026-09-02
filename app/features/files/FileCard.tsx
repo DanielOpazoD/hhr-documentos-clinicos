@@ -43,11 +43,11 @@ export function FileCard({ file, selected, selectionMode, onPreview, onRename, o
         <div><strong title={file.name}>{file.name}</strong><small>{formatBytes(file.size)} · {new Date(file.createdAt).toLocaleDateString("es-CL")}</small></div>
         {!selectionMode ? (
           <div className="file-actions">
-            <button className="file-open-action" onClick={onPreview}><Eye size={15} /> Abrir</button>
-            <a href={`/api/files/${file.id}?download=1`} aria-label={`Descargar ${file.name}`} title="Descargar"><Download size={16} /></a>
+            <button className="text-button file-open-action" onClick={onPreview}><Eye size={15} /> Abrir</button>
             <details ref={menuRef} className="section-actions-menu file-actions-menu">
               <summary aria-label={`Más acciones para ${file.name}`}><MoreHorizontal size={17} /></summary>
               <div>
+                <a href={`/api/files/${file.id}?download=1`} download><Download size={15} /> Descargar</a>
                 <button onClick={() => runMenuAction(onRename)}><Pencil size={15} /> Cambiar nombre</button>
                 <button onClick={() => runMenuAction(onToggleArchive, true)}>{file.status === "archivado" ? <FolderOpen size={15} /> : <Archive size={15} />}{file.status === "archivado" ? "Restaurar" : "Archivar"}</button>
                 <button className="section-delete" onClick={() => runMenuAction(onDelete)}><Trash2 size={15} /> Eliminar</button>

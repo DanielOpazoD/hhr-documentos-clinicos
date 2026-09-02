@@ -72,7 +72,7 @@ export function useAiStudio({ initialPromptId, initialTarget, initialTemplateId,
   const savingRef = useRef(false);
   const retryErrorRef = useRef<AiRetryOperation | null>(null);
   const [files, setFiles] = useState<File[]>([]);
-  const [fileOrigins, setFileOrigins] = useState<Map<File, "Equipo" | "Drive">>(() => new Map());
+  const fileOriginsRef = useRef(new WeakMap<File, "Equipo" | "Drive">());
   const [target, setTarget] = useState<AiTargetId>(initialTarget ?? "epicrisis");
   const [provider, setProvider] = useState<AiProviderId>("openai");
   const [model, setModel] = useState("gpt-5-mini");
@@ -419,12 +419,8 @@ export function useAiStudio({ initialPromptId, initialTarget, initialTemplateId,
       setError(operationFailure("Puede analizar hasta 8 archivos por vez. Quite uno antes de agregar más."));
       return;
     }
+    nextFiles.forEach((file) => fileOriginsRef.current.set(file, origin));
     setFiles(merged);
-    setFileOrigins((current) => {
-      const next = new Map(current);
-      nextFiles.forEach((file) => next.set(file, origin));
-      return next;
-    });
     setProcessingAuthorized(false);
     setIdentityConfirmed(false);
     setError(null);
@@ -432,13 +428,7 @@ export function useAiStudio({ initialPromptId, initialTarget, initialTemplateId,
 
   function removeFile(index: number) {
     const removed = files[index];
-    if (removed) {
-      setFileOrigins((origins) => {
-        const next = new Map(origins);
-        next.delete(removed);
-        return next;
-      });
-    }
+    if (removed) fileOriginsRef.current.delete(removed);
     setFiles((current) => current.filter((_, itemIndex) => itemIndex !== index));
     setProcessingAuthorized(false);
     setIdentityConfirmed(false);
@@ -478,7 +468,7 @@ export function useAiStudio({ initialPromptId, initialTarget, initialTemplateId,
 
   return {
     files,
-    fileOrigin: (file: File) => fileOrigins.get(file) ?? "Equipo",
+    fileOrigin: (file: File) => fileOriginsRef.current.get(file) ?? "Equipo",
     addFiles,
     removeFile,
     target,

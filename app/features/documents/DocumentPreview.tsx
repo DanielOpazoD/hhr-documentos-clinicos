@@ -109,13 +109,12 @@ export function DocumentPreview({
             <summary aria-label="Más herramientas del documento"><MoreHorizontal size={16} /></summary>
             <div>
               {templateSettingsError ? (
-                <button type="button" className="paper-template-settings error" aria-label="No se pudo cargar la plantilla. Reintentar" onClick={retryTemplateSettings}>
+                <button type="button" className="section-delete" aria-label="No se pudo cargar la plantilla. Reintentar" onClick={retryTemplateSettings}>
                   <Settings size={13} /> <span>Reintentar plantilla</span>
                 </button>
               ) : (
                 <button
                   type="button"
-                  className="paper-template-settings"
                   disabled={!templateSettingsLoaded}
                   onClick={(event) => {
                     const summary = closeToolsMenu(event.currentTarget);
@@ -124,9 +123,9 @@ export function DocumentPreview({
                 ><Settings size={13} /> Plantilla</button>
               )}
               {!isPrescription ? (
-                <button type="button" className="paper-add-section" onClick={(event) => { addSection(); closeToolsMenu(event.currentTarget).focus(); }}><Plus size={13} /> Agregar sección</button>
+                <button type="button" onClick={(event) => { addSection(); closeToolsMenu(event.currentTarget).focus(); }}><Plus size={13} /> Agregar sección</button>
               ) : (
-                <button type="button" className="paper-add-section" onClick={(event) => { toggleFrame(); closeToolsMenu(event.currentTarget).focus(); }}>
+                <button type="button" onClick={(event) => { toggleFrame(); closeToolsMenu(event.currentTarget).focus(); }}>
                   <Eye size={13} /> {frameHidden ? "Mostrar encuadre" : "Ocultar encuadre"}
                 </button>
               )}

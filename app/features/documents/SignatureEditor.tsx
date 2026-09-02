@@ -22,7 +22,7 @@ export function SignatureEditor({ onClose, workspace }: { onClose: () => void; w
         <button className="text-button signature-panel-close" onClick={onClose}><X size={14} /> Cerrar</button>
       </div>
 
-      <ProfessionalEditor signer={workspace.signer} updateSigner={workspace.updateSigner} variant="panel" />
+      <ProfessionalEditor signer={workspace.signer} updateSigner={workspace.updateSigner} />
 
       <div className="signature-asset-groups">
         <SignatureProfileSelector kind="signature" workspace={workspace} onAdd={() => openSignatureForm("signature", signer)} />

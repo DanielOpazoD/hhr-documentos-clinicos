@@ -399,11 +399,12 @@ test("uses byte-identical original clinical form artifacts", async () => {
 });
 
 test("keeps one clear action hierarchy across the core studios", async () => {
-  const [frame, forms, scanner, library, globalStyles, documentStyles, scannerStyles] = await Promise.all([
+  const [frame, forms, scanner, library, fileCard, globalStyles, documentStyles, scannerStyles] = await Promise.all([
     readFile(new URL("../app/components/AppFrame.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/components/FormsStudio.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/components/ScannerDesk.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/features/documents/DocumentLibrary.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/features/files/FileCard.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/globals.css", import.meta.url), "utf8"),
     readFile(new URL("../app/features/documents/documents.css", import.meta.url), "utf8"),
     readFile(new URL("../app/features/scanner/scanner.css", import.meta.url), "utf8"),
@@ -431,8 +432,11 @@ test("keeps one clear action hierarchy across the core studios", async () => {
   assert.match(scanner, /features\/scanner\/scanner\.css/);
   assert.doesNotMatch(globalStyles, /\.scanner-import-copy/);
   assert.match(documentStyles, /\.template-menu button strong,[\s\S]*?font-size: 12px;/);
-  assert.match(globalStyles, /\.file-actions > button, \.file-actions > a \{ min-width: 36px; height: 36px;/);
+  assert.match(globalStyles, /\.file-open-action \{ min-height: 36px;/);
   assert.match(globalStyles, /\.files-grid \.file-card-body \{ align-items: stretch; flex-direction: column;/);
+  assert.match(fileCard, /className="text-button file-open-action"/);
+  assert.match(fileCard, /aria-label=\{`Más acciones para \$\{file\.name\}`\}/);
+  assert.doesNotMatch(fileCard, /title="Cambiar nombre"/);
   assert.match(globalStyles, /@media \(min-width: 821px\) and \(max-width: 960px\)/);
 });
 
@@ -558,7 +562,7 @@ test("keeps the clinical studios usable from mobile through desktop", async () =
   assert.doesNotMatch(documentStudio, /Las imágenes se administran y posicionan por separado/);
   assert.match(documentStudio, /professional-editor/);
   assert.doesNotMatch(documentStudio, /document-professional-slot|createPortal|variant="sidebar"/);
-  assert.match(documentStudio, /variant="panel"/);
+  assert.match(documentStudio, /professional-editor-panel/);
   assert.match(documentStudio, /professional-summary-trigger/);
   assert.match(documentStudio, /clinical-context-toggle/);
   assert.match(documentStudio, /aria-expanded=\{expanded\}/);
@@ -588,7 +592,7 @@ test("keeps the clinical studios usable from mobile through desktop", async () =
   assert.match(documentStudio, /removeSection/);
   assert.match(documentStudio, /paper-section-title-input/);
   assert.match(documentStudio, /paper-section-body/);
-  assert.match(documentStudio, /paper-add-section/);
+  assert.match(documentStudio, /> Agregar sección<\/button>/);
   assert.match(documentStudio, /section-actions-menu/);
   assert.doesNotMatch(documentStudio, /role="menuitem"|role="menu"/);
   assert.match(documentStudio, /Mover arriba/);
@@ -778,7 +782,7 @@ test("keeps the clinical studios usable from mobile through desktop", async () =
   assert.match(styles, /\.preview-edit-target/);
   assert.match(styles, /\.signer-lines\.preview-edit-target/);
   assert.match(styles, /\.professional-editor/);
-  assert.match(styles, /\.professional-editor-sidebar/);
+  assert.doesNotMatch(styles, /\.professional-editor-sidebar/);
   assert.match(styles, /\.document-preflight/);
   assert.match(styles, /\.document-preflight-issues/);
   assert.match(styles, /\.document-preflight-issue/);
@@ -810,7 +814,7 @@ test("keeps the clinical studios usable from mobile through desktop", async () =
   assert.match(dashboard, /\/documentos\?assistant=1/);
   assert.match(responsiveStyles, /\.dashboard-page \.action-card/);
   assert.match(documentStyles, /\.document-library-content\[hidden\]/);
-  assert.match(responsiveStyles, /padding-bottom: calc\(78px \+ env\(safe-area-inset-bottom\)\)/);
+  assert.match(responsiveStyles, /padding-bottom: calc\(64px \+ env\(safe-area-inset-bottom\)\)/);
 });
 
 test("contains no production sample workflow or fictitious record creation", async () => {

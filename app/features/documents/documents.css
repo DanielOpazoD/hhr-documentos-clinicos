@@ -50,6 +50,13 @@
   white-space: nowrap;
 }
 
+.studio-print-button.secondary:disabled {
+  border-color: #d7dfe0;
+  background: #f4f6f6;
+  color: #59666a;
+  opacity: 1;
+}
+
 .studio-page .document-command-bar {
   min-width: 0;
   display: flex;
@@ -58,14 +65,6 @@
   padding: 3px;
   border-radius: 10px;
   background: #f4f5f5;
-}
-
-.studio-page .document-workspace-state {
-  padding-inline: 8px;
-}
-
-.studio-page .document-status-actions {
-  gap: 3px;
 }
 
 .document-assistant-toggle {
@@ -401,7 +400,6 @@
 }
 
 .document-clinical-context {
-  min-width: 0;
   overflow: hidden;
   border: 1px solid #e3e3e7;
   border-radius: 12px;
@@ -460,25 +458,14 @@
 .professional-summary {
   min-width: 0;
   display: grid;
-  grid-template-columns: 28px minmax(0, 1fr) auto;
+  grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
   gap: 8px;
   padding: 6px 7px;
   border-left: 1px solid #e8e8eb;
 }
 
-.professional-summary-mark {
-  width: 28px;
-  height: 28px;
-  display: grid;
-  place-items: center;
-  border-radius: 8px;
-  background: #e9f3f3;
-  color: var(--cyan);
-}
-
 .professional-summary-trigger {
-  min-width: 58px;
   height: 30px;
   padding-inline: 7px;
 }
@@ -494,6 +481,10 @@
   border-top: 1px solid #e8e8eb;
   border-radius: 0;
   background: #fff;
+}
+
+.patient-editor[hidden] {
+  display: none;
 }
 
 .patient-editor h2 {
@@ -596,37 +587,6 @@
   font-size: 12px;
 }
 
-.professional-editor-sidebar {
-  padding: 9px 26px 9px 8px;
-  border-color: #dfe4e4;
-  background: #fff;
-}
-
-.professional-editor-sidebar > header {
-  grid-template-columns: 24px minmax(0, 1fr);
-  gap: 6px;
-  margin-bottom: 7px;
-}
-
-.professional-editor-sidebar > header > span {
-  width: 24px;
-  height: 24px;
-  border-radius: 7px;
-}
-
-.professional-editor-sidebar > header strong {
-  font-size: 12px;
-}
-
-.professional-editor-sidebar .professional-fields {
-  gap: 2px;
-}
-
-.professional-editor-sidebar .professional-fields input {
-  padding-inline: 8px;
-  font-size: var(--fs-caption);
-}
-
 .professional-editor-panel {
   margin-bottom: 12px;
   padding: 10px;
@@ -659,22 +619,6 @@
   border-color: #9fc3c7;
   background: #eef7f7;
   color: #105f69;
-}
-
-.professional-editor-sidebar .signature-panel-trigger {
-  position: absolute;
-  z-index: 2;
-  top: 50%;
-  right: 0;
-  width: 20px;
-  min-width: 20px;
-  height: 38px;
-  padding: 0;
-  transform: translateY(-50%);
-  border-right: 0;
-  border-radius: 7px 0 0 7px;
-  background: #f6f8f8;
-  box-shadow: none;
 }
 
 .signature-settings-panel {
@@ -915,30 +859,6 @@
   gap: 5px;
 }
 
-.paper-add-section,
-.paper-template-settings {
-  min-height: 32px;
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  padding: 0 9px;
-  border: 0;
-  border-radius: 7px;
-  background: transparent;
-  color: var(--cyan);
-  font-size: 12px;
-  font-weight: 700;
-}
-
-.paper-add-section:hover,
-.paper-template-settings:hover {
-  background: rgba(26, 116, 132, .08);
-}
-
-.paper-template-settings.error {
-  color: var(--danger);
-}
-
 .typography-tools {
   display: flex;
   align-items: center;
@@ -952,22 +872,6 @@
 
 .document-tools-menu > div {
   width: 190px;
-}
-
-.document-tools-menu .paper-add-section,
-.document-tools-menu .paper-template-settings {
-  width: 100%;
-  min-height: 36px;
-  justify-content: flex-start;
-  padding: 0 9px;
-  border-radius: 6px;
-  color: var(--ink);
-  font-weight: 600;
-}
-
-.document-tools-menu .paper-add-section:hover,
-.document-tools-menu .paper-template-settings:hover {
-  background: #f2f2f3;
 }
 
 @media (max-width: 1240px) {
@@ -1052,8 +956,6 @@
   }
 
   .document-clinical-context {
-    display: grid;
-    gap: 0;
     border-radius: 10px;
   }
 
@@ -1112,30 +1014,6 @@
     flex-wrap: nowrap;
     justify-content: flex-end;
     gap: 3px;
-  }
-
-  .paper-add-section,
-  .paper-template-settings {
-    width: 36px;
-    min-width: 36px;
-    height: 36px;
-    min-height: 36px;
-    justify-content: center;
-    overflow: hidden;
-    padding: 0;
-    color: transparent;
-    font-size: 0;
-  }
-
-  .paper-add-section svg,
-  .paper-template-settings svg {
-    flex: 0 0 auto;
-    color: var(--cyan);
-  }
-
-  .paper-template-settings > span,
-  .paper-template-settings > strong {
-    display: none;
   }
 
   .paper-toolbar-actions .document-type-control {

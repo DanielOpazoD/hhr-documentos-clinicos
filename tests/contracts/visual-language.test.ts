@@ -40,12 +40,13 @@ test("defines compact desktop controls and accessible touch targets", () => {
   assert.match(globals, /--touch-height:\s*44px/);
   assert.match(globals, /input, select\s*\{[^}]*font-size:\s*var\(--fs-control\)/);
   assert.match(globals, /\.mobile-nav a\s*\{[^}]*min-height:\s*44px/);
+  assert.match(globals, /\.mobile-nav\s*\{[^}]*bottom:\s*4px[^}]*padding:\s*3px/);
 });
 
 test("keeps one clear file action and moves maintenance into a compact menu", () => {
   const globals = readFileSync(cssFiles[0], "utf8");
 
-  assert.match(globals, /\.file-actions \.file-open-action\s*\{[^}]*color:\s*var\(--cyan\)/);
+  assert.match(globals, /\.file-open-action\s*\{[^}]*min-height:\s*36px/);
   assert.match(globals, /\.file-actions-menu > div\s*\{[^}]*width:\s*172px/);
   assert.doesNotMatch(globals, /\.files-grid \.file-actions\s*\{[^}]*opacity/);
 });
@@ -56,6 +57,8 @@ test("keeps the document toolbar readable without sacrificing mobile space", () 
   assert.match(documents, /\.template-menu button\s*\{[^}]*min-height:\s*40px/);
   assert.match(documents, /\.paper-toolbar-actions \.typography-control-icon\s*\{\s*display:\s*none !important;/);
   assert.match(documents, /\.paper-toolbar-actions \.document-type-control button\s*\{[^}]*width:\s*36px/);
+  assert.match(documents, /\.studio-print-button\.secondary:disabled\s*\{[^}]*color:\s*#59666a;[^}]*opacity:\s*1/);
+  assert.doesNotMatch(documents, /\.studio-print-button\s*\{[^}]*transition/);
 });
 
 test("presents AI generation before advanced template management", () => {

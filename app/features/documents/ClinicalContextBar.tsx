@@ -1,4 +1,4 @@
-import { ChevronDown, Pencil, Stethoscope } from "@/app/components/Icons";
+import { ChevronDown, Pencil } from "@/app/components/Icons";
 import { formatStoredDate } from "./formatters";
 import { patientFullName } from "./identity";
 import type { DocumentWorkspace } from "./use-document-workspace";
@@ -51,7 +51,6 @@ export function ClinicalContextBar({
           <ChevronDown size={15} aria-hidden="true" />
         </button>
         <div className="professional-summary">
-          <span className="professional-summary-mark" aria-hidden="true"><Stethoscope size={15} /></span>
           <span className="professional-summary-copy">
             <strong>{professionalName}</strong>
             <small>{professionalDetails}</small>
