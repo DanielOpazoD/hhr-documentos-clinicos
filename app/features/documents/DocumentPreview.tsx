@@ -1,10 +1,10 @@
-/* eslint-disable @next/next/no-img-element -- local and owner-scoped images bypass optimization intentionally. */
+/* eslint-disable @next/next/no-img-element -- local brand asset bypasses optimization intentionally. */
 import { useLayoutEffect, useRef, useState, type CSSProperties } from "react";
-import { ArrowDown, ArrowUp, GripVertical, MoreHorizontal, Plus, Settings, Trash2 } from "@/app/components/Icons";
+import { ArrowDown, ArrowUp, Eye, MoreHorizontal, Plus, Settings, Trash2 } from "@/app/components/Icons";
 import { TypographyControl } from "./DocumentTypographyControl";
 import { formatStoredDate } from "./formatters";
 import { patientFullName } from "./identity";
-import type { PlacedSignature, SignatureAssetKind } from "./types";
+import { PlacedDocumentAsset } from "./PlacedDocumentAsset";
 import type { DocumentWorkspace } from "./use-document-workspace";
 
 type Props = Pick<
@@ -31,7 +31,9 @@ type Props = Pick<
   | "sections"
   | "signer"
   | "startSignatureMove"
+  | "toggleFrame"
   | "updatePlacedImage"
+  | "frameHidden"
   | "templateId" | "templateSettingsError" | "templateSettingsLoaded" | "retryTemplateSettings"
   | "visibleTitle"
   | "markDirty"
@@ -62,7 +64,9 @@ export function DocumentPreview({
   sections,
   signer,
   startSignatureMove,
+  toggleFrame,
   updatePlacedImage,
+  frameHidden,
   templateId, templateSettingsError, templateSettingsLoaded, retryTemplateSettings,
   visibleTitle,
   markDirty,
@@ -76,6 +80,7 @@ export function DocumentPreview({
     "--document-font-size": `${documentFontSize}px`,
     "--signoff-font-size": `${signoffFontSize}px`,
   } as CSSProperties;
+  const isPrescription = templateId === "receta_externa";
   return (
     <section id="document-preview" className="paper-panel">
       <div className="paper-toolbar print-hide">
@@ -87,9 +92,18 @@ export function DocumentPreview({
           ) : (
             <button type="button" className="paper-template-settings" disabled={!templateSettingsLoaded} onClick={(event) => onConfigureTemplate(event.currentTarget)}><Settings size={13} /> Plantilla</button>
           )}
-          {templateId !== "receta_externa" ? (
+          {!isPrescription ? (
             <button type="button" className="paper-add-section" onClick={addSection}><Plus size={13} /> Agregar sección</button>
-          ) : null}
+          ) : (
+            <button
+              type="button"
+              className="paper-add-section"
+              onClick={toggleFrame}
+            >
+              <Eye size={13} />
+              {frameHidden ? "Mostrar encuadre" : "Ocultar encuadre"}
+            </button>
+          )}
           <div className="typography-tools" aria-label="Tipografía del documento">
             <TypographyControl
               label="Tamaño del contenido"
@@ -112,7 +126,7 @@ export function DocumentPreview({
           </div>
         </div>
       </div>
-      <article style={paperStyle} className={`clinical-paper document-paper ${templateId === "receta_externa" ? "prescription-paper" : ""}`}>
+      <article style={paperStyle} className={`clinical-paper document-paper ${isPrescription ? "rx-paper" : ""}`}>
         <div className="paper-brand">
           <div><span>Servicio de Salud Metropolitano Oriente</span><strong>Hospital Hanga Roa</strong></div>
           <img src="/hhr-logo.svg" alt="Hospital Hanga Roa" width={54} height={54} />
@@ -147,7 +161,7 @@ export function DocumentPreview({
           </div>
         </section>
         {sections.map((section, index) => (
-          <section className={`paper-editable-section${section.id === "prescripcion" ? " paper-prescription" : ""}`} key={section.id}>
+          <section className={`paper-editable-section${section.id === "prescripcion" ? " rx-body" : ""}`} key={section.id}>
             <div className="paper-section-heading">
               {section.id === "prescripcion" ? (
                 <h3>Rp.</h3>
@@ -188,14 +202,15 @@ export function DocumentPreview({
             <div className={`paper-section-body-print print-only${!section.body ? " paper-empty" : ""}`}>{section.body || (section.id === "prescripcion" ? " " : "—")}</div>
           </section>
         ))}
-        <div className="signature-placement-zone">
-          <div className="signing-assets-canvas">
-            {placedSignature ? <PlacedImage asset={placedSignature} kind="signature" moveSignature={moveSignature} startSignatureMove={startSignatureMove} updatePlacedImage={updatePlacedImage} /> : null}
-            {placedStamp ? <PlacedImage asset={placedStamp} kind="stamp" moveSignature={moveSignature} startSignatureMove={startSignatureMove} updatePlacedImage={updatePlacedImage} /> : null}
+        <div className="signoff-zone">
+          <div className="asset-canvas">
+            {([["signature", placedSignature], ["stamp", placedStamp]] as const).map(([kind, asset]) => asset ? (
+              <PlacedDocumentAsset key={kind} asset={asset} kind={kind} moveSignature={moveSignature} startSignatureMove={startSignatureMove} updatePlacedImage={updatePlacedImage} />
+            ) : null)}
           </div>
-          <div className="document-signoff">
+          <div className="signoff">
             {signer.name ? (
-              <button type="button" className="document-signer preview-edit-target" onClick={() => onEditRequest("professional-name")}>
+              <button type="button" className="signer-lines preview-edit-target" onClick={() => onEditRequest("professional-name")}>
                 <strong>{signer.name}</strong>
                 {signer.specialty ? <span>{signer.specialty}</span> : null}
                 {signer.rut ? <span>RUT: {signer.rut}</span> : null}
@@ -204,7 +219,7 @@ export function DocumentPreview({
             <button type="button" className="paper-date preview-edit-target" onClick={() => onEditRequest("document-issue-date")}>Fecha: {formatStoredDate(issueDate)}</button>
           </div>
         </div>
-        {templateId === "receta_externa" ? <div className="prescription-warning">RECETA MÉDICA EXTERNA</div> : null}
+        {isPrescription && !frameHidden ? <div className="rx-frame">RECETA MÉDICA EXTERNA</div> : null}
       </article>
     </section>
   );
@@ -291,58 +306,5 @@ function AutoGrowingTextarea({
       placeholder={placeholder}
       onChange={(event) => onChange(event.target.value)}
     />
-  );
-}
-
-function PlacedImage({
-  asset,
-  kind,
-  moveSignature,
-  startSignatureMove,
-  updatePlacedImage,
-}: {
-  asset: PlacedSignature;
-  kind: SignatureAssetKind;
-  moveSignature: DocumentWorkspace["moveSignature"];
-  startSignatureMove: DocumentWorkspace["startSignatureMove"];
-  updatePlacedImage: DocumentWorkspace["updatePlacedImage"];
-}) {
-  const label = kind === "stamp" ? "timbre" : "firma";
-  return (
-    <div
-      className={`placed-signature placed-asset-${kind}`}
-      style={{ left: `${asset.x}%`, top: `${asset.y}%`, width: `${asset.width}%` }}
-    >
-      <button
-        type="button"
-        className="signature-drag-handle print-hide"
-        aria-keyshortcuts="ArrowUp ArrowDown ArrowLeft ArrowRight"
-        aria-label={`Mover ${label}; use las flechas del teclado`}
-        title={`Arrastrar ${label} o mover con las flechas`}
-        onKeyDown={(event) => {
-          const step = event.shiftKey ? 5 : 1;
-          const movement = {
-            ArrowDown: { y: asset.y + step },
-            ArrowLeft: { x: asset.x - step },
-            ArrowRight: { x: asset.x + step },
-            ArrowUp: { y: asset.y - step },
-          }[event.key];
-          if (!movement) return;
-          event.preventDefault();
-          updatePlacedImage(kind, movement);
-        }}
-        onPointerDown={(event) => startSignatureMove(kind, event)}
-        onPointerMove={(event) => moveSignature(kind, event)}
-      >
-        <GripVertical size={14} />
-      </button>
-      <img
-        src={asset.imageUrl}
-        alt={`${kind === "stamp" ? "Timbre" : "Firma"} de ${asset.professionalName}`}
-        width={220}
-        height={90}
-        draggable={false}
-      />
-    </div>
   );
 }

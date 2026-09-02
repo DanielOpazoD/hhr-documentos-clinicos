@@ -90,6 +90,28 @@ for (const viewport of viewports) {
       await expect(print).toBeFocused();
     });
 
+    test("oculta y restaura el encuadre de receta externa", async ({ page, app }) => {
+      await openApp(page, app, "/documentos");
+      await openNewDocument(page, "Receta externa");
+
+      const frame = page.getByText("RECETA MÉDICA EXTERNA", { exact: true });
+      const hideFrame = page.getByRole("button", { name: "Ocultar encuadre" });
+      await expect(frame).toBeVisible();
+      await activate(hideFrame);
+      await expect(frame).toHaveCount(0);
+      await expect(page.getByRole("button", { name: "Mostrar encuadre" })).toBeVisible();
+
+      await page.keyboard.press("Control+s");
+      await expect(page).toHaveURL(/document=/);
+      await page.reload();
+      await expect(page.getByRole("button", { name: "Mostrar encuadre" })).toBeVisible();
+      await expect(frame).toHaveCount(0);
+
+      await activate(page.getByRole("button", { name: "Mostrar encuadre" }));
+      await expect(frame).toBeVisible();
+      await assertNoSeriousAxe(page, `encuadre de receta ${viewport.label}`);
+    });
+
     test("restaura una versión y permite recuperar la versión que estaba vigente", async ({ page, app }) => {
       const documentId = `e2e-history-${viewport.id}`;
       const currentBody = `Contenido actual preservado ${viewport.label}`;
@@ -219,8 +241,14 @@ for (const viewport of viewports) {
       await expect(page.getByTitle("Vista del formulario: Hepatitis B, C y Chagas")).toHaveAttribute("src", /serologia-hepatitis-chagas\.pdf/);
       await assertNoSeriousAxe(page, `formularios ${viewport.label}`);
 
+      const tuberculosis = page.getByRole("button", { name: /Investigación de tuberculosis/ });
+      await activate(tuberculosis);
+      await expect(tuberculosis).toHaveAttribute("aria-current", "page");
+      await expect(page.getByTitle("Vista del formulario: Investigación de tuberculosis")).toHaveAttribute("src", /solicitud-laboratorio-tuberculosis-norma-2022\.pdf/);
+      await expect(page.getByRole("link", { name: "Descargar" })).toHaveAttribute("download", "SOLICITUD-LABORATORIO-TUBERCULOSIS NORMA 2022.pdf");
+
       const open = page.getByRole("link", { name: "Abrir e imprimir" });
-      await expect(open).toHaveAttribute("href", /serologia-hepatitis-chagas\.pdf/);
+      await expect(open).toHaveAttribute("href", /solicitud-laboratorio-tuberculosis-norma-2022\.pdf/);
       const popupPromise = page.waitForEvent("popup");
       await activate(open);
       const popup = await popupPromise;
@@ -277,6 +305,21 @@ for (const viewport of viewports) {
       await moveSignature.press("ArrowRight");
       const nextLeft = await moveSignature.locator("..").evaluate((element) => element.style.left);
       expect(nextLeft).not.toBe(previousLeft);
+
+      await activate(page.getByRole("button", { name: "Ocultar firma" }));
+      await activate(page.getByRole("button", { name: "Ocultar timbre" }));
+      await expect(page.locator(".asset-signature img")).toBeHidden();
+      await expect(page.locator(".asset-stamp img")).toBeHidden();
+
+      await page.keyboard.press("Control+s");
+      await expect(page).toHaveURL(/document=/);
+      await page.reload();
+      await expect(page.getByRole("button", { name: "Mostrar firma" })).toBeVisible();
+      await expect(page.getByRole("button", { name: "Mostrar timbre" })).toBeVisible();
+      await activate(page.getByRole("button", { name: "Mostrar firma" }));
+      await activate(page.getByRole("button", { name: "Mostrar timbre" }));
+      await expect(page.locator(".asset-signature img")).toBeVisible();
+      await expect(page.locator(".asset-stamp img")).toBeVisible();
 
       ({ panel, trigger } = await openProfessionalPanel(page));
       const signatureAssetName = `Firma de Profesional E2E ${viewport.label}`;
