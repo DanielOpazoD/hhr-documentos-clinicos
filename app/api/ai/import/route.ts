@@ -3,6 +3,7 @@ import { composePromptInstructions, PROFESSIONAL_INSTRUCTION_SOURCE } from "@/ap
 import { resolvePromptProfile } from "@/app/features/ai/server/prompt-store";
 import { PROMPT_ENGINE_VERSION, promptVersion } from "@/app/features/ai/prompt-catalog";
 import { generateDraftWithProvider, isAiProviderId } from "@/app/features/ai/server/providers";
+import { OpenAiGenerationError } from "@/app/features/ai/server/openai-responses";
 import { importSources } from "@/app/features/ai/server/import-request";
 import { summarizeAiSourcesForAudit } from "@/app/features/ai/server/operational-metadata";
 import { progressStream } from "@/app/features/ai/server/progress-stream";
@@ -261,6 +262,10 @@ async function importWithAi(request: Request) {
         streamCode = error.code;
         streamMessage = "La IA produjo un borrador que no superó la verificación automática.";
         streamStatus = 422;
+      } else if (error instanceof OpenAiGenerationError) {
+        streamCode = error.publicCode;
+        streamMessage = error.message;
+        streamStatus = error.publicStatus;
       }
       if (error instanceof AiExecutionCancelledError) {
         const auditRecorded = await auditBestEffort(owner, "cancelled", "ai_import", id, {
