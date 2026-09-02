@@ -402,10 +402,85 @@
 
 .document-clinical-context {
   min-width: 0;
+  overflow: hidden;
+  border: 1px solid #e3e3e7;
+  border-radius: 12px;
+  background: #fff;
+}
+
+.clinical-context-summary {
+  min-height: 50px;
+  display: grid;
+  grid-template-columns: minmax(220px, 1fr) minmax(270px, .72fr);
+  align-items: stretch;
+}
+
+.clinical-context-toggle {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 11px;
+  border: 0;
+  background: transparent;
+  color: var(--ink);
+  text-align: left;
+}
+
+.clinical-context-toggle:hover {
+  background: #fafbfb;
+}
+
+.clinical-context-toggle > span,
+.professional-summary-copy {
+  min-width: 0;
+  display: grid;
+  gap: 1px;
+}
+
+.clinical-context-toggle strong,
+.clinical-context-toggle small,
+.professional-summary-copy strong,
+.professional-summary-copy small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.clinical-context-toggle strong,
+.professional-summary-copy strong {
+  font-size: 12px;
+}
+
+.clinical-context-toggle[aria-expanded="true"] > svg {
+  transform: rotate(180deg);
 }
 
 .professional-summary {
-  display: none;
+  min-width: 0;
+  display: grid;
+  grid-template-columns: 28px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 7px;
+  border-left: 1px solid #e8e8eb;
+}
+
+.professional-summary-mark {
+  width: 28px;
+  height: 28px;
+  display: grid;
+  place-items: center;
+  border-radius: 8px;
+  background: #e9f3f3;
+  color: var(--cyan);
+}
+
+.professional-summary-trigger {
+  min-width: 58px;
+  height: 30px;
+  padding-inline: 7px;
 }
 
 .patient-editor {
@@ -415,8 +490,9 @@
   gap: 11px;
   margin: 0;
   padding: 8px 10px;
-  border: 1px solid #e3e3e7;
-  border-radius: 12px;
+  border: 0;
+  border-top: 1px solid #e8e8eb;
+  border-radius: 0;
   background: #fff;
 }
 
@@ -952,54 +1028,19 @@
 
   .document-clinical-context {
     display: grid;
-    gap: 6px;
+    gap: 0;
+    border-radius: 10px;
+  }
+
+  .clinical-context-summary {
+    min-height: 0;
+    grid-template-columns: 1fr;
   }
 
   .professional-summary {
-    order: -1;
-    min-width: 0;
     min-height: 44px;
-    display: grid;
-    grid-template-columns: 28px minmax(0, 1fr) auto;
-    align-items: center;
-    gap: 8px;
-    padding: 6px 7px;
-    border: 1px solid #e3e3e7;
-    border-radius: 10px;
-    background: #fff;
-  }
-
-  .professional-summary-mark {
-    width: 28px;
-    height: 28px;
-    display: grid;
-    place-items: center;
-    border-radius: 8px;
-    background: #e9f3f3;
-    color: var(--cyan);
-  }
-
-  .professional-summary-copy {
-    min-width: 0;
-    display: grid;
-    gap: 1px;
-  }
-
-  .professional-summary-copy strong,
-  .professional-summary-copy small {
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-
-  .professional-summary-copy strong {
-    font-size: 12px;
-  }
-
-  .professional-summary-trigger {
-    min-width: 58px;
-    height: 30px;
-    padding-inline: 7px;
+    border-top: 1px solid #e8e8eb;
+    border-left: 0;
   }
 
   .patient-editor {

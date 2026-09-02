@@ -555,11 +555,11 @@ test("keeps the clinical studios usable from mobile through desktop", async () =
   assert.match(documentStudio, /Eliminar esta imagen/);
   assert.doesNotMatch(documentStudio, /Las imágenes se administran y posicionan por separado/);
   assert.match(documentStudio, /professional-editor/);
-  assert.match(documentStudio, /document-professional-slot/);
-  assert.match(documentStudio, /createPortal/);
-  assert.match(documentStudio, /variant="sidebar"/);
+  assert.doesNotMatch(documentStudio, /document-professional-slot|createPortal|variant="sidebar"/);
   assert.match(documentStudio, /variant="panel"/);
   assert.match(documentStudio, /professional-summary-trigger/);
+  assert.match(documentStudio, /clinical-context-toggle/);
+  assert.match(documentStudio, /aria-expanded=\{expanded\}/);
   assert.match(documentStudio, /DocumentWorkspaceShell/);
   assert.match(documentStudio, /assistantOpen=\{assistantOpen\}/);
   assert.match(documentStudio, /hidden=\{!assistantOpen\}/);
@@ -621,7 +621,7 @@ test("keeps the clinical studios usable from mobile through desktop", async () =
   assert.match(documentStudio, /current === previous\.title \? saved\.title : current/);
   assert.match(documentStudio, /saved\.templateId === templateId && definitionChanged/);
   assert.match(documentStudio, /trigger\.focus\(\)/);
-  assert.match(documentStudio, /professionalSlot && !assistantOpen/);
+  assert.match(documentStudio, /id="document-clinical-context"/);
   assert.match(documentStudio, /signaturePanelOpen && !assistantOpen/);
   assert.doesNotMatch(await readFile(new URL("../app/components/DocumentStudio.tsx", import.meta.url), "utf8"), /Descargar PDF|studio-download-button/);
   assert.match(documentStudio, /Redacte manualmente o genere un borrador con IA/);
@@ -646,7 +646,7 @@ test("keeps the clinical studios usable from mobile through desktop", async () =
   assert.match(documentStudio, /Los cambios pendientes se guardan antes de imprimir/);
   assert.match(documentStudio, /onNavigate=\{editFromPreview\}/);
   assert.match(documentStudio, /fieldId === "signature-settings-trigger"/);
-  assert.match(documentStudio, /compactViewport[\s\S]*?professional-summary-trigger/);
+  assert.match(documentStudio, /querySelector<HTMLButtonElement>\("\.professional-summary-trigger"\)/);
   assert.match(documentStudio, /`panel-\$\{fieldId\}`/);
   assert.match(documentStudio, /if \(preflightOpen\) closePreflight\(\)/);
   assert.doesNotMatch(documentStudio, /identity-collapse-trigger|patientDetailsOpen|professionalDetailsOpen/);
@@ -790,7 +790,7 @@ test("keeps the clinical studios usable from mobile through desktop", async () =
   assert.match(styles, /\.studio-page \.header-actions \.button \{[\s\S]*?min-height: var\(--control-height\);[\s\S]*?flex: 0 0 auto;[\s\S]*?white-space: nowrap;/);
   assert.match(documentStyles, /\.studio-page \.header-actions \.button \{[^}]*min-height: var\(--touch-height\);/);
   assert.match(styles, /\.studio-page \.header-actions \{[\s\S]*?flex-wrap: nowrap;[\s\S]*?align-items: center;[\s\S]*?gap: 6px;/);
-  assert.match(documentStyles, /@media \(max-width: 820px\)[\s\S]*?\.professional-summary \{[\s\S]*?display: grid;/);
+  assert.match(documentStyles, /\.professional-summary \{[\s\S]*?display: grid;/);
   assert.match(documentStyles, /\.paper-toolbar-actions \{[\s\S]*?flex-wrap: nowrap;/);
   assert.doesNotMatch(globalStyles, /\.professional-editor-mobile|\.document-clinical-context/);
   assert.doesNotMatch(responsiveStyles, /\.patient-editor|\.document-workspace-shell/);

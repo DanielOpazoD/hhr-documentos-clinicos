@@ -1,7 +1,6 @@
 "use client";
 
 import { lazy, Suspense, useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
-import { createPortal } from "react-dom";
 import { Printer, Sparkles, X } from "@/app/components/Icons";
 import { PageHeader } from "@/app/components/VisualPrimitives";
 import { OperationFeedback } from "@/app/components/OperationFeedback";
@@ -10,7 +9,6 @@ import { AiProvenance } from "@/app/features/documents/AiProvenance";
 import { DocumentLibrary } from "@/app/features/documents/DocumentLibrary";
 import { ClinicalContextBar } from "@/app/features/documents/ClinicalContextBar";
 import { DocumentWorkspaceShell } from "@/app/features/documents/DocumentWorkspaceShell";
-import { ProfessionalEditor } from "@/app/features/documents/ProfessionalEditor";
 import { SignatureEditor } from "@/app/features/documents/SignatureEditor";
 import { DocumentPreview } from "@/app/features/documents/DocumentPreview";
 import { DocumentHistoryDialog } from "@/app/features/documents/DocumentHistoryDialog";
@@ -46,14 +44,29 @@ function AiStudioFallback() {
 
 export function DocumentStudio() {
   const workspace = useDocumentWorkspace();
+  const clinicalContextReady = Boolean(
+    (workspace.patient.fullName ?? workspace.patient.firstNames).trim()
+      && workspace.patient.rut.trim()
+      && workspace.patient.birthDate
+      && workspace.issueDate
+      && workspace.signer.name.trim()
+      && workspace.signer.rut.trim()
+      && workspace.signer.specialty.trim(),
+  );
   const [assistantOpen, setAssistantOpen] = useState(false);
   const [assistantActivated, setAssistantActivated] = useState(false);
   const [sidePanel, setSidePanel] = useState<"signature" | "template" | null>(null);
   const [preflightOpen, setPreflightOpen] = useState(false);
-  const [professionalSlot, setProfessionalSlot] = useState<HTMLElement | null>(null);
+  const [clinicalContextPreference, setClinicalContextPreference] = useState<{ documentId: string | null; expanded: boolean } | null>(null);
   const sidePanelRef = useRef<HTMLElement>(null);
   const sidePanelTriggerRef = useRef<HTMLButtonElement | null>(null);
   const printTriggerRef = useRef<HTMLButtonElement | null>(null);
+  const clinicalContextExpanded = clinicalContextPreference?.documentId === workspace.documentId
+    ? clinicalContextPreference.expanded
+    : !workspace.documentId || !clinicalContextReady;
+  const setClinicalContextExpanded = useCallback((expanded: boolean) => {
+    setClinicalContextPreference({ documentId: workspace.documentId, expanded });
+  }, [workspace.documentId]);
   const signaturePanelOpen = sidePanel === "signature";
   const {
     closeDocumentHistory,
@@ -131,23 +144,21 @@ export function DocumentStudio() {
   }, [openDocument, setAssistantVisibility]);
 
   const editFromPreview = useCallback((fieldId: string) => {
-    const compactViewport = window.matchMedia("(max-width: 820px)").matches;
     if (fieldId === "signature-settings-trigger") {
-      const trigger = document.querySelector<HTMLButtonElement>(
-        compactViewport
-          ? ".professional-summary-trigger"
-          : "#document-professional-slot .signature-panel-trigger",
-      );
+      const trigger = document.querySelector<HTMLButtonElement>(".professional-summary-trigger");
       if (!signaturePanelOpen && trigger) toggleSignaturePanel(trigger);
       else sidePanelRef.current?.focus();
       return;
     }
-    if (compactViewport && fieldId.startsWith("professional-")) {
+    if (fieldId.startsWith("patient-") || fieldId === "document-issue-date") {
+      setClinicalContextExpanded(true);
+    }
+    if (fieldId.startsWith("professional-")) {
       const trigger = document.querySelector<HTMLButtonElement>(".professional-summary-trigger");
       if (!signaturePanelOpen && trigger) toggleSignaturePanel(trigger);
     }
     window.requestAnimationFrame(() => window.requestAnimationFrame(() => {
-      const resolvedFieldId = compactViewport && fieldId.startsWith("professional-")
+      const resolvedFieldId = fieldId.startsWith("professional-")
         ? `panel-${fieldId}`
         : fieldId;
       const field = document.getElementById(resolvedFieldId);
@@ -158,7 +169,7 @@ export function DocumentStudio() {
       field.focus();
       field.scrollIntoView({ block: "center", behavior: "smooth" });
     }));
-  }, [signaturePanelOpen, toggleSignaturePanel]);
+  }, [setClinicalContextExpanded, signaturePanelOpen, toggleSignaturePanel]);
 
   const readiness = evaluateDocumentReadiness({
     aiMetadata: workspace.aiMetadata,
@@ -190,13 +201,6 @@ export function DocumentStudio() {
     window.requestAnimationFrame(() => window.print());
   }, [closePreflight, hasUnsavedChanges, persist, saving]);
 
-  useEffect(() => {
-    const frame = window.requestAnimationFrame(() => {
-      setProfessionalSlot(document.getElementById("document-professional-slot"));
-    });
-    return () => window.cancelAnimationFrame(frame);
-  }, []);
-
   useLayoutEffect(() => {
     if (sidePanel) sidePanelRef.current?.focus();
   }, [sidePanel]);
@@ -215,16 +219,6 @@ export function DocumentStudio() {
 
   return (
     <>
-      {professionalSlot && !assistantOpen ? createPortal(
-        <ProfessionalEditor
-          signer={workspace.signer}
-          updateSigner={workspace.updateSigner}
-          variant="sidebar"
-          onToggleSignature={toggleSignaturePanel}
-          signatureOpen={signaturePanelOpen}
-        />,
-        professionalSlot,
-      ) : null}
       {signaturePanelOpen && !assistantOpen ? (
         <aside ref={sidePanelRef} tabIndex={-1} id="signature-settings-panel" className="signature-settings-panel print-hide" aria-label="Configurar profesional, firma y timbre">
           <SignatureEditor workspace={workspace} onClose={closeSidePanel} />
@@ -314,6 +308,8 @@ export function DocumentStudio() {
           <main className="document-main">
             <ClinicalContextBar
               {...workspace}
+              expanded={clinicalContextExpanded}
+              onExpandedChange={setClinicalContextExpanded}
               onToggleProfessionalPanel={toggleSignaturePanel}
               professionalPanelOpen={signaturePanelOpen}
             />
