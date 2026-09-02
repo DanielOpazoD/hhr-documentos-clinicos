@@ -413,6 +413,8 @@ test("keeps one clear action hierarchy across the core studios", async () => {
   assert.match(frame, /const returnTo = nav\.find\(item => item\.label === active\)\?\.href \?\? "\/"/);
   assert.match(forms, /className="button primary"[^>]*><Printer[^>]*\/> Abrir e imprimir/);
   assert.match(forms, /className="button secondary"[^>]*><Download[^>]*\/> Descargar/);
+  assert.match(forms, /className="paper-toolbar official-form-toolbar"/);
+  assert.doesNotMatch(forms, /PageHeader[\s\S]{0,300}actions=/);
   assert.match(library, /className="button secondary full document-new-button"/);
   assert.match(library, /const recentMenuOpen = mobileLibraryOpen && !newMenuOpen/);
   assert.match(library, /\{!newMenuOpen \? <>[\s\S]*className="recent-heading"/);
@@ -429,7 +431,7 @@ test("keeps one clear action hierarchy across the core studios", async () => {
   assert.match(scanner, /features\/scanner\/scanner\.css/);
   assert.doesNotMatch(globalStyles, /\.scanner-import-copy/);
   assert.match(documentStyles, /\.template-menu button strong,[\s\S]*?font-size: 12px;/);
-  assert.match(globalStyles, /\.file-actions button, \.file-actions a \{ width: 40px; height: 40px;/);
+  assert.match(globalStyles, /\.file-actions > button, \.file-actions > a \{ min-width: 36px; height: 36px;/);
   assert.match(globalStyles, /\.files-grid \.file-card-body \{ align-items: stretch; flex-direction: column;/);
   assert.match(globalStyles, /@media \(min-width: 821px\) and \(max-width: 960px\)/);
 });

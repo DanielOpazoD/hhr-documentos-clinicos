@@ -42,11 +42,12 @@ test("defines compact desktop controls and accessible touch targets", () => {
   assert.match(globals, /\.mobile-nav a\s*\{[^}]*min-height:\s*44px/);
 });
 
-test("keeps secondary file actions quiet without hiding them on touch", () => {
+test("keeps one clear file action and moves maintenance into a compact menu", () => {
   const globals = readFileSync(cssFiles[0], "utf8");
 
-  assert.match(globals, /\.files-grid \.file-actions\s*\{[^}]*opacity:\s*\.45/);
-  assert.match(globals, /\(pointer:\s*coarse\)[^{]*\{[^}]*\.files-grid \.file-actions\s*\{\s*opacity:\s*1/);
+  assert.match(globals, /\.file-actions \.file-open-action\s*\{[^}]*color:\s*var\(--cyan\)/);
+  assert.match(globals, /\.file-actions-menu > div\s*\{[^}]*width:\s*172px/);
+  assert.doesNotMatch(globals, /\.files-grid \.file-actions\s*\{[^}]*opacity/);
 });
 
 test("keeps the document toolbar readable without sacrificing mobile space", () => {

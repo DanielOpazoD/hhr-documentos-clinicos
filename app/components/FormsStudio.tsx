@@ -19,10 +19,6 @@ export function FormsStudio({ catalog }: { catalog: readonly FormCatalogItem[] }
       className="compact-page-header"
       title="Formularios"
       description="Seleccione y descargue formularios institucionales en su formato original."
-      actions={isPdf ? <>
-        <a className="button primary" href={viewerUrl} target="_blank" rel="noreferrer"><Printer size={16} /> Abrir e imprimir</a>
-        <a className="button secondary" href={current.template} download={current.sourceFile}><Download size={16} /> Descargar</a>
-      </> : <a className="button primary" href={current.template} download={current.sourceFile}><Download size={16} /> Descargar Word</a>}
     />
 
     <div className="forms-workspace">
@@ -35,7 +31,15 @@ export function FormsStudio({ catalog }: { catalog: readonly FormCatalogItem[] }
       </nav>
 
       <section className="panel official-pdf-panel">
-        <div className="paper-toolbar"><span>{current.title}</span><span>{current.pageSize}</span></div>
+        <div className="paper-toolbar official-form-toolbar">
+          <span className="official-form-meta"><strong>{current.title}</strong><small>{current.eyebrow} · {current.pageSize}</small></span>
+          <div className="official-form-actions">
+            {isPdf ? <>
+              <a className="button primary" href={viewerUrl} target="_blank" rel="noreferrer"><Printer size={15} /> Abrir e imprimir</a>
+              <a className="button secondary" href={current.template} download={current.sourceFile}><Download size={15} /> Descargar</a>
+            </> : <a className="button primary" href={current.template} download={current.sourceFile}><Download size={15} /> Descargar Word</a>}
+          </div>
+        </div>
         {isPdf ? <>
           <iframe key={current.template} className="official-pdf-frame" src={viewerUrl} title={`Vista del formulario: ${current.title}`} />
           <div className="official-pdf-fallback"><a className="button secondary" href={viewerUrl} target="_blank" rel="noreferrer">Abrir PDF</a></div>
