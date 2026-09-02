@@ -745,6 +745,19 @@ test("keeps invalid clinical sources outside the AI execution ledger", async () 
   assert.match(combinedFailure.error, /no coincide con su formato/);
   assert.match(combinedFailure.error, /prompt seleccionado ya no está disponible/);
 
+  const malformedJson = new FormData();
+  malformedJson.set("processingAuthorized", "true");
+  malformedJson.set("target", "certificado");
+  malformedJson.set("provider", "openai");
+  malformedJson.set("promptMode", "free");
+  malformedJson.set("userInstructions", "Redacte un certificado breve usando solo datos respaldados.");
+  malformedJson.set("files", new File(["{not-json}"], "datos.json", { type: "application/json" }));
+  const malformedJsonFailure = await jsonResponse(await ownedFetch(owner, "/api/ai/import", {
+    method: "POST",
+    body: malformedJson,
+  }), 400);
+  assert.match(malformedJsonFailure.error, /no coincide con su formato/);
+
   const usage = await jsonResponse(await ownedFetch(owner, "/api/ai/usage?days=7"), 200);
   assert.equal(usage.availability.cloud.used, 0);
   assert.equal(usage.availability.concurrency.cloud.active, 0);

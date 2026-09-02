@@ -171,9 +171,9 @@ for (const viewport of viewports) {
       await page.getByLabel("Tipo de documento", { exact: true }).selectOption("free");
       await typeWithKeyboard(page.getByLabel("¿Qué documento necesita?"), "Crear un certificado sintético para la prueba E2E.");
       await page.locator('input[type="file"]').setInputFiles({
-        name: "fuente-e2e.png",
-        mimeType: "image/png",
-        buffer: syntheticPng({ width: 360, height: 480 }),
+        name: "fuente-e2e.json",
+        mimeType: "application/json",
+        buffer: Buffer.from(JSON.stringify({ patient: { name: "Paciente Sintético IA" } })),
       });
       await expect(page.locator(".ai-source-tray")).toContainText("Equipo");
       await expect(page.locator(".ai-composer > footer")).toContainText("1 fuente");

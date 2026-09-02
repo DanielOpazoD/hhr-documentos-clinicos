@@ -14,6 +14,7 @@ import {
   validateSourceContents,
   type SourceDescriptor,
 } from "../../app/features/ai/server/source-policy.ts";
+import { extractLocalSource } from "../../app/features/ai/server/source-extraction.ts";
 import {
   isDeclaredClinicalAbsence,
   protectUnsupportedSection,
@@ -63,6 +64,7 @@ test("validates AI source formats and resolves safe extension fallbacks", () => 
     validateSourceBatch([source({ name: "traslado.DOCX", type: "" })]),
     ["application/vnd.openxmlformats-officedocument.wordprocessingml.document"],
   );
+  assert.deepEqual(validateSourceBatch([source({ name: "datos.JSON", type: "" })]), ["application/json"]);
   assert.throws(() => validateSourceBatch([]), /Seleccione al menos un archivo/);
   assert.throws(
     () => validateSourceBatch(Array.from({ length: MAX_SOURCE_FILES + 1 }, () => source())),
@@ -91,8 +93,14 @@ test("rejects spoofed source metadata and accepts authentic file signatures", as
     "word/document.xml": strToU8("<w:document />"),
   })], "traslado.docx", { type: DOCX_MIME_TYPE });
 
-  const validFiles = [pdf, png, jpeg, docx];
+  const json = new File(['{"patient":{"name":"Paciente sintético"}}'], "datos.json", { type: "application/json" });
+  const validFiles = [pdf, png, jpeg, docx, json];
   await validateSourceContents(validFiles, validateSourceBatch(validFiles));
+  assert.equal(await extractLocalSource(json, "application/json"), '{"patient":{"name":"Paciente sintético"}}');
+
+  const largeIdentifier = '{"patient_id":9007199254740993}';
+  const exactJson = new File([largeIdentifier], "identificador.json", { type: "application/json" });
+  assert.equal(await extractLocalSource(exactJson, "application/json"), largeIdentifier);
 
   const executable = new File([
     new Uint8Array([0x4d, 0x5a, 0x90, 0x00]),
@@ -105,6 +113,12 @@ test("rejects spoofed source metadata and accepts authentic file signatures", as
   const malformedDocx = new File(["PK not really a DOCX"], "informe.docx", { type: DOCX_MIME_TYPE });
   await assert.rejects(
     validateSourceContents([malformedDocx], validateSourceBatch([malformedDocx])),
+    /no coincide con su formato/,
+  );
+
+  const malformedJson = new File(["{not-json}"], "datos.json", { type: "application/json" });
+  await assert.rejects(
+    validateSourceContents([malformedJson], validateSourceBatch([malformedJson])),
     /no coincide con su formato/,
   );
 });

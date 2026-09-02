@@ -1071,7 +1071,8 @@ test("offers isolated OpenAI and local Gemma providers", async () => {
   assert.match(source, /Actualizar borrador/);
   assert.match(source, /Configuración local inválida/);
   assert.match(source, /source_index/);
-  assert.match(source, /const original = await sourceContent/);
+  assert.match(source, /source\.mimeType === "application\/json"/);
+  assert.match(source, /\.pdf,\.docx,\.json,\.jpg/);
   assert.match(source, /sourceIndex >= sources\.length/);
   assert.match(source, /pagesWithoutText/);
   assert.match(source, /getPdfPageCount/);

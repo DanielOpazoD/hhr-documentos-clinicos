@@ -102,14 +102,16 @@ export async function generateClinicalDraft(input: {
   ));
   const instructionSourceIndex = input.sources.length;
   const content = (await Promise.all(input.sources.map(async (source, index) => {
-    const original = await sourceContent(source.file, source.sourceName, source.mimeType);
     const extractedText = sourceTexts[index];
+    const original = source.mimeType === "application/json"
+      ? null
+      : await sourceContent(source.file, source.sourceName, source.mimeType);
     const pageGuidance = source.mimeType === "application/pdf"
       ? ` Es un PDF${sourcePageCounts[index] ? ` de ${sourcePageCounts[index]} páginas` : ""}; cada cita debe indicar el número de página real del PDF.`
       : "";
     return [
       { type: "input_text", text: `FUENTE ${index + 1} · source_index ${index}: ${source.sourceName}.${pageGuidance}` },
-      original,
+      ...(original ? [original] : []),
       ...(extractedText !== null
         ? [{ type: "input_text", text: `TEXTO EXTRAÍDO PARA VERIFICACIÓN DE LA FUENTE ${index + 1}:\n${extractedText}` }]
         : []),
@@ -140,7 +142,7 @@ export async function generateClinicalDraft(input: {
           content: [
             ...content,
             ...professionalContent,
-            { type: "input_text", text: `Analiza las ${input.sources.length} fuentes documentales como un solo caso y prepara ${input.promptMode === "free" ? "exclusivamente el documento descrito en la indicación profesional" : `el borrador de tipo: ${input.target}`}. ${professionalInstructions ? `La fuente ${instructionSourceIndex} es la indicación profesional y manda sobre el alcance: no añadas contenido excluido o no solicitado.` : ""} Los marcadores HHR_PAGE_N representan páginas cuando existe texto extraído. En toda fuente PDF, incluso escaneada, usa el número de página real del PDF; reserva page null para DOCX, imágenes independientes y la indicación profesional.` },
+            { type: "input_text", text: `Analiza las ${input.sources.length} fuentes documentales como un solo caso y prepara ${input.promptMode === "free" ? "exclusivamente el documento descrito en la indicación profesional" : `el borrador de tipo: ${input.target}`}. ${professionalInstructions ? `La fuente ${instructionSourceIndex} es la indicación profesional y manda sobre el alcance: no añadas contenido excluido o no solicitado.` : ""} Los marcadores HHR_PAGE_N representan páginas cuando existe texto extraído. En toda fuente PDF, incluso escaneada, usa el número de página real del PDF; reserva page null para DOCX, JSON, imágenes independientes y la indicación profesional.` },
           ],
         },
       ],

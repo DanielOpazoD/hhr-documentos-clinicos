@@ -48,7 +48,7 @@ export function AiImportForm({ controller }: Props) {
           type="file"
           hidden
           multiple
-          accept=".pdf,.docx,.jpg,.jpeg,.png"
+          accept=".pdf,.docx,.json,.jpg,.jpeg,.png"
           onChange={(event) => {
             controller.addFiles(Array.from(event.target.files ?? []), "Equipo");
             event.currentTarget.value = "";
@@ -160,7 +160,7 @@ export function AiImportForm({ controller }: Props) {
 
           <section className="ai-source-tray" aria-labelledby="ai-source-tray-title">
             <header>
-              <span><strong id="ai-source-tray-title">Fuentes</strong><small>{controller.files.length ? `${controller.files.length} de 8 añadidas` : "PDF, DOCX o imágenes"}</small></span>
+              <span><strong id="ai-source-tray-title">Fuentes</strong><small>{controller.files.length ? `${controller.files.length} de 8 añadidas` : "PDF, DOCX, JSON o fotos"}</small></span>
               <div className="ai-composer-sources">
                 <button type="button" className="button secondary" disabled={controller.processing || controller.files.length >= 8} onClick={() => inputRef.current?.click()}>
                   <FileUp size={15} /> Adjuntar
