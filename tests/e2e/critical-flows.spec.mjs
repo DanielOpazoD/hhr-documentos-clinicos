@@ -121,6 +121,7 @@ for (const viewport of viewports) {
 
       await page.keyboard.press("Control+s");
       await expect(page).toHaveURL(/document=/);
+      await expect(page.getByText(/Guardado/, { exact: false }).first()).toBeVisible();
       await page.reload();
       await expect(frame).toHaveCount(0);
 
@@ -339,6 +340,7 @@ for (const viewport of viewports) {
 
       await page.keyboard.press("Control+s");
       await expect(page).toHaveURL(/document=/);
+      await expect(page.getByText(/Guardado/, { exact: false }).first()).toBeVisible();
       await page.reload();
       await expect(page.getByRole("button", { name: "Mostrar firma" })).toBeVisible();
       await expect(page.getByRole("button", { name: "Mostrar timbre" })).toBeVisible();
