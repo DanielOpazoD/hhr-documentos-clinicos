@@ -54,7 +54,18 @@
   min-width: 0;
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 4px;
+  padding: 3px;
+  border-radius: 10px;
+  background: #f4f5f5;
+}
+
+.studio-page .document-workspace-state {
+  padding-inline: 8px;
+}
+
+.studio-page .document-status-actions {
+  gap: 3px;
 }
 
 .document-assistant-toggle {

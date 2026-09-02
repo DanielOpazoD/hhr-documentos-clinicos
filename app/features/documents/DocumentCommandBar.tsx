@@ -35,7 +35,7 @@ export function DocumentCommandActions({
         ? "Cambios sin guardar"
         : documentId
           ? savedAt ? `Guardado ${savedAt}` : "Guardado"
-          : "Nuevo documento";
+          : "Nuevo";
   return (
     <div className="document-command-bar print-hide">
       <div
@@ -56,7 +56,7 @@ export function DocumentCommandActions({
         ) : null}
         {dirty && !saveError ? (
           <button
-            className="button secondary document-save-button"
+            className="button primary document-save-button"
             disabled={saving}
             onClick={() => void persist()}
             aria-label="Guardar ahora"

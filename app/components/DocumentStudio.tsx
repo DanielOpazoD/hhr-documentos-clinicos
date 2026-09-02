@@ -261,7 +261,7 @@ export function DocumentStudio() {
                 aria-label="Imprimir documento"
                 aria-controls="document-print-preflight"
                 aria-expanded={preflightOpen}
-                className="button primary studio-print-button"
+                className={workspace.dirty ? "button secondary studio-print-button" : "button primary studio-print-button"}
                 disabled={saving}
                 onClick={() => void printWhenReady()}
               >
