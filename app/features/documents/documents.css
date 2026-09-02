@@ -945,6 +945,31 @@
   gap: 4px;
 }
 
+.document-tools-menu > summary {
+  border: 1px solid var(--line);
+  background: #fff;
+}
+
+.document-tools-menu > div {
+  width: 190px;
+}
+
+.document-tools-menu .paper-add-section,
+.document-tools-menu .paper-template-settings {
+  width: 100%;
+  min-height: 36px;
+  justify-content: flex-start;
+  padding: 0 9px;
+  border-radius: 6px;
+  color: var(--ink);
+  font-weight: 600;
+}
+
+.document-tools-menu .paper-add-section:hover,
+.document-tools-menu .paper-template-settings:hover {
+  background: #f2f2f3;
+}
+
 @media (max-width: 1240px) {
   .patient-editor {
     grid-template-columns: 1fr;

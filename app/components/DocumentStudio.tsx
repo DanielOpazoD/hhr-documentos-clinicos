@@ -59,7 +59,7 @@ export function DocumentStudio() {
   const [preflightOpen, setPreflightOpen] = useState(false);
   const [clinicalContextPreference, setClinicalContextPreference] = useState<{ documentId: string | null; expanded: boolean } | null>(null);
   const sidePanelRef = useRef<HTMLElement>(null);
-  const sidePanelTriggerRef = useRef<HTMLButtonElement | null>(null);
+  const sidePanelTriggerRef = useRef<HTMLElement | null>(null);
   const printTriggerRef = useRef<HTMLButtonElement | null>(null);
   const clinicalContextExpanded = clinicalContextPreference?.documentId === workspace.documentId
     ? clinicalContextPreference.expanded
@@ -96,7 +96,7 @@ export function DocumentStudio() {
     sidePanelTriggerRef.current = trigger;
     setSidePanel("signature");
   }, [closeSidePanel, signaturePanelOpen]);
-  const openTemplatePanel = useCallback((trigger: HTMLButtonElement) => {
+  const openTemplatePanel = useCallback((trigger: HTMLElement) => {
     setSignatureDeleteId(null);
     setSignatureFormOpen(false);
     sidePanelTriggerRef.current = trigger;
